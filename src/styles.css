@@ -26,7 +26,18 @@ input[type=number]{padding:0.6rem 0.8rem;font-size:1.5rem;width:120px;text-align
 .final{font-weight:700;margin-top:0.5rem}
 .performance{margin:1.5rem 0}
 .performance-bar{height:24px;background:linear-gradient(to right,var(--ok),#ffd700,var(--bad));border-radius:12px;position:relative;overflow:hidden}
-.performance-marker{position:absolute;width:4px;height:100%;background:#000;top:0;transform:translateX(-50%)}
+.performance-marker {
+  position: absolute;
+  width: 4px;
+  height: 100%;
+  /* Black marker with white borders for contrast */
+  background: #000;
+  box-shadow: 
+    1px 0 1px rgba(255,255,255,0.8),
+    -1px 0 1px rgba(255,255,255,0.8);
+  top: 0;
+  transform: translateX(-50%);
+}
 .performance-labels{display:flex;justify-content:space-between;font-size:0.85rem;color:#666;margin-top:0.25rem}
 .performance-comment{text-align:center;margin-top:1rem;font-size:1.1rem;font-weight:500}
 .review-container{display:flex;gap:1.5rem;margin-top:1rem}
