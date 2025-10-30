@@ -23,9 +23,10 @@ export function MultiplayerProvider({ children }) {
       setError(msg);
     });
 
-    socket.on('roomCreated', ({ roomId, isAdmin }) => {
+    socket.on('roomCreated', ({ roomId, isAdmin, adminName }) => {
       setRoomId(roomId);
       setIsAdmin(isAdmin);
+      setUsername(adminName); // Set admin's username from room name
       setError(null);
     });
 

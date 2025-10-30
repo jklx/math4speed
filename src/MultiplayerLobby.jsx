@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMultiplayer } from './MultiplayerContext';
 
-function JoinRoomControls({ roomCode, name, setName, joinRoom }) {
+function JoinRoomStatus({ roomCode }) {
   const { roomCheck } = useMultiplayer();
-
+  const navigate = useNavigate();
+  
   // show appropriate UI depending on roomCheck state
   const checkingThis = roomCheck.roomId === roomCode;
 
@@ -12,43 +14,43 @@ function JoinRoomControls({ roomCode, name, setName, joinRoom }) {
   }
 
   if (checkingThis && roomCheck.exists === true && roomCheck.status !== 'waiting') {
-    return <div className="hint" style={{ color: '#d97706', marginTop: 8 }}>Spiel läuft bereits (Status: {roomCheck.status}). Beitreten nicht möglich.</div>
+    return <div className="hint" style={{ color: '#d97706', marginTop: 8 }}>Spiel läuft bereits. Beitreten nicht möglich.</div>
   }
 
-  // either still checking or exists & waiting
-  return (
-    <>
-      <input
-        type="text"
-        placeholder="Dein Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={{ marginTop: 8 }}
-      />
+  if (checkingThis && roomCheck.exists === true && roomCheck.status === 'waiting') {
+    return (
       <div className="tile-actions">
         <button
           className="big"
-          onClick={() => joinRoom(roomCode, name)}
-          disabled={!name || !(roomCheck.roomId === roomCode && roomCheck.exists === true && roomCheck.status === 'waiting')}
+          onClick={() => navigate(`/room/${roomCode.toLowerCase()}`)}
         >
-          Beitreten
+          Weiter zum Beitreten
         </button>
       </div>
-      {checkingThis && roomCheck.exists === null && <div className="hint">Prüfe Raum…</div>}
-    </>
-  );
+    )
+  }
+
+  if (checkingThis && roomCheck.exists === null) {
+    return <div className="hint">Prüfe Raum…</div>
+  }
+
+  return null;
 }
 
-export default function MultiplayerLobby({ onSinglePlayer }) {
-  const [showJoin, setShowJoin] = useState(false);
-  const [inputUsername, setInputUsername] = useState('');
-  const [inputRoomId, setInputRoomId] = useState('');
-  const { createRoom, joinRoom, roomState, roomId, error, isAdmin, startGame, roomCheck, checkRoom } = useMultiplayer();
+export default function MultiplayerLobby() {
+  const navigate = useNavigate();
+  const { createRoom, roomId, error, checkRoom, roomCheck } = useMultiplayer();
 
   // Landing tile states
   const [joinTileRoom, setJoinTileRoom] = useState('');
-  const [joinTileName, setJoinTileName] = useState('');
   const [createTileName, setCreateTileName] = useState('');
+
+  // If we got into a room, redirect to game/admin
+  useEffect(() => {
+    if (roomId) {
+      navigate('/play');
+    }
+  }, [roomId]);
 
   // when joinTileRoom becomes 6 chars, trigger a server-side room check
   useEffect(() => {
@@ -70,7 +72,7 @@ export default function MultiplayerLobby({ onSinglePlayer }) {
             <div className="title">Trainieren</div>
             <div className="subtitle">Einzelspieler: Übe so oft du möchtest und verbessere deine Zeit.</div>
             <div className="tile-actions">
-              <button className="big" onClick={onSinglePlayer}>Jetzt trainieren</button>
+              <button className="big" onClick={() => navigate('/training')}>Jetzt trainieren</button>
             </div>
           </div>
         </div>
@@ -88,11 +90,8 @@ export default function MultiplayerLobby({ onSinglePlayer }) {
                   maxLength={6}
                 />
                 {joinTileRoom.length === 6 && (
-                  <JoinRoomControls
+                  <JoinRoomStatus
                     roomCode={joinTileRoom}
-                    name={joinTileName}
-                    setName={setJoinTileName}
-                    joinRoom={joinRoom}
                   />
                 )}
                 <div className="hint">Raum-Code ist 6 Zeichen lang.</div>

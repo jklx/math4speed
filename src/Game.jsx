@@ -232,9 +232,11 @@ export default function Game({ isSinglePlayer }) {
             </div>
           </div>
 
-          <div className="actions">
-            <button onClick={handleStart} className="big">Nochmal versuchen</button>
-          </div>
+          {isSinglePlayer && (
+            <div className="actions">
+              <button onClick={handleStart} className="big">Nochmal versuchen</button>
+            </div>
+          )}
         </main>
       )}
 

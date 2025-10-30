@@ -33,7 +33,7 @@ io.on('connection', (socket) => {
       startTime: null
     });
     socket.join(roomId);
-    socket.emit('roomCreated', { roomId, isAdmin: true });
+    socket.emit('roomCreated', { roomId, isAdmin: true, adminName: roomName });
     updateRoomState(roomId);
   });
 
@@ -80,10 +80,10 @@ io.on('connection', (socket) => {
   socket.on('updateProgress', ({ roomId, progress, solved }) => {
     const rid = String(roomId).toLowerCase();
     const room = rooms.get(rid);
-    if (!room) return;
+    if (!room || room.status === 'finished') return;
     
     const player = room.players.get(socket.id);
-    if (player) {
+    if (player && !player.score) { // only update if player hasn't finished
       player.progress = progress;
       // Store solved problems (array) for admin view
       if (Array.isArray(solved)) {
@@ -96,10 +96,10 @@ io.on('connection', (socket) => {
   socket.on('finishGame', ({ roomId, score, wrongCount }) => {
     const rid = String(roomId).toLowerCase();
     const room = rooms.get(rid);
-    if (!room) return;
+    if (!room || room.status === 'finished') return;
     
     const player = room.players.get(socket.id);
-    if (player) {
+    if (player && !player.score) { // only allow finishing once
       player.score = { time: score, wrongCount };
       player.progress = 100;
       
