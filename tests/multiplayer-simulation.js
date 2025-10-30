@@ -5,18 +5,18 @@ const { performance } = require('perf_hooks');
 const STUDENT_PROFILES = {
   fast: {
     name: 'FastSolver',
-    thinkTimeRange: [500, 1200],    // ms per problem
+    thinkTimeRange: [800, 1200],    // ms per problem
     accuracyRange: [0.95, 1.0],     // 95-100% correct
   },
   average: {
     name: 'AverageSolver',
     thinkTimeRange: [1500, 3000],   // ms per problem
-    accuracyRange: [0.8, 0.9],      // 80-90% correct
+    accuracyRange: [0.85, 0.95],      // 80-90% correct
   },
   struggling: {
     name: 'StrugglingLearner',
     thinkTimeRange: [2500, 5000],   // ms per problem
-    accuracyRange: [0.6, 0.75],     // 60-75% correct
+    accuracyRange: [0.7, 0.8],     // 60-75% correct
   }
 };
 
