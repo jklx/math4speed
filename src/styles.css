@@ -1,0 +1,41 @@
+:root{
+  --bg:#f7f7fb;
+  --card:#ffffff;
+  --accent:#2b6cb0;
+  --bad:#e53e3e;
+  --ok:#38a169;
+}
+*{box-sizing:border-box}
+body{font-family:Inter,Segoe UI,Arial,Helvetica,sans-serif;background:var(--bg);margin:0;padding:1rem}
+.app{max-width:760px;margin:0 auto;background:transparent}
+header{margin-bottom:1rem}
+.center{text-align:center;padding:2rem;background:var(--card);border-radius:8px}
+.big{background:var(--accent);color:white;border:none;padding:0.6rem 1rem;border-radius:6px;cursor:pointer}
+.top-row{display:flex;justify-content:space-between;margin-bottom:1rem}
+.question{display:flex;align-items:center;justify-content:center;gap:1.5rem;background:var(--card);padding:2rem;border-radius:8px;text-align:center}
+.expression{font-size:2rem;font-weight:700}
+input[type=number]{padding:0.6rem 0.8rem;font-size:1.5rem;width:120px;text-align:center}
+.countdown{font-size:6rem;font-weight:700;color:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{
+  0%{transform:scale(1)}
+  50%{transform:scale(1.2)}
+  100%{transform:scale(1)}
+}
+.controls{display:flex;align-items:center;gap:1rem;margin-top:1rem}
+.summary{background:var(--card);padding:1.5rem;border-radius:8px;margin-bottom:1rem}
+.final{font-weight:700;margin-top:0.5rem}
+.performance{margin:1.5rem 0}
+.performance-bar{height:24px;background:linear-gradient(to right,var(--ok),#ffd700,var(--bad));border-radius:12px;position:relative;overflow:hidden}
+.performance-marker{position:absolute;width:4px;height:100%;background:#000;top:0;transform:translateX(-50%)}
+.performance-labels{display:flex;justify-content:space-between;font-size:0.85rem;color:#666;margin-top:0.25rem}
+.performance-comment{text-align:center;margin-top:1rem;font-size:1.1rem;font-weight:500}
+.review-container{display:flex;gap:1.5rem;margin-top:1rem}
+.review-column{flex:1;background:var(--card);padding:1.5rem;border-radius:8px;max-height:400px;overflow:auto}
+.review-column h4{margin-top:0;margin-bottom:1rem;color:#444}
+.review-list{list-style:none;padding:0;margin:0}
+.review-list li{padding:0.5rem;border-bottom:1px solid rgba(0,0,0,0.05);font-size:0.95rem}
+.review-list li:last-child{border-bottom:none}
+.review-list.ok li{color:var(--ok)}
+.review-list.bad li{color:var(--bad)}
+.small{color:#333;opacity:0.8}
+footer{margin-top:1.5rem;text-align:center;color:#666}
