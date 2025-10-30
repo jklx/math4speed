@@ -168,6 +168,19 @@ input[type=number]{padding:0.6rem 0.8rem;font-size:1.5rem;width:120px;text-align
   padding-right: 6px; /* room for scrollbar */
 }
 
+.room-id {
+  font-size: 1.25rem;
+  background: #fff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  color: var(--accent);
+  display: inline-block;
+  margin-left: 0.5rem;
+}
+
+.waiting-message{font-size:1.05rem;color:#444}
+.player-name{font-size:0.95rem;color:#333;margin-top:0.25rem}
+
 .problem-entry {
   padding: 0.3rem;
   border-bottom: 1px solid rgba(0,0,0,0.05);

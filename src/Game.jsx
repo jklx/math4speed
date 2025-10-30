@@ -3,7 +3,7 @@ import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
 
 export default function Game({ isSinglePlayer }) {
-  const { roomState, roomId, updateProgress, finishGame } = useMultiplayer();
+  const { roomState, roomId, updateProgress, finishGame, username } = useMultiplayer();
   const problems = useMemo(() => generateProblems(50), [])
 
   const [started, setStarted] = useState(false)
@@ -131,18 +131,26 @@ export default function Game({ isSinglePlayer }) {
     <div className="app">
       <header>
         <h1>Mathe4Speed — {problems.length} Einmaleinsaufgaben</h1>
-        {roomId && <div className="room-info">Raum: {roomId}</div>}
+        {roomId && <div className="room-info">Raum: {roomId.toLowerCase()}</div>}
+        {username && <div className="player-name">Spieler: {username}</div>}
       </header>
 
       {!started && (
         <main className="center">
           {countdown === null ? (
             <>
-              {isSinglePlayer && (
+              {isSinglePlayer ? (
                 <>
                   <p>Du bekommst {problems.length} Einmaleinsaufgaben. Aufgaben mit ·1 und ·10 kommen seltener vor.</p>
                   <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
                   <button onClick={handleStart} className="big">Starten</button>
+                </>
+              ) : (
+                // multiplayer player waiting state
+                <>
+                  <p>Warte auf den Start durch den Admin...</p>
+                  <p>Raum: <strong>{roomId?.toLowerCase()}</strong></p>
+                  {username && <p>Dein Name: <strong>{username}</strong></p>}
                 </>
               )}
             </>

@@ -20,11 +20,15 @@ io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
   socket.on('createRoom', (username) => {
-    const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    // username parameter is actually a room name provided by admin
+    const roomName = username;
+    // generate a lowercase 6-char room id
+    const roomId = Math.random().toString(36).substring(2, 8).toLowerCase();
+    // store admin separately; do NOT include admin in the players map
     rooms.set(roomId, {
       admin: socket.id,
-      adminName: username,
-      players: new Map([[socket.id, { username, score: null, progress: 0 }]]),
+      adminName: roomName,
+      players: new Map(),
       status: 'waiting', // waiting, playing, finished
       startTime: null
     });
@@ -34,7 +38,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('joinRoom', ({ roomId, username }) => {
-    const room = rooms.get(roomId);
+    const rid = String(roomId).toLowerCase();
+    const room = rooms.get(rid);
     if (!room) {
       socket.emit('error', 'Room not found');
       return;
@@ -43,34 +48,38 @@ io.on('connection', (socket) => {
       socket.emit('error', 'Game already in progress');
       return;
     }
-    socket.join(roomId);
+    socket.join(rid);
     room.players.set(socket.id, { username, score: null, progress: 0 });
-    socket.emit('roomJoined', { roomId, isAdmin: false });
-    updateRoomState(roomId);
+    socket.emit('roomJoined', { roomId: rid, isAdmin: false });
+    updateRoomState(rid);
   });
 
   socket.on('startGame', (roomId) => {
-    const room = rooms.get(roomId);
+    const rid = String(roomId).toLowerCase();
+    const room = rooms.get(rid);
     if (!room || room.admin !== socket.id) return;
     
     room.status = 'playing';
     room.startTime = Date.now();
-    io.to(roomId).emit('gameStarted');
-    updateRoomState(roomId);
+    io.to(rid).emit('gameStarted');
+    updateRoomState(rid);
   });
 
   // allow clients to check whether a room exists and its status
+  // allow clients to check whether a room exists and its status
   socket.on('checkRoom', (roomId) => {
-    const room = rooms.get(roomId);
+    const rid = String(roomId).toLowerCase();
+    const room = rooms.get(rid);
     if (!room) {
-      socket.emit('roomCheckResult', { roomId, exists: false, status: null });
+      socket.emit('roomCheckResult', { roomId: rid, exists: false, status: null });
       return;
     }
-    socket.emit('roomCheckResult', { roomId, exists: true, status: room.status });
+    socket.emit('roomCheckResult', { roomId: rid, exists: true, status: room.status });
   });
 
   socket.on('updateProgress', ({ roomId, progress, solved }) => {
-    const room = rooms.get(roomId);
+    const rid = String(roomId).toLowerCase();
+    const room = rooms.get(rid);
     if (!room) return;
     
     const player = room.players.get(socket.id);
@@ -80,12 +89,13 @@ io.on('connection', (socket) => {
       if (Array.isArray(solved)) {
         player.solved = solved;
       }
-      updateRoomState(roomId);
+      updateRoomState(rid);
     }
   });
 
   socket.on('finishGame', ({ roomId, score, wrongCount }) => {
-    const room = rooms.get(roomId);
+    const rid = String(roomId).toLowerCase();
+    const room = rooms.get(rid);
     if (!room) return;
     
     const player = room.players.get(socket.id);
@@ -101,27 +111,33 @@ io.on('connection', (socket) => {
         room.status = 'finished';
       }
       
-      updateRoomState(roomId);
+      updateRoomState(rid);
     }
   });
 
   socket.on('disconnect', () => {
-    // Remove player from their room
+    // Walk rooms and clean up any references
     for (const [roomId, room] of rooms.entries()) {
+      // If the admin disconnected
+      if (room.admin === socket.id) {
+        const nextPlayer = room.players.keys().next().value;
+        if (nextPlayer) {
+          // promote the next player to admin and remove them from players map
+          room.admin = nextPlayer;
+          room.players.delete(nextPlayer);
+          // notify the promoted client that they are now admin
+          io.to(nextPlayer).emit('promotedToAdmin');
+          updateRoomState(roomId);
+        } else {
+          // no players left, remove the room
+          rooms.delete(roomId);
+        }
+        continue;
+      }
+
+      // If a regular player disconnected, remove them
       if (room.players.has(socket.id)) {
         room.players.delete(socket.id);
-        
-        // If admin left, assign new admin or close room
-        if (room.admin === socket.id) {
-          const nextPlayer = room.players.keys().next().value;
-          if (nextPlayer) {
-            room.admin = nextPlayer;
-          } else {
-            rooms.delete(roomId);
-            continue;
-          }
-        }
-        
         updateRoomState(roomId);
       }
     }
@@ -148,7 +164,7 @@ function updateRoomState(roomId) {
   io.to(roomId).emit('roomState', state);
 }
 
-const PORT = 3000;
+const PORT = 3001;
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

@@ -13,7 +13,7 @@ export function MultiplayerProvider({ children }) {
   const [roomCheck, setRoomCheck] = useState({ roomId: null, exists: null, status: null });
 
   useEffect(() => {
-    const socket = io('http://localhost:3000');
+    const socket = io('http://localhost:3001');
     
     socket.on('connect', () => {
       console.log('Connected to server');
@@ -37,6 +37,10 @@ export function MultiplayerProvider({ children }) {
 
     socket.on('roomState', (state) => {
       setRoomState(state);
+      // keep isAdmin state in sync with server-side admin assignment
+      if (socket && socket.id) {
+        setIsAdmin(state.admin === socket.id);
+      }
     });
 
     socket.on('roomCheckResult', ({ roomId, exists, status }) => {
@@ -51,13 +55,15 @@ export function MultiplayerProvider({ children }) {
   }, []);
 
   const createRoom = (username) => {
-    setUsername(username);
+    // For creating a room we accept a room name (adminName). Do not overwrite client username.
     socket?.emit('createRoom', username);
   };
 
   const joinRoom = (roomId, username) => {
     setUsername(username);
-    socket?.emit('joinRoom', { roomId, username });
+    // normalize to lowercase before sending to server
+    const rid = String(roomId).toLowerCase();
+    socket?.emit('joinRoom', { roomId: rid, username });
   };
 
   const startGame = () => {
@@ -67,9 +73,11 @@ export function MultiplayerProvider({ children }) {
 
   const checkRoom = (roomIdToCheck) => {
     if (!socket) return;
+    // normalize to lowercase before sending to server
+    const rid = String(roomIdToCheck).toLowerCase();
     // clear previous
-    setRoomCheck({ roomId: roomIdToCheck, exists: null, status: null });
-    socket.emit('checkRoom', roomIdToCheck);
+    setRoomCheck({ roomId: rid, exists: null, status: null });
+    socket.emit('checkRoom', rid);
   };
 
   const updateProgress = (progress, solved = null) => {
