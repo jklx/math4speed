@@ -21,8 +21,8 @@ function JoinRoomStatus({ roomCode }) {
     return (
       <div className="tile-actions">
         <button
+          type="submit"
           className="big"
-          onClick={() => navigate(`/room/${roomCode.toLowerCase()}`)}
         >
           Weiter zum Beitreten
         </button>
@@ -82,19 +82,30 @@ export default function MultiplayerLobby() {
               <div className="title">Raum beitreten</div>
               <div className="subtitle">Gib zuerst den Raum-Code ein (6 Zeichen), anschließend deinen Namen.</div>
               <div className="tile-body">
-                <input
-                  type="text"
-                  placeholder="Raum-Code (z. B. abc123)"
-                  value={joinTileRoom}
-                  onChange={(e) => setJoinTileRoom(e.target.value)}
-                  maxLength={6}
-                />
-                {joinTileRoom.length === 6 && (
-                  <JoinRoomStatus
-                    roomCode={joinTileRoom}
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if (joinTileRoom.length === 6 && 
+                      roomCheck.roomId === joinTileRoom && 
+                      roomCheck.exists && 
+                      roomCheck.status === 'waiting') {
+                    navigate(`/room/${joinTileRoom.toLowerCase()}`);
+                  }
+                }}>
+                  <input
+                    type="text"
+                    placeholder="Raum-Code (z. B. abc123)"
+                    value={joinTileRoom}
+                    onChange={(e) => setJoinTileRoom(e.target.value)}
+                    maxLength={6}
+                    autoFocus
                   />
-                )}
-                <div className="hint">Raum-Code ist 6 Zeichen lang.</div>
+                  {joinTileRoom.length === 6 && (
+                    <JoinRoomStatus
+                      roomCode={joinTileRoom}
+                    />
+                  )}
+                  <div className="hint">Raum-Code ist 6 Zeichen lang.</div>
+                </form>
               </div>
             </div>
           </div>
@@ -103,21 +114,29 @@ export default function MultiplayerLobby() {
                   <div className="title">Neuen Raum erstellen</div>
                   <div className="subtitle">Erstelle einen Raum (Raum-Name) und werde Admin. Andere können mit dem Code beitreten.</div>
               <div className="tile-body">
-                    <input
-                      type="text"
-                      placeholder="Raum-Name"
-                      value={createTileName}
-                      onChange={(e) => setCreateTileName(e.target.value)}
-                    />
-                <div className="tile-actions">
-                  <button
-                    className="big"
-                        onClick={() => createRoom(createTileName)}
-                    disabled={!createTileName}
-                  >
-                    Raum erstellen
-                  </button>
-                </div>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if (createTileName) {
+                    createRoom(createTileName);
+                  }
+                }}>
+                  <input
+                    type="text"
+                    placeholder="Raum-Name"
+                    value={createTileName}
+                    onChange={(e) => setCreateTileName(e.target.value)}
+                    required
+                  />
+                  <div className="tile-actions">
+                    <button
+                      type="submit"
+                      className="big"
+                      disabled={!createTileName}
+                    >
+                      Raum erstellen
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           </div>
