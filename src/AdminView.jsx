@@ -18,6 +18,13 @@ export default function AdminView() {
 
   if (!roomState) return null
 
+  const handleDownloadPDF = () => {
+    window.open(`http://localhost:3001/api/report/${roomId}`, '_blank')
+  }
+
+  const allPlayersFinished = roomState.players.length > 0 && 
+    roomState.players.every(p => p.score !== null)
+
   return (
     <div className="admin-view">
       <header>
@@ -28,6 +35,11 @@ export default function AdminView() {
       <div style={{ margin: '0 1rem 1rem 1rem' }}>
         {isAdmin && roomState.status === 'waiting' && (
           <button className="big" onClick={() => startGame()}>Spiel starten</button>
+        )}
+        {isAdmin && (
+          <button className="big" onClick={handleDownloadPDF} style={{ marginLeft: '0.5rem' }}>
+            📄 PDF-Bericht herunterladen
+          </button>
         )}
       </div>
 
@@ -45,7 +57,7 @@ export default function AdminView() {
 
             {player.solved && player.solved.length > 0 && (
               <div className="player-problems" ref={el => { problemRefs.current[player.id] = el }}>
-                {player.solved.slice(-8).map((problem, idx) => (
+                {player.solved.map((problem, idx) => (
                   <div key={idx} className={`problem-entry ${problem.isCorrect ? 'correct' : 'incorrect'}`}>
                     <span>{problem.a} · {problem.b} = {problem.user}</span>
                     <span>{problem.isCorrect ? '✓' : `✗ (${problem.correct})`}</span>

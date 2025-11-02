@@ -2,9 +2,11 @@ const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const PDFDocument = require('pdfkit');
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
@@ -163,6 +165,155 @@ function updateRoomState(roomId) {
   
   io.to(roomId).emit('roomState', state);
 }
+
+// PDF Report generation endpoint
+app.get('/api/report/:roomId', (req, res) => {
+  const roomId = req.params.roomId.toLowerCase();
+  const room = rooms.get(roomId);
+
+  if (!room) {
+    return res.status(404).json({ error: 'Room not found' });
+  }
+
+  const finishedPlayers = Array.from(room.players.entries())
+    .map(([id, data]) => ({ id, ...data }))
+    .filter(p => p.score !== null)
+    .sort((a, b) => a.score.time - b.score.time);
+
+  if (finishedPlayers.length === 0) {
+    return res.status(400).json({ error: 'No finished players in this room' });
+  }
+
+  // Create PDF
+  const doc = new PDFDocument({ 
+    size: 'A4',
+    margin: 50
+  });
+
+  // Set response headers for PDF download
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="mathe4speed-report-${roomId}.pdf"`);
+
+  // Pipe PDF to response
+  doc.pipe(res);
+
+  // Add title page
+  doc.fontSize(24).font('Helvetica-Bold').text('Mathe4Speed Bericht', { align: 'center' });
+  doc.moveDown(0.5);
+  doc.fontSize(14).font('Helvetica').text(`Raum: ${room.adminName || roomId}`, { align: 'center' });
+  doc.fontSize(12).text(`Raum-Code: ${roomId}`, { align: 'center' });
+  doc.moveDown(0.5);
+  doc.fontSize(10).text(`Erstellt am: ${new Date().toLocaleString('de-DE')}`, { align: 'center' });
+  doc.moveDown(2);
+
+  // Summary table
+  doc.fontSize(16).font('Helvetica-Bold').text('Zusammenfassung');
+  doc.moveDown(0.5);
+  doc.fontSize(10).font('Helvetica');
+  
+  const tableTop = doc.y;
+  const colWidths = { rank: 40, name: 180, time: 80, wrong: 80, raw: 80 };
+  let y = tableTop;
+
+  // Table header
+  doc.font('Helvetica-Bold');
+  doc.text('Rang', 50, y, { width: colWidths.rank, continued: true });
+  doc.text('Name', 50 + colWidths.rank, y, { width: colWidths.name, continued: true });
+  doc.text('Endzeit', 50 + colWidths.rank + colWidths.name, y, { width: colWidths.time, continued: true });
+  doc.text('Fehler', 50 + colWidths.rank + colWidths.name + colWidths.time, y, { width: colWidths.wrong, continued: true });
+  doc.text('Rohzeit', 50 + colWidths.rank + colWidths.name + colWidths.time + colWidths.wrong, y, { width: colWidths.raw });
+  
+  y += 20;
+  doc.moveTo(50, y).lineTo(550, y).stroke();
+  y += 5;
+
+  // Table rows
+  doc.font('Helvetica');
+  finishedPlayers.forEach((player, index) => {
+    const rawTime = player.score.time - (player.score.wrongCount * 10);
+    doc.text(`${index + 1}.`, 50, y, { width: colWidths.rank, continued: true });
+    doc.text(player.username, 50 + colWidths.rank, y, { width: colWidths.name, continued: true });
+    doc.text(`${player.score.time}s`, 50 + colWidths.rank + colWidths.name, y, { width: colWidths.time, continued: true });
+    doc.text(`${player.score.wrongCount}`, 50 + colWidths.rank + colWidths.name + colWidths.time, y, { width: colWidths.wrong, continued: true });
+    doc.text(`${rawTime}s`, 50 + colWidths.rank + colWidths.name + colWidths.time + colWidths.wrong, y, { width: colWidths.raw });
+    y += 18;
+  });
+
+  // Individual player pages
+  finishedPlayers.forEach((player, index) => {
+    doc.addPage();
+    
+    // Player header
+    doc.fontSize(20).font('Helvetica-Bold').text(player.username, { align: 'center' });
+    doc.moveDown(0.3);
+    doc.fontSize(12).font('Helvetica').text(`Rang: ${index + 1} von ${finishedPlayers.length}`, { align: 'center' });
+    doc.moveDown(1);
+
+    // Score summary
+    const rawTime = player.score.time - (player.score.wrongCount * 10);
+    const penalty = player.score.wrongCount * 10;
+    
+    doc.fontSize(14).font('Helvetica-Bold').text('Ergebnis');
+    doc.moveDown(0.5);
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`Rohzeit: ${rawTime} Sekunden`);
+    doc.text(`Falsche Antworten: ${player.score.wrongCount} (Strafe: ${penalty}s)`);
+    doc.fontSize(12).font('Helvetica-Bold');
+    doc.text(`Endzeit: ${player.score.time} Sekunden`);
+    doc.moveDown(1);
+
+    // Performance evaluation
+    doc.fontSize(14).font('Helvetica-Bold').text('Bewertung');
+    doc.moveDown(0.5);
+    doc.fontSize(11).font('Helvetica');
+    let comment = '';
+    if (player.score.time <= 90) comment = 'Hervorragend! Du bist ein Einmaleins-Profi! 🏆';
+    else if (player.score.time <= 120) comment = 'Sehr gut! Fast perfekte Zeit! 🌟';
+    else if (player.score.time <= 150) comment = 'Gut gemacht! Du bist auf dem richtigen Weg! 👍';
+    else if (player.score.time <= 180) comment = 'Nicht schlecht! Mit etwas Übung wird es noch besser! 💪';
+    else comment = 'Weiter üben! Du schaffst das! 🎯';
+    doc.text(comment);
+    doc.moveDown(1);
+
+    // Problem details if available
+    if (player.solved && player.solved.length > 0) {
+      doc.fontSize(14).font('Helvetica-Bold').text('Aufgaben-Details');
+      doc.moveDown(0.5);
+      
+      const correct = player.solved.filter(p => p.isCorrect);
+      const incorrect = player.solved.filter(p => !p.isCorrect);
+      
+      doc.fontSize(11).font('Helvetica');
+      doc.text(`Richtig gelöst: ${correct.length} von ${player.solved.length}`);
+      doc.text(`Genauigkeit: ${((correct.length / player.solved.length) * 100).toFixed(1)}%`);
+      doc.moveDown(0.5);
+
+      if (incorrect.length > 0 && incorrect.length <= 20) {
+        doc.fontSize(12).font('Helvetica-Bold').text('Falsch gelöste Aufgaben:');
+        doc.moveDown(0.3);
+        doc.fontSize(10).font('Helvetica');
+        
+        incorrect.forEach(prob => {
+          const userAnswer = isNaN(prob.user) ? '(keine Antwort)' : prob.user;
+          doc.text(`  ${prob.a} × ${prob.b} = ${prob.correct}  (Deine Antwort: ${userAnswer})`);
+        });
+      } else if (incorrect.length > 20) {
+        doc.fontSize(10).font('Helvetica');
+        doc.text(`${incorrect.length} Aufgaben wurden falsch beantwortet.`);
+      }
+    }
+
+    // Footer
+    doc.fontSize(8).text(
+      `Seite ${index + 2} | Mathe4Speed Report | ${new Date().toLocaleDateString('de-DE')}`,
+      50,
+      doc.page.height - 50,
+      { align: 'center' }
+    );
+  });
+
+  doc.end();
+});
 
 const PORT = 3001;
 httpServer.listen(PORT, () => {
