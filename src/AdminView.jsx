@@ -19,7 +19,7 @@ export default function AdminView() {
   if (!roomState) return null
 
   const handleDownloadPDF = () => {
-    window.open(`http://localhost:3001/api/report/${roomId}`, '_blank')
+    window.open(`/api/report/${roomId}`, '_blank')
   }
 
   const allPlayersFinished = roomState.players.length > 0 && 

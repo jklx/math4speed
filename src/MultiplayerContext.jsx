@@ -13,7 +13,9 @@ export function MultiplayerProvider({ children }) {
   const [roomCheck, setRoomCheck] = useState({ roomId: null, exists: null, status: null });
 
   useEffect(() => {
-    const socket = io('http://localhost:3001');
+    // Prefer explicit API URL via Vite env, fallback to same-origin
+    const API_URL = import.meta.env.VITE_API_URL || undefined;
+    const socket = io(API_URL, { path: '/socket.io' });
     
     socket.on('connect', () => {
       console.log('Connected to server');

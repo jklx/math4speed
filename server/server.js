@@ -8,9 +8,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 const httpServer = createServer(app);
+const ORIGIN = process.env.ORIGIN || '*';
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: ORIGIN,
     methods: ["GET", "POST"]
   }
 });
