@@ -1,4 +1,4 @@
-# Mathe4Speed — Einmaleins-Test
+# Math4Speed — Einmaleins-Test
 
 Kurze Anleitung
 
@@ -10,7 +10,7 @@ Kurze Anleitung
 Schnellstart (Windows PowerShell)
 
 ```powershell
-cd c:/Users/jakob/workspace/mathe4speed
+cd c:/Users/jakob/workspace/math4speed
 npm install
 npm run dev
 ```

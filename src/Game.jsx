@@ -130,7 +130,7 @@ export default function Game({ isSinglePlayer }) {
   return (
     <div className="app">
       <header>
-        <h1>Mathe4Speed — {problems.length} Einmaleinsaufgaben</h1>
+        <h1>Math4Speed — {problems.length} Einmaleinsaufgaben</h1>
         {roomId && <div className="room-info">Raum: {roomId.toLowerCase()}</div>}
         {username && <div className="player-name">Spieler: {username}</div>}
       </header>

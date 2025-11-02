@@ -192,13 +192,13 @@ app.get('/api/report/:roomId', (req, res) => {
 
   // Set response headers for PDF download
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="mathe4speed-report-${roomId}.pdf"`);
+  res.setHeader('Content-Disposition', `attachment; filename="math4speed-report-${roomId}.pdf"`);
 
   // Pipe PDF to response
   doc.pipe(res);
 
   // Add title page
-  doc.fontSize(24).font('Helvetica-Bold').text('Mathe4Speed Bericht', { align: 'center' });
+  doc.fontSize(24).font('Helvetica-Bold').text('Math4Speed Bericht', { align: 'center' });
   doc.moveDown(0.5);
   doc.fontSize(14).font('Helvetica').text(`Raum: ${room.adminName || roomId}`, { align: 'center' });
   doc.fontSize(12).text(`Raum-Code: ${roomId}`, { align: 'center' });
@@ -305,7 +305,7 @@ app.get('/api/report/:roomId', (req, res) => {
 
     // Footer
     doc.fontSize(8).text(
-      `Seite ${index + 2} | Mathe4Speed Report | ${new Date().toLocaleDateString('de-DE')}`,
+      `Seite ${index + 2} | Math4Speed Report | ${new Date().toLocaleDateString('de-DE')}`,
       50,
       doc.page.height - 50,
       { align: 'center' }

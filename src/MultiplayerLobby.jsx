@@ -63,7 +63,7 @@ export default function MultiplayerLobby() {
 
   return (
     <div className="lobby">
-      <h2>Mathe4Speed Multiplayer</h2>
+      <h2>Math4Speed Multiplayer</h2>
       {error && <div className="error">{error}</div>}
 
       <div className="menu-grid">
