@@ -180,14 +180,134 @@ button:disabled {
   overflow: auto;
 }
 
-.admin-grid {
-  display: grid;
-  /* fixed tile width so cards don't become too wide on large screens */
-  grid-template-columns: repeat(auto-fill, 320px);
-  justify-content: center;
-  gap: 1rem;
-  padding: 1rem;
+.admin-view header {
+  margin-bottom: 1.5rem;
 }
+
+.admin-view header h2 {
+  margin: 0 0 0.5rem 0;
+}
+
+.admin-view header .room-name {
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.admin-actions {
+  margin: 0 0 1.5rem 0;
+  min-height: 48px;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.admin-stats {
+  margin: 0 0 1.5rem 0;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border: 1px solid #dee2e6;
+}
+
+.admin-stats h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  color: #495057;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Content wrapper to align top UI with centered player grid */
+.admin-content {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.stats-grid {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+  justify-content: center;
+  /* ensure stat cards keep their intrinsic size and don't stretch to full width */
+}
+
+.stat-card {
+  flex: 0 0 auto;
+}
+
+.stat-card {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.stat-card .stat-label {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-bottom: 0.25rem;
+}
+
+.stat-card .stat-value {
+  font-size: 1.75rem;
+  font-weight: bold;
+}
+
+.stat-card .stat-value.blue {
+  color: #2563eb;
+}
+
+.stat-card .stat-value.green {
+  color: #16a34a;
+}
+
+.stat-card .stat-value.red {
+  color: #dc2626;
+}
+
+.stat-card .stat-suffix {
+  font-size: 1rem;
+  font-weight: normal;
+}
+
+.stat-card .stat-unit {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+}
+
+.admin-view {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0;
+  width: 100%;
+}
+
+.admin-inner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, 320px);
+  gap: 1rem;
+  align-items: start;
+  padding: 1rem 0;
+  justify-content: center;
+  width: 100%;
+  max-width: calc(100vw - 2rem);
+}
+
+/* Make the top content span all grid columns so it matches the cards width */
+.admin-content {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+/* no .admin-grid wrapper needed anymore; player cards are direct children of .admin-inner */
 
 .player-card {
   background: var(--card);
@@ -195,25 +315,99 @@ button:disabled {
   padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  height: 500px;
   /* keep tiles a consistent width */
   width: 320px;
 }
 
-.player-card h3 {
-  margin: 0;
-  color: var(--accent);
+.player-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 0.75rem;
+  min-height: 32px;
+}
+
+.player-card h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.player-card .admin-badge {
+  font-size: 0.85rem;
+  color: #666;
+  margin-left: 0.5rem;
+}
+
+.player-card .progress-percent {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.player-card .progress-percent.complete {
+  color: #16a34a;
+}
+
+.player-card .progress-percent.active {
+  color: #2563eb;
+}
+
+.player-card .progress-wrapper {
+  margin-bottom: 0.75rem;
+  min-height: 24px;
 }
 
 .player-problems {
-  /* Show about five entries at a glance, but allow scrolling to see the full history */
-  max-height: 140px;
-  overflow-y: auto;
+  flex: 1;
+  max-height: 200px;
+  min-height: 200px;
+  overflow: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 0.5rem;
+  background: #fff;
+  margin-bottom: 0.75rem;
+}
+
+.problem-entry {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.25rem;
+  border-radius: 4px;
   font-size: 0.9rem;
-  padding-right: 6px; /* room for scrollbar */
+}
+
+.problem-entry.correct {
+  color: var(--ok);
+}
+
+.problem-entry.incorrect {
+  color: var(--bad);
+}
+
+.player-score {
+  margin-top: auto;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  min-height: 80px;
+}
+
+.player-score .score-title {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #16a34a;
+  margin-bottom: 0.5rem;
+}
+
+.player-score .score-detail {
+  font-size: 0.95rem;
+  color: #495057;
+}
+
+.player-score .score-progress {
+  margin-top: 0.5rem;
 }
 
 .room-id {
