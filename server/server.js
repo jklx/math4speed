@@ -316,7 +316,7 @@ app.get('/api/report/:roomId', (req, res) => {
   doc.end();
 });
 
-const PORT = 3001;
+const PORT = 3000;
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

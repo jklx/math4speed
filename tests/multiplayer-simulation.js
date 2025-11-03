@@ -61,7 +61,7 @@ class SimulatedStudent {
   constructor(profile, roomId) {
     this.profile = profile;
     this.roomId = roomId;
-    this.socket = io('http://localhost:3001');
+    this.socket = io('http://localhost:3000');
     this.problems = generateProblems(50);
     this.answers = [];
     this.current = 0;
@@ -152,7 +152,7 @@ async function runTest(roomId) {
   }
 
   // Verify room exists first
-  const checkSocket = io('http://localhost:3001');
+  const checkSocket = io('http://localhost:3000');
   
   await new Promise((resolve) => {
     checkSocket.on('connect', resolve);
@@ -198,7 +198,7 @@ async function runTest(roomId) {
 
   // Wait for game to start (admin will start it from the UI)
   await new Promise(resolve => {
-    const waitSocket = io('http://localhost:3001');
+    const waitSocket = io('http://localhost:3000');
     waitSocket.emit('joinRoom', { roomId, username: 'SimulationWatcher' });
     
     waitSocket.on('gameStarted', () => {
@@ -210,7 +210,7 @@ async function runTest(roomId) {
 
   // Wait for completion
   await new Promise(resolve => {
-    const resultSocket = io('http://localhost:3001');
+    const resultSocket = io('http://localhost:3000');
     resultSocket.emit('joinRoom', { roomId, username: 'SimulationWatcher' });
     
     let finishedCount = 0;
