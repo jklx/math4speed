@@ -246,4 +246,12 @@ const roomId = process.argv[2]?.toLowerCase();
 
 // Run the test
 console.log('Starting multiplayer simulation test...');
-runTest(roomId).catch(console.error);
+runTest(roomId)
+  .then(() => {
+    console.log('All done — exiting.');
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
