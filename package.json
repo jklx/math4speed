@@ -7,7 +7,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server/server.js",
-    "server:dev": "nodemon server/server.js"
+    "server:dev": "nodemon --watch server --exec \"node server/server.js\"",
+    "lint": "eslint . --ext .js,.jsx",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "cors": "^2.8.5",
