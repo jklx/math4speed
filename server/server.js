@@ -215,28 +215,45 @@ app.get('/api/report/:roomId', (req, res) => {
   const tableTop = doc.y;
   const colWidths = { rank: 40, name: 180, time: 80, wrong: 80, raw: 80 };
   let y = tableTop;
-
-  // Table header
+  // Table header (render with explicit X positions and handle overflow)
   doc.font('Helvetica-Bold');
-  doc.text('Rang', 50, y, { width: colWidths.rank, continued: true });
-  doc.text('Name', 50 + colWidths.rank, y, { width: colWidths.name, continued: true });
-  doc.text('Endzeit', 50 + colWidths.rank + colWidths.name, y, { width: colWidths.time, continued: true });
-  doc.text('Fehler', 50 + colWidths.rank + colWidths.name + colWidths.time, y, { width: colWidths.wrong, continued: true });
-  doc.text('Rohzeit', 50 + colWidths.rank + colWidths.name + colWidths.time + colWidths.wrong, y, { width: colWidths.raw });
-  
+  const startX = 50;
+  const pageBottom = doc.page.height - doc.options.margin;
+
+  function renderTableHeader(atY) {
+    doc.font('Helvetica-Bold');
+    doc.text('Rang', startX, atY);
+    doc.text('Name', startX + colWidths.rank, atY);
+    doc.text('Endzeit', startX + colWidths.rank + colWidths.name, atY);
+    doc.text('Fehler', startX + colWidths.rank + colWidths.name + colWidths.time, atY);
+    doc.text('Rohzeit', startX + colWidths.rank + colWidths.name + colWidths.time + colWidths.wrong, atY);
+  }
+
+  renderTableHeader(y);
   y += 20;
-  doc.moveTo(50, y).lineTo(550, y).stroke();
-  y += 5;
+  doc.moveTo(startX, y).lineTo(startX + colWidths.rank + colWidths.name + colWidths.time + colWidths.wrong + colWidths.raw, y).stroke();
+  y += 8;
 
   // Table rows
   doc.font('Helvetica');
   finishedPlayers.forEach((player, index) => {
     const rawTime = player.score.time - (player.score.wrongCount * 10);
-    doc.text(`${index + 1}.`, 50, y, { width: colWidths.rank, continued: true });
-    doc.text(player.username, 50 + colWidths.rank, y, { width: colWidths.name, continued: true });
-    doc.text(`${player.score.time}s`, 50 + colWidths.rank + colWidths.name, y, { width: colWidths.time, continued: true });
-    doc.text(`${player.score.wrongCount}`, 50 + colWidths.rank + colWidths.name + colWidths.time, y, { width: colWidths.wrong, continued: true });
-    doc.text(`${rawTime}s`, 50 + colWidths.rank + colWidths.name + colWidths.time + colWidths.wrong, y, { width: colWidths.raw });
+
+    // Check for page overflow and create a new page with header if needed
+    if (y + 20 > pageBottom) {
+      doc.addPage();
+      y = doc.y;
+      renderTableHeader(y);
+      y += 20;
+      doc.moveTo(startX, y).lineTo(startX + colWidths.rank + colWidths.name + colWidths.time + colWidths.wrong + colWidths.raw, y).stroke();
+      y += 8;
+    }
+
+    doc.text(`${index + 1}.`, startX, y);
+    doc.text(player.username, startX + colWidths.rank, y);
+    doc.text(`${player.score.time}s`, startX + colWidths.rank + colWidths.name, y);
+    doc.text(`${player.score.wrongCount}`, startX + colWidths.rank + colWidths.name + colWidths.time, y);
+    doc.text(`${rawTime}s`, startX + colWidths.rank + colWidths.name + colWidths.time + colWidths.wrong, y);
     y += 18;
   });
 
@@ -268,11 +285,11 @@ app.get('/api/report/:roomId', (req, res) => {
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica');
     let comment = '';
-    if (player.score.time <= 90) comment = 'Hervorragend! Du bist ein Einmaleins-Profi! 🏆';
-    else if (player.score.time <= 120) comment = 'Sehr gut! Fast perfekte Zeit! 🌟';
-    else if (player.score.time <= 150) comment = 'Gut gemacht! Du bist auf dem richtigen Weg! 👍';
-    else if (player.score.time <= 180) comment = 'Nicht schlecht! Mit etwas Übung wird es noch besser! 💪';
-    else comment = 'Weiter üben! Du schaffst das! 🎯';
+    if (player.score.time <= 90) comment = 'Hervorragend! Du bist ein Einmaleins-Profi! ';
+    else if (player.score.time <= 120) comment = 'Sehr gut! Fast perfekte Zeit! ';
+    else if (player.score.time <= 150) comment = 'Gut gemacht! Du bist auf dem richtigen Weg! ';
+    else if (player.score.time <= 180) comment = 'Nicht schlecht! Mit etwas Übung wird es noch besser! ';
+    else comment = 'Weiter üben! Du schaffst das!';
     doc.text(comment);
     doc.moveDown(1);
 
@@ -304,13 +321,6 @@ app.get('/api/report/:roomId', (req, res) => {
       }
     }
 
-    // Footer
-    doc.fontSize(8).text(
-      `Seite ${index + 2} | Math4Speed Report | ${new Date().toLocaleDateString('de-DE')}`,
-      50,
-      doc.page.height - 50,
-      { align: 'center' }
-    );
   });
 
   doc.end();
