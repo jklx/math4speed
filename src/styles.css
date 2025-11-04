@@ -206,6 +206,42 @@ button:disabled {
   border-color: #e6e6e6;
 }
 
+.room-title h2 {
+  margin: 0 0 0.4rem 0;
+  font-size: 1.35rem;
+  color: #333;
+}
+
+.join-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.big-room-id {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: none;
+}
+
+.join-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.copy-btn.copy-large {
+  padding: 0.6rem 0.9rem;
+  font-size: 0.95rem;
+  border-radius: 8px;
+}
+
+.join-instructions {
+  font-size: 0.9rem;
+  color: #555;
+}
 /* small toast for copy feedback */
 .copy-toast {
   position: fixed;
@@ -471,3 +507,49 @@ button:disabled {
 }
 input[type="text"]{padding:0.6rem 0.8rem;font-size:1rem;width:200px;border:1px solid #ddd;border-radius:4px}
 footer{margin-top:1.5rem;text-align:center;color:#666}
+
+/* Logo Header Styles */
+.logo-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.logo-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logo-text {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: 650; /* slightly less bold */
+  letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.1rem;
+}
+
+.logo-math {
+  background: linear-gradient(135deg, #6ba3d4 0%, #8ec5e8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.logo-four {
+  font-size: 3rem;
+  font-weight: 650; /* slightly less bold */
+  background: linear-gradient(135deg, #7cc9a0 0%, #96d7b3 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.logo-speed {
+  background: linear-gradient(135deg, #e5b66f 0%, #f2cc95 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+

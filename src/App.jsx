@@ -1,6 +1,7 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { MultiplayerProvider } from './MultiplayerContext'
+import Logo from './Logo'
 import MultiplayerLobby from './MultiplayerLobby'
 import Game from './Game'
 import AdminView from './AdminView'
@@ -10,7 +11,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <MultiplayerProvider>
-        <Routes>
+        <div className="app">
+          <Logo />
+          <Routes>
           {/* Landing/Lobby */}
           <Route path="/" element={<MultiplayerLobby />} />
           
@@ -23,7 +26,8 @@ export default function App() {
           {/* Active game/admin (separate routes for admin and players) */}
           <Route path="/play/:roomId" element={<Game isSinglePlayer={false} />} />
           <Route path="/admin/:roomId" element={<AdminView />} />
-        </Routes>
+          </Routes>
+        </div>
       </MultiplayerProvider>
     </BrowserRouter>
   )

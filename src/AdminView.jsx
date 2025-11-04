@@ -103,31 +103,37 @@ export default function AdminView() {
       {toast && (
         <div className="copy-toast" role="status">{toast}</div>
       )}
-      <div className="admin-inner">
-        <div className="admin-content">
-        <header>
-          <h2>
-            Admin-Ansicht — Raum: <tt className="room-id">{roomId?.toLowerCase()}</tt>
-            <button
-              onClick={copyRoomId}
-              className="copy-btn"
-              title="Raum-Code kopieren"
-            >
-              ID kopieren
-            </button>
-            <button
-              onClick={copyJoinUrl}
-              className="copy-btn"
-              title="Beitritts-URL kopieren"
-            >
-              URL kopieren
-            </button>
-          </h2>
-          {roomState.adminName && (
-            <div className="room-name">
-              Raum-Name: <strong>{roomState.adminName}</strong>
+  <div className="admin-inner">
+  <div className="admin-content">
+  <header>
+          <div className="room-title">
+            <h2>{roomState.adminName ? roomState.adminName : 'Admin-Ansicht'}</h2>
+          </div>
+
+          <div className="join-info">
+            <div className="big-room-id">
+              <tt className="room-id">{roomId?.toLowerCase()}</tt>
             </div>
-          )}
+
+            <div className="join-actions">
+              <button
+                onClick={copyRoomId}
+                className="copy-btn copy-large"
+                title="Raum-Code kopieren"
+              >
+                ID kopieren
+              </button>
+              <button
+                onClick={copyJoinUrl}
+                className="copy-btn copy-large"
+                title="Beitritts-URL kopieren"
+              >
+                URL kopieren
+              </button>
+            </div>
+
+            <div className="join-instructions">Teile diesen Code oder die URL mit deinen Spieler:innen, damit sie beitreten können.</div>
+          </div>
         </header>
 
         <div className="admin-actions">
