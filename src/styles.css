@@ -186,6 +186,38 @@ button:disabled {
 
 .admin-view header h2 {
   margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.copy-btn {
+  background: transparent;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem; /* small font */
+  padding: 2px 6px;
+  margin-left: 8px;
+}
+
+.copy-btn:hover {
+  background: #fafafa; /* subtle hover, no animation */
+  border-color: #e6e6e6;
+}
+
+/* small toast for copy feedback */
+.copy-toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  z-index: 1200;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
 }
 
 .admin-view header .room-name {

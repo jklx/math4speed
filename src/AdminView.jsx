@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
@@ -7,6 +7,13 @@ export default function AdminView() {
   const { roomId } = useParams()
   const { roomState, startGame, attemptAdminRejoin, getRoomState, isConnected } = useMultiplayer()
   const problemRefs = useRef({})
+  const [toast, setToast] = useState(null)
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 2000)
+    return () => clearTimeout(t)
+  }, [toast])
 
   // Request room state when component mounts or roomId changes
   useEffect(() => {
@@ -55,6 +62,31 @@ export default function AdminView() {
     window.open(`/api/report/${roomId}`, '_blank')
   }
 
+  const copyRoomId = () => {
+    navigator.clipboard.writeText(roomId.toLowerCase())
+      .then(() => {
+        setToast('Raum-Code kopiert')
+        console.log('Room ID copied to clipboard');
+      })
+      .catch(err => {
+        console.error('Failed to copy:', err)
+        setToast('Kopieren fehlgeschlagen')
+      });
+  }
+
+  const copyJoinUrl = () => {
+    const joinUrl = `${window.location.origin}/room/${roomId.toLowerCase()}`;
+    navigator.clipboard.writeText(joinUrl)
+      .then(() => {
+        setToast('Beitritts-URL kopiert')
+        console.log('Join URL copied to clipboard');
+      })
+      .catch(err => {
+        console.error('Failed to copy:', err)
+        setToast('Kopieren fehlgeschlagen')
+      });
+  }
+
   const allPlayersFinished = roomState.players.length > 0 && 
     roomState.players.every(p => p.score !== null)
 
@@ -68,11 +100,28 @@ export default function AdminView() {
 
   return (
     <div className="admin-view">
+      {toast && (
+        <div className="copy-toast" role="status">{toast}</div>
+      )}
       <div className="admin-inner">
         <div className="admin-content">
         <header>
           <h2>
             Admin-Ansicht — Raum: <tt className="room-id">{roomId?.toLowerCase()}</tt>
+            <button
+              onClick={copyRoomId}
+              className="copy-btn"
+              title="Raum-Code kopieren"
+            >
+              ID kopieren
+            </button>
+            <button
+              onClick={copyJoinUrl}
+              className="copy-btn"
+              title="Beitritts-URL kopieren"
+            >
+              URL kopieren
+            </button>
           </h2>
           {roomState.adminName && (
             <div className="room-name">
