@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react'
+import { useParams } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
 
 export default function Game({ isSinglePlayer }) {
-  const { roomState, roomId, updateProgress, finishGame, username } = useMultiplayer();
+  const { roomId } = useParams()
+  const { roomState, updateProgress, finishGame, username } = useMultiplayer();
   const problems = useMemo(() => generateProblems(50), [])
 
   const [started, setStarted] = useState(false)
@@ -86,9 +88,9 @@ export default function Game({ isSinglePlayer }) {
       const finalTimeWithPenalty = rawSeconds + penaltySeconds
       // send solved problems to server and finish (include penalty in reported time)
       if (roomId) {
-        finishGame(finalTimeWithPenalty, wrongs)
+        finishGame(roomId, finalTimeWithPenalty, wrongs)
         // Send final progress with all solved problems
-        updateProgress(100, newAnswers)
+        updateProgress(roomId, 100, newAnswers)
       }
       setFinished(true)
     } else {
@@ -96,7 +98,7 @@ export default function Game({ isSinglePlayer }) {
       if (roomId) {
         const progress = ((current + 1) / problems.length) * 100
         // Send current progress with all solved problems so far
-        updateProgress(progress, newAnswers)
+        updateProgress(roomId, progress, newAnswers)
       }
     }
   }

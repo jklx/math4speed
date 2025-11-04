@@ -7,7 +7,7 @@ export default function UsernamePage() {
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [isJoining, setIsJoining] = useState(false)
-  const { joinRoom, roomCheck, checkRoom, error, roomId } = useMultiplayer()
+  const { joinRoom, roomCheck, checkRoom, error } = useMultiplayer()
 
   // Check room on mount
   useEffect(() => {
@@ -16,12 +16,6 @@ export default function UsernamePage() {
     }
   }, [urlRoomId])
 
-  // After joining successfully (we get a roomId), redirect to /play
-  useEffect(() => {
-    if (roomId) {
-      navigate('/play')
-    }
-  }, [roomId])
 
   const handleSubmit = (e) => {
     e.preventDefault()

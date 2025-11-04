@@ -1,10 +1,30 @@
 import React, { useRef, useEffect } from 'react'
+import { useParams } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
 
 export default function AdminView() {
-  const { roomState, roomId, startGame, isAdmin } = useMultiplayer()
+  const { roomId } = useParams()
+  const { roomState, startGame, attemptAdminRejoin, getRoomState, isConnected } = useMultiplayer()
   const problemRefs = useRef({})
+
+  // Request room state when component mounts or roomId changes
+  useEffect(() => {
+    if (!roomId || !isConnected) {
+      console.log('[AdminView] Waiting for socket connection...', { roomId, isConnected });
+      return;
+    }
+    
+    console.log('[AdminView] Socket connected! roomId:', roomId, 'hasRoomState:', !!roomState);
+    
+    // Always attempt to rejoin as admin (validates our token)
+    console.log('[AdminView] Attempting admin rejoin');
+    attemptAdminRejoin(roomId);
+    
+    // Always request current room state to ensure we have fresh data
+    console.log('[AdminView] Requesting room state');
+    getRoomState(roomId);
+  }, [roomId, isConnected]); // Wait for actual connection
 
   useEffect(() => {
     if (!roomState || !roomState.players) return
@@ -16,7 +36,20 @@ export default function AdminView() {
     })
   }, [roomState])
 
-  if (!roomState) return null
+  if (!roomState) {
+    return (
+      <div className="admin-view">
+        <div className="admin-inner">
+          <div className="admin-content">
+            <header>
+              <h2>Admin-Ansicht — Raum: <tt className="room-id">{roomId?.toLowerCase()}</tt></h2>
+            </header>
+            <div className="loading">Lade Raumdaten…</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleDownloadPDF = () => {
     window.open(`/api/report/${roomId}`, '_blank')
@@ -49,12 +82,12 @@ export default function AdminView() {
         </header>
 
         <div className="admin-actions">
-          {isAdmin && roomState.status === 'waiting' && (
-            <button className="big" onClick={() => startGame()}>
+          {roomState.status === 'waiting' && (
+            <button className="big" onClick={() => startGame(roomId)}>
               🚀 Spiel starten
             </button>
           )}
-          {isAdmin && (
+          {(
             <button className="big" onClick={handleDownloadPDF}>
               📄 PDF-Bericht herunterladen
             </button>

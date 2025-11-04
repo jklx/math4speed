@@ -1,32 +1,15 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { MultiplayerProvider, useMultiplayer } from './MultiplayerContext'
+import { MultiplayerProvider } from './MultiplayerContext'
 import MultiplayerLobby from './MultiplayerLobby'
 import Game from './Game'
 import AdminView from './AdminView'
 import UsernamePage from './UsernamePage'
 
-function GameRouter() {
-  const { roomId, isAdmin } = useMultiplayer()
-
-  // In a room
-  if (roomId) {
-    // Admin goes to admin view
-    if (isAdmin) {
-      return <AdminView />
-    }
-    // Players go to game
-    return <Game isSinglePlayer={false} />
-  }
-
-  // No room - redirect to lobby
-  return <Navigate to="/" />
-}
-
 export default function App() {
   return (
-    <MultiplayerProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <MultiplayerProvider>
         <Routes>
           {/* Landing/Lobby */}
           <Route path="/" element={<MultiplayerLobby />} />
@@ -37,10 +20,11 @@ export default function App() {
           {/* Join room with username */}
           <Route path="/room/:roomId" element={<UsernamePage />} />
           
-          {/* Active game/admin (requires room context) */}
-          <Route path="/play" element={<GameRouter />} />
+          {/* Active game/admin (separate routes for admin and players) */}
+          <Route path="/play/:roomId" element={<Game isSinglePlayer={false} />} />
+          <Route path="/admin/:roomId" element={<AdminView />} />
         </Routes>
-      </BrowserRouter>
-    </MultiplayerProvider>
+      </MultiplayerProvider>
+    </BrowserRouter>
   )
 }

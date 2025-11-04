@@ -39,18 +39,14 @@ function JoinRoomStatus({ roomCode }) {
 
 export default function MultiplayerLobby() {
   const navigate = useNavigate();
-  const { createRoom, roomId, error, checkRoom, roomCheck } = useMultiplayer();
+  const { createRoom, error, checkRoom, roomCheck } = useMultiplayer();
 
   // Landing tile states
   const [joinTileRoom, setJoinTileRoom] = useState('');
   const [createTileName, setCreateTileName] = useState('');
 
   // If we got into a room, redirect to game/admin
-  useEffect(() => {
-    if (roomId) {
-      navigate('/play');
-    }
-  }, [roomId]);
+  // navigation is handled centrally in MultiplayerContext
 
   // when joinTileRoom becomes 6 chars, trigger a server-side room check
   useEffect(() => {
