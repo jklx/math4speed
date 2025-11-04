@@ -9,12 +9,13 @@ export default function UsernamePage() {
   const [isJoining, setIsJoining] = useState(false)
   const { joinRoom, roomCheck, checkRoom, error } = useMultiplayer()
 
-  // Check room on mount
+  // Check room when URL param is present and socket is connected
+  const { isConnected } = useMultiplayer()
   useEffect(() => {
-    if (urlRoomId) {
+    if (urlRoomId && isConnected) {
       checkRoom(urlRoomId)
     }
-  }, [urlRoomId])
+  }, [urlRoomId, isConnected])
 
 
   const handleSubmit = (e) => {
