@@ -248,19 +248,49 @@ export default function Game({ isSinglePlayer }) {
 }
 
 function generateProblems(count = 100) {
-  const problems = []
-  function pick() {
-    const a = Math.floor(Math.random() * 10) + 1
-    const b = Math.floor(Math.random() * 10) + 1
-    return { a, b }
+  // maximum unique combinations for 1..10 x 1..10
+  const MAX_UNIQUE = 10 * 10;
+  const target = Math.min(count, MAX_UNIQUE);
+
+  // build a weighted pool: make non-(1 or 10) pairs more likely
+  const pool = [];
+  for (let a = 1; a <= 10; a++) {
+    for (let b = 1; b <= 10; b++) {
+      const isRare = a === 1 || b === 1 || a === 10 || b === 10;
+      // non-rare appear 4x, rare appear 1x -> makes rare pairs less frequent
+      const weight = isRare ? 1 : 4;
+      for (let i = 0; i < weight; i++) pool.push({ a, b });
+    }
   }
 
-  while (problems.length < count) {
-    const { a, b } = pick()
-    if (a === 1 || b === 1 || a === 10 || b === 10) {
-      if (Math.random() > 0.18) continue
-    }
-    problems.push({ id: problems.length + 1, a, b, correct: a * b })
+  // Fisher-Yates shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  return problems
+
+  const seen = new Set();
+  const problems = [];
+  let id = 1;
+  for (const p of pool) {
+    const key = `${p.a}x${p.b}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    problems.push({ id: id++, a: p.a, b: p.b, correct: p.a * p.b });
+    if (problems.length >= target) break;
+  }
+
+  // fallback: if pool exhausted (shouldn't happen) fill from all combos deterministically
+  if (problems.length < target) {
+    for (let a = 1; a <= 10 && problems.length < target; a++) {
+      for (let b = 1; b <= 10 && problems.length < target; b++) {
+        const key = `${a}x${b}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        problems.push({ id: id++, a, b, correct: a * b });
+      }
+    }
+  }
+
+  return problems;
 }
