@@ -5,7 +5,9 @@ import ProgressBar from './ProgressBar'
 
 export default function Game({ isSinglePlayer }) {
   const { roomId } = useParams()
-  const { roomState, updateProgress, finishGame, username } = useMultiplayer();
+  // Only use multiplayer hooks when NOT in single player mode
+  const multiplayerContext = isSinglePlayer ? null : useMultiplayer();
+  const { roomState, updateProgress, finishGame, username } = multiplayerContext || {};
   const problems = useMemo(() => generateProblems(50), [])
 
   const [started, setStarted] = useState(false)
@@ -27,10 +29,10 @@ export default function Game({ isSinglePlayer }) {
 
 
   useEffect(() => {
-    if (roomState?.status === 'playing' && !started && !countdown) {
+    if (!isSinglePlayer && roomState?.status === 'playing' && !started && !countdown) {
       handleStart()
     }
-  }, [roomState?.status, started, countdown])
+  }, [roomState?.status, started, countdown, isSinglePlayer])
 
   const handleStart = () => {
     setStarted(false)
@@ -87,7 +89,7 @@ export default function Game({ isSinglePlayer }) {
       const penaltySeconds = wrongs * 10
       const finalTimeWithPenalty = rawSeconds + penaltySeconds
       // send solved problems to server and finish (include penalty in reported time)
-      if (roomId) {
+      if (roomId && !isSinglePlayer) {
         finishGame(roomId, finalTimeWithPenalty, wrongs)
         // Send final progress with all solved problems
         updateProgress(roomId, 100, newAnswers)
@@ -95,7 +97,7 @@ export default function Game({ isSinglePlayer }) {
       setFinished(true)
     } else {
       setCurrent(c => c + 1)
-      if (roomId) {
+      if (roomId && !isSinglePlayer) {
         const progress = ((current + 1) / problems.length) * 100
         // Send current progress with all solved problems so far
         updateProgress(roomId, progress, newAnswers)

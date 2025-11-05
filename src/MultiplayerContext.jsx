@@ -35,7 +35,7 @@ export function MultiplayerProvider({ children }) {
 
     socket.on('roomCreated', ({ roomId, isAdmin, adminName, adminToken }) => {
       console.log('[Context] roomCreated received:', { roomId, isAdmin, adminName });
-      setUsername(adminName); // Set admin's username from room name
+      // Don't set username here - adminName is the room name, not the player's username
       setError(null);
 
       // store token for admin rejoin
@@ -66,7 +66,7 @@ export function MultiplayerProvider({ children }) {
 
     socket.on('roomRejoined', ({ roomId, isAdmin, adminName }) => {
       console.log('[Context] roomRejoined received:', { roomId, isAdmin, adminName });
-      if (adminName) setUsername(adminName);
+      // Don't set username from adminName - that's the room name, not player username
       setError(null);
       // Don't navigate - we're already on the right page after reload
     });
@@ -111,9 +111,9 @@ export function MultiplayerProvider({ children }) {
 
   // Navigation is performed immediately when the provider receives events
 
-  const createRoom = (username) => {
-    // For creating a room we accept a room name (adminName). Do not overwrite client username.
-    socket?.emit('createRoom', username);
+  const createRoom = (roomName) => {
+    // roomName is the name of the room being created (not the admin's username)
+    socket?.emit('createRoom', roomName);
   };
 
   const joinRoom = (roomId, username) => {
