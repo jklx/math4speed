@@ -267,10 +267,7 @@ button:disabled {
   box-shadow: 0 6px 18px rgba(0,0,0,0.12);
 }
 
-.admin-view header .room-name {
-  color: #666;
-  font-size: 0.95rem;
-}
+/* removed: .admin-view header .room-name (now replaced by .room-title h2) */
 
 .admin-actions {
   margin: 0 0 1.5rem 0;
