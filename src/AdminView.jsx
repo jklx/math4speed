@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
+import Logo from './Logo'
 
 export default function AdminView() {
   const { roomId } = useParams()
@@ -48,6 +49,7 @@ export default function AdminView() {
       <div className="admin-view">
         <div className="admin-inner">
           <div className="admin-content">
+            <Logo />
             <header>
               <h2>Admin-Ansicht — Raum: <tt className="room-id">{roomId?.toLowerCase()}</tt></h2>
             </header>
@@ -87,6 +89,11 @@ export default function AdminView() {
       });
   }
 
+  // visible join URL for display
+  const joinUrl = (typeof window !== 'undefined' && roomId)
+    ? `${window.location.origin}/room/${roomId.toLowerCase()}`
+    : ''
+
   const allPlayersFinished = roomState.players.length > 0 && 
     roomState.players.every(p => p.score !== null)
 
@@ -105,6 +112,7 @@ export default function AdminView() {
       )}
   <div className="admin-inner">
   <div className="admin-content">
+  <Logo />
   <header>
           <div className="room-title">
             <h2>{roomState.adminName ? roomState.adminName : 'Admin-Ansicht'}</h2>
@@ -115,7 +123,11 @@ export default function AdminView() {
               <tt className="room-id">{roomId?.toLowerCase()}</tt>
             </div>
 
-            <div className="join-actions">
+              <div className="join-url">
+                <a href={`/room/${roomId?.toLowerCase()}`} target="_blank" rel="noopener noreferrer">{joinUrl}</a>
+              </div>
+
+              <div className="join-actions">
               <button
                 onClick={copyRoomId}
                 className="copy-btn copy-large"

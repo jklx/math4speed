@@ -88,7 +88,7 @@ export default function MultiplayerLobby() {
                 }}>
                   <input
                     type="text"
-                    placeholder="Raum-Code (z. B. abc123)"
+                    placeholder="Raum-Code"
                     value={joinTileRoom}
                     onChange={(e) => setJoinTileRoom(e.target.value)}
                     maxLength={6}

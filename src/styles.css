@@ -242,6 +242,17 @@ button:disabled {
   font-size: 0.9rem;
   color: #555;
 }
+
+.join-url a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.join-url a:hover {
+  text-decoration: underline;
+}
 /* small toast for copy feedback */
 .copy-toast {
   position: fixed;
