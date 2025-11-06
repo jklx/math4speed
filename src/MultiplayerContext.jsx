@@ -76,6 +76,16 @@ export function MultiplayerProvider({ children }) {
       setRoomState(state);
     });
 
+    socket.on('gameStarted', ({ settings }) => {
+      console.log('[Context] gameStarted received with settings:', settings);
+      // Update roomState with the settings so Game.jsx can use them
+      setRoomState(prev => ({
+        ...prev,
+        settings,
+        status: 'playing'
+      }));
+    });
+
     socket.on('roomCheckResult', ({ roomId, exists, status }) => {
       setRoomCheck({ roomId, exists, status });
     });
@@ -123,9 +133,9 @@ export function MultiplayerProvider({ children }) {
     socket?.emit('joinRoom', { roomId: rid, username });
   };
 
-  const startGame = (roomId) => {
+  const startGame = (roomId, settings = {}) => {
     if (!roomId) return;
-    socket?.emit('startGame', roomId);
+    socket?.emit('startGame', { roomId, settings });
   };
 
   const checkRoom = (roomIdToCheck) => {

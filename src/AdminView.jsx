@@ -9,6 +9,12 @@ export default function AdminView() {
   const { roomState, startGame, attemptAdminRejoin, getRoomState, isConnected } = useMultiplayer()
   const problemRefs = useRef({})
   const [toast, setToast] = useState(null)
+  
+  // Local settings state (only for admin)
+  const [settings, setSettings] = useState({
+    includeSquares11_20: false,
+    includeSquares21_25: false
+  });
 
   useEffect(() => {
     if (!toast) return
@@ -148,9 +154,45 @@ export default function AdminView() {
           </div>
         </header>
 
+        {roomState.status === 'waiting' && (
+          <div className="settings-box">
+            <h3>Aufgaben-Einstellungen</h3>
+            <label className="checkbox-label">
+              <input 
+                type="checkbox" 
+                checked={true}
+                disabled={true}
+              />
+              <span>Einmaleins 1-10 (immer aktiv)</span>
+            </label>
+            <label className="checkbox-label">
+              <input 
+                type="checkbox" 
+                checked={settings.includeSquares11_20}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  includeSquares11_20: e.target.checked
+                })}
+              />
+              <span>Quadratzahlen 11-20 (z.B. 11², 15², 20²)</span>
+            </label>
+            <label className="checkbox-label">
+              <input 
+                type="checkbox" 
+                checked={settings.includeSquares21_25}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  includeSquares21_25: e.target.checked
+                })}
+              />
+              <span>Quadratzahlen 21-25 (z.B. 21², 23², 25²)</span>
+            </label>
+          </div>
+        )}
+
         <div className="admin-actions">
           {roomState.status === 'waiting' && (
-            <button className="big" onClick={() => startGame(roomId)}>
+            <button className="big" onClick={() => startGame(roomId, settings)}>
               🚀 Spiel starten
             </button>
           )}

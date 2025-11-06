@@ -8,7 +8,15 @@ export default function Game({ isSinglePlayer }) {
   // Only use multiplayer hooks when NOT in single player mode
   const multiplayerContext = isSinglePlayer ? null : useMultiplayer();
   const { roomState, updateProgress, finishGame, username } = multiplayerContext || {};
-  const problems = useMemo(() => generateProblems(50), [])
+  
+  // Settings for problem generation (only for training mode)
+  const [settings, setSettings] = useState({
+    includeSquares11_20: false,
+    includeSquares21_25: false
+  });
+  
+  // Problems will be generated when game starts, not before
+  const [problems, setProblems] = useState([])
 
   const [started, setStarted] = useState(false)
   const [countdown, setCountdown] = useState(null)
@@ -35,6 +43,11 @@ export default function Game({ isSinglePlayer }) {
   }, [roomState?.status, started, countdown, isSinglePlayer])
 
   const handleStart = () => {
+    // Generate problems when game starts (not before)
+    const gameSettings = isSinglePlayer ? settings : (roomState?.settings || {});
+    const newProblems = generateProblems(50, gameSettings);
+    setProblems(newProblems);
+    
     setStarted(false)
     setCountdown(3)
     setCurrent(0)
@@ -141,8 +154,37 @@ export default function Game({ isSinglePlayer }) {
             <>
               {isSinglePlayer ? (
                 <>
-                  <p>Du bekommst {problems.length} Einmaleinsaufgaben. Aufgaben mit ·1 und ·10 kommen seltener vor.</p>
+                  <p>Du bekommst 50 Einmaleinsaufgaben. Aufgaben mit ·1 und ·10 kommen seltener vor.</p>
                   <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
+                  
+                  <div className="settings-box">
+                    <h3>Aufgaben</h3>
+                    <label className="checkbox-label">
+                      <input 
+                        type="checkbox" 
+                        checked={true}
+                        disabled={true}
+                      />
+                      <span>Einmaleins 1-10 (immer aktiv)</span>
+                    </label>
+                    <label className="checkbox-label">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.includeSquares11_20}
+                        onChange={(e) => setSettings({...settings, includeSquares11_20: e.target.checked})}
+                      />
+                      <span>Quadratzahlen 11-20 (z.B. 11², 15², 20²)</span>
+                    </label>
+                    <label className="checkbox-label">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.includeSquares21_25}
+                        onChange={(e) => setSettings({...settings, includeSquares21_25: e.target.checked})}
+                      />
+                      <span>Quadratzahlen 21-25 (z.B. 21², 23², 25²)</span>
+                    </label>
+                  </div>
+                  
                   <button onClick={handleStart} className="big">Starten</button>
                 </>
               ) : (
@@ -247,12 +289,10 @@ export default function Game({ isSinglePlayer }) {
   )
 }
 
-function generateProblems(count = 100) {
-  // maximum unique combinations for 1..10 x 1..10
-  const MAX_UNIQUE = 10 * 10;
-  const target = Math.min(count, MAX_UNIQUE);
-
-  // build a weighted pool: make non-(1 or 10) pairs more likely
+function generateProblems(count = 100, settings = {}) {
+  const { includeSquares11_20 = false, includeSquares21_25 = false } = settings;
+  
+  // base pool: 1..10 x 1..10
   const pool = [];
   for (let a = 1; a <= 10; a++) {
     for (let b = 1; b <= 10; b++) {
@@ -260,6 +300,22 @@ function generateProblems(count = 100) {
       // non-rare appear 4x, rare appear 1x -> makes rare pairs less frequent
       const weight = isRare ? 1 : 4;
       for (let i = 0; i < weight; i++) pool.push({ a, b });
+    }
+  }
+
+  // Add squares 11-20 if enabled
+  if (includeSquares11_20) {
+    for (let n = 11; n <= 20; n++) {
+      // add each square multiple times for good representation
+      for (let i = 0; i < 3; i++) pool.push({ a: n, b: n });
+    }
+  }
+
+  // Add squares 21-25 if enabled
+  if (includeSquares21_25) {
+    for (let n = 21; n <= 25; n++) {
+      // add each square multiple times for good representation
+      for (let i = 0; i < 3; i++) pool.push({ a: n, b: n });
     }
   }
 
@@ -277,13 +333,13 @@ function generateProblems(count = 100) {
     if (seen.has(key)) continue;
     seen.add(key);
     problems.push({ id: id++, a: p.a, b: p.b, correct: p.a * p.b });
-    if (problems.length >= target) break;
+    if (problems.length >= count) break;
   }
 
-  // fallback: if pool exhausted (shouldn't happen) fill from all combos deterministically
-  if (problems.length < target) {
-    for (let a = 1; a <= 10 && problems.length < target; a++) {
-      for (let b = 1; b <= 10 && problems.length < target; b++) {
+  // fallback: if pool exhausted fill from base combos deterministically
+  if (problems.length < count) {
+    for (let a = 1; a <= 10 && problems.length < count; a++) {
+      for (let b = 1; b <= 10 && problems.length < count; b++) {
         const key = `${a}x${b}`;
         if (seen.has(key)) continue;
         seen.add(key);

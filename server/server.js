@@ -36,7 +36,8 @@ io.on('connection', (socket) => {
       adminToken,
       players: new Map(),
       status: 'waiting', // waiting, playing, finished
-      startTime: null
+      startTime: null,
+      settings: null // Will be set when game starts
     });
     socket.join(roomId);
     socket.emit('roomCreated', { roomId, isAdmin: true, adminName: roomName, adminToken });
@@ -93,14 +94,28 @@ io.on('connection', (socket) => {
     updateRoomState(rid);
   });
 
-  socket.on('startGame', (roomId) => {
+  socket.on('startGame', (data) => {
+    // Handle both old format (just roomId) and new format ({ roomId, settings })
+    const roomId = typeof data === 'string' ? data : data.roomId;
+    const settings = typeof data === 'object' ? data.settings : {};
+    
     const rid = String(roomId).toLowerCase();
     const room = rooms.get(rid);
     if (!room || room.admin !== socket.id) return;
     
+    // Store settings in room state
+    room.settings = {
+      includeSquares11_20: settings.includeSquares11_20 || false,
+      includeSquares21_25: settings.includeSquares21_25 || false
+    };
+    
     room.status = 'playing';
     room.startTime = Date.now();
-    io.to(rid).emit('gameStarted');
+    
+    console.log('[Server] Game started for room:', rid, 'with settings:', room.settings);
+    
+    // Emit gameStarted with settings so clients can generate problems
+    io.to(rid).emit('gameStarted', { settings: room.settings });
     updateRoomState(rid);
   });
 
