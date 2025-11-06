@@ -165,7 +165,7 @@ export default function Game({ isSinglePlayer }) {
                         checked={true}
                         disabled={true}
                       />
-                      <span>Einmaleins 1-10 (immer aktiv)</span>
+                      <span>Einmaleins 1-10</span>
                     </label>
                     <label className="checkbox-label">
                       <input 
