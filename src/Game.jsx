@@ -32,8 +32,7 @@ export default function Game({ isSinglePlayer }) {
   const [current, setCurrent] = useState(0)
   const [answers, setAnswers] = useState([])
   const [inputValue, setInputValue] = useState('')
-  // legacy carryValue (will be replaced by carryDigits for schriftlich)
-  const [carryValue, setCarryValue] = useState('')
+  // removed legacy single carryValue, we now exclusively use carryDigits for carries/borrows
   // schriftlich digit arrays
   const [answerDigits, setAnswerDigits] = useState([])
   const [carryDigits, setCarryDigits] = useState([])
@@ -42,6 +41,7 @@ export default function Game({ isSinglePlayer }) {
   const [endTime, setEndTime] = useState(null)
 
   const inputRef = useRef(null)
+  const countdownTimerRef = useRef(null)
   // Helper to right-align digits into a fixed number of columns
   const padLeft = (arr, total) => {
     const missing = Math.max(0, total - arr.length)
@@ -81,7 +81,9 @@ export default function Game({ isSinglePlayer }) {
     // Generate problems when game starts (not before)
     const gameSettings = isSinglePlayer ? settings : (roomState?.settings || {});
     const gameCategory = isSinglePlayer ? category : 'einmaleins'; // multiplayer only supports einmaleins for now
-    const newProblems = generateProblems(50, gameCategory, gameSettings);
+    // Determine count based on category: schriftlich=10, primfaktorisierung=20, einmaleins=50
+    const problemCount = gameCategory === 'schriftlich' ? 10 : gameCategory === 'primfaktorisierung' ? 20 : 50;
+    const newProblems = generateProblems(problemCount, gameCategory, gameSettings);
     setProblems(newProblems);
     
     setStarted(false)
@@ -89,15 +91,21 @@ export default function Game({ isSinglePlayer }) {
     setCurrent(0)
     setAnswers([])
     setInputValue('')
-    setCarryValue('')
     setFinished(false)
     setStartTime(null)
     setEndTime(null)
-    let timerId = null
-    timerId = setInterval(() => {
+    // clear any existing countdown timer before starting a new one
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current)
+      countdownTimerRef.current = null
+    }
+    countdownTimerRef.current = setInterval(() => {
       setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timerId)
+        if (prev == null || prev <= 1) {
+          if (countdownTimerRef.current) {
+            clearInterval(countdownTimerRef.current)
+            countdownTimerRef.current = null
+          }
           setStarted(true)
           setStartTime(Date.now())
           return null
@@ -120,26 +128,39 @@ export default function Game({ isSinglePlayer }) {
   }
 
   const submitAnswer = () => {
-    if (finished) return
     const prob = problems[current]
-    let isCorrect = false;
-    let parsed = null;
+    let parsed, isCorrect
+
     if (prob.type === 'primfaktorisierung') {
-      // For prime factorization, compare sorted arrays of factors
-      const userFactors = inputValue.trim().split(/\s+/).map(x => parseInt(x, 10)).filter(x => !isNaN(x)).sort((a, b) => a - b);
-      const correctFactors = [...prob.factors].sort((a, b) => a - b);
-      isCorrect = userFactors.length === correctFactors.length && 
-                  userFactors.every((val, idx) => val === correctFactors[idx]);
-      parsed = inputValue.trim(); // store the user's string input
+      const user = inputValue.trim().split(/\s+/).map(Number).sort((a,b)=>a-b)
+      const correct = [...prob.factors].sort((a,b)=>a-b)
+      isCorrect = JSON.stringify(user) === JSON.stringify(correct)
+      parsed = inputValue
     } else if (prob.type === 'schriftlich') {
-      const cols = prob.correctDigits.length
-      const user = answerDigits.length === cols ? answerDigits : Array(cols).fill('')
-      isCorrect = user.every((d,i)=> String(d) === String(prob.correctDigits[i]))
-      parsed = user.join('')
+      // Convert answerDigits (strings) to numbers, treating empty as 0
+      const userDigits = answerDigits.map(d => d === '' ? 0 : Number(d))
+      const correctDigits = prob.correctDigits
+      
+      // Check if at least one non-zero digit is entered (to prevent submitting all empty)
+      const hasAnyDigit = answerDigits.some(d => d !== '')
+      
+      if (!hasAnyDigit) {
+        // Flash first input if nothing entered
+        const el = document.getElementById(`res-0`);
+        if (el) {
+          el.focus();
+          el.style.background = '#ffebee';
+          setTimeout(() => el.style.background = '', 300);
+        }
+        return
+      }
+      
+      // Compare digit by digit (both as numbers now, empty = 0)
+      isCorrect = JSON.stringify(userDigits) === JSON.stringify(correctDigits)
+      parsed = answerDigits.map(d => d === '' ? '0' : d).join('')
     } else {
-      // For numeric answers
-      parsed = parseInt(inputValue, 10);
-      isCorrect = !isNaN(parsed) && parsed === prob.correct;
+      parsed = Number(inputValue)
+      isCorrect = parsed === prob.correct
     }
     
     const newEntry = { ...prob, user: parsed, isCorrect }
@@ -202,6 +223,15 @@ export default function Game({ isSinglePlayer }) {
   }
 
   // Remove legacy focus/reset for schriftlich; handled by array-based effect above
+  // Cleanup countdown timer on unmount
+  useEffect(() => {
+    return () => {
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current)
+        countdownTimerRef.current = null
+      }
+    }
+  }, [])
 
   return (
     <div className="app">
@@ -252,14 +282,14 @@ export default function Game({ isSinglePlayer }) {
 
                   {category === 'schriftlich' && (
                     <>
-                      <p>Du bekommst 50 schriftliche Rechenaufgaben (Addition, Subtraktion, Multiplikation, Division).</p>
+                      <p>Du bekommst 10 schriftliche Rechenaufgaben (5 Addition, 5 Subtraktion).</p>
                       <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
                     </>
                   )}
 
                   {category === 'primfaktorisierung' && (
                     <>
-                      <p>Du bekommst 50 Zahlen, die du in ihre Primfaktoren zerlegen musst.</p>
+                      <p>Du bekommst 20 Zahlen, die du in ihre Primfaktoren zerlegen musst.</p>
                       <p>Gib die Primfaktoren durch Leerzeichen getrennt ein (z.B. "2 2 3" für 12).</p>
                       <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
                     </>
@@ -298,7 +328,7 @@ export default function Game({ isSinglePlayer }) {
                 <input
                   ref={inputRef}
                   type="text"
-                  className="digit-input"
+                  className="app-input"
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   onKeyDown={handleKey}
@@ -311,9 +341,8 @@ export default function Game({ isSinglePlayer }) {
                 const totalCols = cols + 2 // add padding on both sides
                 const aCells = padLeft(problems[current].aDigits, cols)
                 const bCells = padLeft(problems[current].bDigits, cols)
-                // initialize arrays lazily
-                if (answerDigits.length !== cols) setAnswerDigits(Array(cols).fill(''))
-                if (carryDigits.length !== cols) setCarryDigits(Array(cols).fill(''))
+                const isAdd = problems[current].operation === 'add'
+                // Arrays are initialized via useEffect when current changes
                 const focusLeft = (base, i, prefix) => {
                   if (i > 0) {
                     const el = document.getElementById(`${prefix}-${i-1}`)
@@ -354,42 +383,71 @@ export default function Game({ isSinglePlayer }) {
                 return (
                   <div className="schriftlich-grid-container">
                     <div className="schriftlich-grid" style={{gridTemplateColumns: `repeat(${totalCols}, 50px)`, gridTemplateRows: `repeat(4, 50px)`}}>
-                      {/* Row 1: first addend */}
+                      {/* Row 1: first number (minuend or first addend) */}
                       <div className="grid-cell" />
                       {aCells.map((d,i)=>(<div key={`a-${i}`} className="grid-cell digit">{d ?? ''}</div>))}
                       <div className="grid-cell" />
 
-                      {/* Row 2: second addend */}
-                      <div className="grid-cell" />
-                      {bCells.map((d,i)=>(<div key={`b-${i}`} className="grid-cell digit">{d ?? ''}</div>))}
-                      <div className="grid-cell" />
+                      {isAdd ? (
+                        <>
+                          {/* Row 2: second addend */}
+                          <div className="grid-cell" />
+                          {bCells.map((d,i)=>(<div key={`b-${i}`} className="grid-cell digit">{d ?? ''}</div>))}
+                          <div className="grid-cell" />
 
-                      {/* Row 3: plus sign and carries */}
-                      <div className="grid-cell plus">+</div>
-                      {Array.from({length: cols}).map((_, i)=>(
-                        <div key={`c-${i}`} className="grid-cell">
-                          <input
-                            id={`carry-${i}`}
-                            className="digit-input red small"
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={1}
-                            tabIndex={2*(cols-1-i)+1}
-                            value={carryDigits[i] || ''}
-                            onChange={e=>{
-                              const v=e.target.value.replace(/[^0-9]/g,'').slice(0,1)
-                              setCarryDigits(prev=>{const arr=[...prev];arr[i]=v;return arr})
-                              if (v) {
-                                const currentTab = e.target.tabIndex;
-                                const next = document.querySelector(`[tabindex='${currentTab+1}']`);
-                                if (next) next.focus();
-                              }
-                            }}
-                            onKeyDown={e => handleKeyDown(e, true, i)}
-                          />
-                        </div>
-                      ))}
-                      <div className="grid-cell" />
+                          {/* Row 3: plus sign and carries */}
+                          <div className="grid-cell plus">+</div>
+                          {Array.from({length: cols}).map((_, i)=>(
+                            <div key={`c-${i}`} className="grid-cell">
+                              <input
+                                id={`carry-${i}`}
+                                className="digit-input red small"
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={1}
+                                tabIndex={2*(cols-1-i)+1}
+                                value={carryDigits[i] || ''}
+                                onChange={e=>{
+                                  const v=e.target.value.replace(/[^0-9]/g,'').slice(0,1)
+                                  setCarryDigits(prev=>{const arr=[...prev];arr[i]=v;return arr})
+                                  // Auto-advance disabled:
+                                  // if (v) {
+                                  //   const currentTab = e.target.tabIndex;
+                                  //   const next = document.querySelector(`[tabindex='${currentTab+1}']`);
+                                  //   if (next) next.focus();
+                                  // }
+                                }}
+                                onKeyDown={e => handleKeyDown(e, true, i)}
+                              />
+                            </div>
+                          ))}
+                          <div className="grid-cell" />
+                        </>
+                      ) : (
+                        <>
+                          {/* Row 2: borrow row (between minuend and subtrahend) shows 'I' markers */}
+                          <div className="grid-cell" />
+                          {Array.from({length: cols}).map((_, i)=>(
+                            <div key={`borr-${i}`} className="grid-cell" onClick={()=>{
+                              setCarryDigits(prev=>{
+                                const arr=[...prev];
+                                arr[i] = arr[i] === 'I' ? '' : 'I';
+                                return arr;
+                              })
+                            }}>
+                              <div className="borrow-cell">
+                                {carryDigits[i] === 'I' ? <span className="borrow-mark" /> : null}
+                              </div>
+                            </div>
+                          ))}
+                          <div className="grid-cell" />
+
+                          {/* Row 3: minus sign and second number (subtrahend) */}
+                          <div className="grid-cell plus">−</div>
+                          {bCells.map((d,i)=>(<div key={`b-${i}`} className="grid-cell digit">{d ?? ''}</div>))}
+                          <div className="grid-cell" />
+                        </>
+                      )}
 
                       {/* Row 4: result row with thick top border */}
                       <div className="grid-cell result-sep" />
@@ -406,13 +464,29 @@ export default function Game({ isSinglePlayer }) {
                             onChange={e=>{
                               const v=e.target.value.replace(/[^0-9]/g,'').slice(0,1)
                               setAnswerDigits(prev=>{const arr=[...prev];arr[i]=v;return arr})
-                              if (v) {
-                                const currentTab = e.target.tabIndex;
-                                const next = document.querySelector(`[tabindex='${currentTab+1}']`);
-                                if (next) next.focus();
-                              }
+                              // Auto-advance disabled (addition):
+                              // if (v) {
+                              //   const currentTab = e.target.tabIndex;
+                              //   const advance = 1;
+                              //   const next = document.querySelector(`[tabindex='${currentTab+advance}']`);
+                              //   if (next) next.focus();
+                              // }
                             }}
-                            onKeyDown={e => handleKeyDown(e, false, i)}
+                            onKeyDown={e => {
+                              if (!isAdd && (e.key === 'i' || e.key === 'I' || e.key === ' ' || e.code === 'Space' || e.key === 'Spacebar')) {
+                                e.preventDefault();
+                                const targetIndex = i-1;
+                                if (targetIndex >= 0) {
+                                  setCarryDigits(prev => {
+                                    const arr = [...prev];
+                                    arr[targetIndex] = arr[targetIndex] === 'I' ? '' : 'I';
+                                    return arr;
+                                  });
+                                }
+                                return;
+                              }
+                              handleKeyDown(e, false, i);
+                            }}
                             ref={i===cols-1?inputRef:null}
                           />
                         </div>
@@ -604,28 +678,39 @@ function generateEinmaleinsProblems(count = 100, settings = {}) {
   return problems;
 }
 
-function generateSchriftlichProblems(count = 50) {
+function generateSchriftlichProblems(count = 10) {
   const problems = [];
+  // Half addition, half subtraction
+  const halfCount = Math.floor(count / 2);
   for (let i = 0; i < count; i++) {
-    // Only addition, 4 digits each
-    const a = Math.floor(Math.random() * 9000) + 1000; // 1000-9999
-    const b = Math.floor(Math.random() * 9000) + 1000;
-    const correct = a + b;
+    const operation = i < halfCount ? 'add' : 'subtract';
+    let a, b, correct;
+    if (operation === 'add') {
+      a = Math.floor(Math.random() * 9000) + 1000; // 1000-9999
+      b = Math.floor(Math.random() * 9000) + 1000;
+      correct = a + b;
+    } else {
+      a = Math.floor(Math.random() * 9000) + 1000; // 1000-9999
+      b = Math.floor(Math.random() * (a - 1000)) + 1000; // ensure b < a
+      if (b >= a) b = a - 1; // safety
+      correct = a - b;
+    }
     problems.push({
       id: i + 1,
       a,
       b,
       correct,
       type: 'schriftlich',
+      operation, // 'add' | 'subtract'
       aDigits: String(a).padStart(4, '0').split('').map(Number),
       bDigits: String(b).padStart(4, '0').split('').map(Number),
-      correctDigits: String(correct).padStart(5, '0').split('').map(Number), // 5 digits for possible carry
+      correctDigits: String(correct).padStart(operation === 'add' ? 5 : 4, '0').split('').map(Number)
     });
   }
   return problems;
 }
 
-function generatePrimfaktorisierungProblems(count = 50) {
+function generatePrimfaktorisierungProblems(count = 20) {
   const problems = [];
   
   // Helper: get prime factors of n
