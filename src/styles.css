@@ -693,8 +693,9 @@ footer{margin-top:1.5rem;text-align:center;color:#666}
   margin: 0;
 }
 
+/* Comic Sans-like font stack for all major OS */
 .grid-cell.digit {
-  font-family: 'Comic Sans MS', 'Comic Sans', cursive;
+  font-family: 'Chalkboard SE', 'Comic Sans MS', 'Comic Sans', 'Marker Felt', 'Segoe Print', 'Comic Neue', cursive, sans-serif;
   font-size: 28px;
   font-weight: normal;
   color: #222;
@@ -709,7 +710,7 @@ footer{margin-top:1.5rem;text-align:center;color:#666}
 }
 
 .grid-cell.plus {
-  font-family: 'Comic Sans MS', 'Comic Sans', cursive;
+  font-family: 'Chalkboard SE', 'Comic Sans MS', 'Comic Sans', 'Marker Felt', 'Segoe Print', 'Comic Neue', cursive, sans-serif;
   font-size: 28px;
   font-weight: bold;
   color: #222;
@@ -721,7 +722,7 @@ footer{margin-top:1.5rem;text-align:center;color:#666}
   border: none;
   background: transparent;
   text-align: center;
-  font-family: 'Comic Sans MS', 'Comic Sans', cursive;
+  font-family: 'Chalkboard SE', 'Comic Sans MS', 'Comic Sans', 'Marker Felt', 'Segoe Print', 'Comic Neue', cursive, sans-serif;
   font-size: 28px;
   padding: 0;
   margin: 0;
