@@ -44,6 +44,8 @@ export default function MultiplayerLobby() {
   // Landing tile states
   const [joinTileRoom, setJoinTileRoom] = useState('');
   const [createTileName, setCreateTileName] = useState('');
+  // Category selection for training
+  const [category, setCategory] = useState('einmaleins');
 
   // If we got into a room, redirect to game/admin
   // navigation is handled centrally in MultiplayerContext
@@ -54,7 +56,6 @@ export default function MultiplayerLobby() {
       checkRoom(joinTileRoom);
     }
   }, [joinTileRoom]);
-
   
 
   return (
@@ -66,8 +67,34 @@ export default function MultiplayerLobby() {
           <div className="tile-body">
             <div className="title">Trainieren</div>
             <div className="subtitle">Einzelspieler: Übe so oft du möchtest und verbessere deine Zeit.</div>
+            <div className="category-selection">
+              <h3>Wähle eine Kategorie:</h3>
+              <div className="category-buttons">
+                <button 
+                  className={`category-btn ${category === 'einmaleins' ? 'active' : ''}`}
+                  onClick={() => setCategory('einmaleins')}
+                  type="button"
+                >
+                  Einmaleins
+                </button>
+                <button 
+                  className={`category-btn ${category === 'schriftlich' ? 'active' : ''}`}
+                  onClick={() => setCategory('schriftlich')}
+                  type="button"
+                >
+                  Schriftlich rechnen
+                </button>
+                <button 
+                  className={`category-btn ${category === 'primfaktorisierung' ? 'active' : ''}`}
+                  onClick={() => setCategory('primfaktorisierung')}
+                  type="button"
+                >
+                  Primfaktorisierung
+                </button>
+              </div>
+            </div>
             <div className="tile-actions">
-              <button className="big" onClick={() => navigate('/training')}>Jetzt trainieren</button>
+              <button className="big" onClick={() => navigate('/training', { state: { category } })}>Jetzt trainieren</button>
             </div>
           </div>
         </div>
@@ -88,6 +115,7 @@ export default function MultiplayerLobby() {
                 }}>
                   <input
                     type="text"
+                    className="app-input"
                     placeholder="Raum-Code"
                     value={joinTileRoom}
                     onChange={(e) => setJoinTileRoom(e.target.value)}
@@ -117,6 +145,7 @@ export default function MultiplayerLobby() {
                 }}>
                   <input
                     type="text"
+                    className="app-input"
                     placeholder="Raum-Name"
                     value={createTileName}
                     onChange={(e) => setCreateTileName(e.target.value)}

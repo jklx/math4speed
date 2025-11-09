@@ -54,6 +54,7 @@ export default function UsernamePage() {
       <form onSubmit={handleSubmit} className="username-input">
         <input
           type="text"
+          className="app-input"
           placeholder="Dein Name"
           value={username}
           onChange={(e) => setUsername(e.target.value)}

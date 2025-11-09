@@ -160,6 +160,7 @@ export default function AdminView() {
             <label className="checkbox-label">
               <input 
                 type="checkbox" 
+                className="app-input"
                 checked={true}
                 disabled={true}
               />
@@ -168,6 +169,7 @@ export default function AdminView() {
             <label className="checkbox-label">
               <input 
                 type="checkbox" 
+                className="app-input"
                 checked={settings.includeSquares11_20}
                 onChange={(e) => setSettings({
                   ...settings,
@@ -179,6 +181,7 @@ export default function AdminView() {
             <label className="checkbox-label">
               <input 
                 type="checkbox" 
+                className="app-input"
                 checked={settings.includeSquares21_25}
                 onChange={(e) => setSettings({
                   ...settings,
