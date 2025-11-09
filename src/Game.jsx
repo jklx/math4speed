@@ -112,10 +112,21 @@ export default function Game({ isSinglePlayer }) {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  // Live seconds state for UI updates
+  const [liveSecondsState, setLiveSecondsState] = useState(0)
+  useEffect(() => {
+    if (!started || finished) return
+    setLiveSecondsState(Math.floor(((Date.now()) - (startTime || Date.now())) / 1000))
+    const interval = setInterval(() => {
+      setLiveSecondsState(Math.floor(((Date.now()) - (startTime || Date.now())) / 1000))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [started, finished, startTime])
+
   const liveSeconds = () => {
     if (!started) return 0
-    const now = finished ? endTime : Date.now()
-    return Math.floor(((now || Date.now()) - (startTime || Date.now())) / 1000)
+    if (finished) return Math.floor(((endTime || Date.now()) - (startTime || Date.now())) / 1000)
+    return liveSecondsState
   }
 
   const submitAnswer = () => {
