@@ -23,6 +23,7 @@ export default function Einmaleins({ a, b, value = '', onChange, onEnter }) {
       <input
         type="number"
         inputMode="numeric"
+        pattern="[0-9]*"
         className="app-input"
         autoFocus
         value={value}
