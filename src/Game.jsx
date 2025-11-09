@@ -5,9 +5,11 @@ import ProgressBar from './ProgressBar'
 // Refactored imports
 import { generateProblems } from './problems/generators'
 import { validateSchriftlich, validatePrimfaktorisierung } from './problems/validate'
+import { getPerformanceComment, getPerformanceMarkerPosition } from './utils/performanceFeedback'
 import Schriftlich from './Schriftlich'
 import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
+import ReviewList from './ReviewList'
 
 export default function Game({ isSinglePlayer }) {
   const { roomId } = useParams()
@@ -175,31 +177,11 @@ export default function Game({ isSinglePlayer }) {
     }
   }
 
-  const handleKey = (e) => {
-    if (e.key === 'Enter') {
-      submitAnswer()
-    }
-  }
 
   const wrongCount = answers.filter(a => !a.isCorrect).length
   const elapsed = finished ? Math.floor((endTime - startTime) / 1000) : liveSeconds()
   const penalty = wrongCount * 10
   const finalTime = finished ? elapsed + penalty : null
-
-  const getPerformanceComment = (totalSeconds) => {
-    if (totalSeconds <= 90) return "Hervorragend! Du bist ein Einmaleins-Profi! 🏆"
-    if (totalSeconds <= 120) return "Sehr gut! Fast perfekte Zeit! 🌟"
-    if (totalSeconds <= 150) return "Gut gemacht! Du bist auf dem richtigen Weg! 👍"
-    if (totalSeconds <= 180) return "Nicht schlecht! Mit etwas Übung wird es noch besser! 💪"
-    return "Weiter üben! Du schaffst das! 🎯"
-  }
-
-  const getPerformanceMarkerPosition = (totalSeconds) => {
-    const position = Math.min(100, Math.max(0, 
-      ((totalSeconds - 90) / (210 - 90)) * 100
-    ))
-    return `${position}%`
-  }
 
   // Remove legacy focus/reset for schriftlich; handled by array-based effect above
   // Cleanup countdown timer on unmount
@@ -362,51 +344,11 @@ export default function Game({ isSinglePlayer }) {
           <div className="review-container">
             <div className="review-column">
               <h4>Richtig gelöst ({answers.filter(a => a.isCorrect).length})</h4>
-              <ul className="review-list ok">
-                {answers.filter(a => a.isCorrect).map((q) => {
-                  if (q.type === 'primfaktorisierung') {
-                    return (
-                      <li key={q.id}>
-                        Primfaktoren von {q.number} = {q.correct} (Deine Antwort: {q.user})
-                      </li>
-                    );
-                  }
-                  let op = '·';
-                  if (q.type === 'add' || q.operation === 'add') op = '+';
-                  else if (q.type === 'subtract' || q.operation === 'subtract') op = '−';
-                  else if (q.type === 'divide') op = '÷';
-                  else if (q.type === 'multiplication') op = '·';
-                  return (
-                    <li key={q.id}>
-                      {q.a} {op} {q.b} = {q.correct} (Deine Antwort: {q.user})
-                    </li>
-                  );
-                })}
-              </ul>
+              <ReviewList answers={answers} isCorrect={true} />
             </div>
             <div className="review-column">
               <h4>Falsch gelöst ({answers.filter(a => !a.isCorrect).length})</h4>
-              <ul className="review-list bad">
-                {answers.filter(a => !a.isCorrect).map((q) => {
-                  if (q.type === 'primfaktorisierung') {
-                    return (
-                      <li key={q.id}>
-                        Primfaktoren von {q.number} = {q.correct} (Deine Antwort: {q.user || '—'})
-                      </li>
-                    );
-                  }
-                  let op = '·';
-                  if (q.type === 'add' || q.operation === 'add') op = '+';
-                  else if (q.type === 'subtract' || q.operation === 'subtract') op = '−';
-                  else if (q.type === 'divide') op = '÷';
-                  else if (q.type === 'multiplication') op = '·';
-                  return (
-                    <li key={q.id}>
-                      {q.a} {op} {q.b} = {q.correct} (Deine Antwort: {isNaN(q.user) ? '—' : q.user})
-                    </li>
-                  );
-                })}
-              </ul>
+              <ReviewList answers={answers} isCorrect={false} />
             </div>
           </div>
 
@@ -418,9 +360,6 @@ export default function Game({ isSinglePlayer }) {
         </main>
       )}
 
-      <footer>
-        <small>Viel Erfolg! Die App läuft lokal im Browser.</small>
-      </footer>
     </div>
   )
 }
