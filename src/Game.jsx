@@ -72,8 +72,8 @@ export default function Game({ isSinglePlayer }) {
     // Generate problems when game starts (not before)
     const gameSettings = isSinglePlayer ? settings : (roomState?.settings || {});
     const gameCategory = isSinglePlayer ? category : 'einmaleins'; // multiplayer only supports einmaleins for now
-    // Determine count based on category: schriftlich=10, primfaktorisierung=20, einmaleins=50
-    const problemCount = gameCategory === 'schriftlich' ? 10 : gameCategory === 'primfaktorisierung' ? 20 : 50;
+  // Determine count based on category: schriftlich=15, primfaktorisierung=20, einmaleins=50
+  const problemCount = gameCategory === 'schriftlich' ? 15 : gameCategory === 'primfaktorisierung' ? 20 : 50;
     const newProblems = generateProblems(problemCount, gameCategory, gameSettings);
     setProblems(newProblems);
     
@@ -254,7 +254,7 @@ export default function Game({ isSinglePlayer }) {
 
                   {category === 'schriftlich' && (
                     <>
-                      <p>Du bekommst 10 schriftliche Rechenaufgaben (5 Addition, 5 Subtraktion).</p>
+                      <p>Du bekommst 15 schriftliche Rechenaufgaben (5 Addition, 5 Subtraktion, 5 Multiplikation).</p>
                       <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
                     </>
                   )}
@@ -308,6 +308,7 @@ export default function Game({ isSinglePlayer }) {
                 aDigits={problems[current].aDigits}
                 bDigits={problems[current].bDigits}
                 correctDigits={problems[current].correctDigits}
+                partialProducts={problems[current].partialProducts}
                 operation={problems[current].operation}
                 onChange={setSchriftlichInput}
                 onEnter={submitAnswer}

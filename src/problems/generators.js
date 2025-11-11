@@ -47,35 +47,87 @@ export function generateEinmaleinsProblems(count = 100, settings = {}) {
   return problems;
 }
 
-export function generateSchriftlichProblems(count = 10) {
-  const problems = [];
-  const halfCount = Math.floor(count / 2);
-  for (let i = 0; i < count; i++) {
-    const operation = i < halfCount ? 'add' : 'subtract';
-    let a, b, correct;
-    if (operation === 'add') {
-      a = Math.floor(Math.random() * 9000) + 1000;
-      b = Math.floor(Math.random() * 9000) + 1000;
-      correct = a + b;
-    } else {
-      a = Math.floor(Math.random() * 9000) + 1000;
-      b = Math.floor(Math.random() * (a - 1000)) + 1000;
-      if (b >= a) b = a - 1;
-      correct = a - b;
-    }
-    problems.push({
-      id: i + 1,
+export function generateSchriftlichProblems(count = 15) {
+  const additionCount = Math.floor(count / 3);
+  const subtractionCount = Math.floor(count / 3);
+  const multiplicationCount = count - additionCount - subtractionCount;
+
+  const addition = [];
+  const subtraction = [];
+  const multiplication = [];
+
+  for (let i = 0; i < additionCount; i++) {
+    const a = Math.floor(Math.random() * 9000) + 1000;
+    const b = Math.floor(Math.random() * 9000) + 1000;
+    const correct = a + b;
+    addition.push({
       a,
       b,
       correct,
       type: 'schriftlich',
-      operation,
-      aDigits: String(a).padStart(4, '0').split('').map(Number),
-      bDigits: String(b).padStart(4, '0').split('').map(Number),
-      correctDigits: String(correct).padStart(operation === 'add' ? 5 : 4, '0').split('').map(Number)
+      operation: 'add',
+      aDigits: String(a).split('').map(Number),
+      bDigits: String(b).split('').map(Number),
+      correctDigits: String(correct).padStart(5, '0').split('').map(Number)
     });
   }
-  return problems;
+
+  for (let i = 0; i < subtractionCount; i++) {
+    const a = Math.floor(Math.random() * 9000) + 1000;
+    let b = Math.floor(Math.random() * (a - 1000)) + 1000;
+    if (b >= a) b = a - 1;
+    const correct = a - b;
+    subtraction.push({
+      a,
+      b,
+      correct,
+      type: 'schriftlich',
+      operation: 'subtract',
+      aDigits: String(a).split('').map(Number),
+      bDigits: String(b).split('').map(Number),
+      correctDigits: String(correct).padStart(4, '0').split('').map(Number)
+    });
+  }
+
+  for (let i = 0; i < multiplicationCount; i++) {
+    const a = Math.floor(Math.random() * 900) + 100; // 100-999
+    const b = Math.floor(Math.random() * 900) + 100; // 100-999
+    const correct = a * b;
+    const correctDigits = String(correct).split('').map(Number);
+    const bDigits = String(b).split('').map(Number);
+    const cols = correctDigits.length;
+    const partialProducts = bDigits.map((digit, idx) => {
+      const shift = bDigits.length - idx - 1;
+      const partialValueDigits = String(a * digit).split('').map(Number);
+      const row = Array(cols).fill(null);
+      for (let k = 0; k < partialValueDigits.length; k++) {
+        const targetIndex = cols - 1 - shift - k;
+        if (targetIndex >= 0) {
+          row[targetIndex] = partialValueDigits[partialValueDigits.length - 1 - k];
+        }
+      }
+      return row;
+    });
+    multiplication.push({
+      a,
+      b,
+      correct,
+      type: 'schriftlich',
+      operation: 'multiply',
+      aDigits: String(a).split('').map(Number),
+      bDigits,
+      correctDigits,
+      partialProducts
+    });
+  }
+
+  const combined = [...addition, ...subtraction, ...multiplication];
+  for (let i = combined.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [combined[i], combined[j]] = [combined[j], combined[i]];
+  }
+
+  return combined.map((problem, index) => ({ ...problem, id: index + 1 }));
 }
 
 export function generatePrimfaktorisierungProblems(count = 20) {

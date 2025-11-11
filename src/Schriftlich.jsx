@@ -1,69 +1,190 @@
-import React, { useEffect, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { padLeft } from './utils/padLeft'
 
-/**
- * Schriftlich component renders the grid for column-wise addition/subtraction.
- * Manages its own digit and carry/borrow state and emits result changes.
- *
- * Props:
- * - aDigits: number[]
- * - bDigits: number[]
- * - correctDigits: number[] (used for column count and alignment)
- * - operation: 'add' | 'subtract'
- * - onChange?: ({ digits, parsed, valid }) => void
- * - onEnter?: () => void
- */
-export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits = [], operation = 'add', onChange, onEnter }) {
+const sanitizeDigit = (value) => value.replace(/[^0-9]/g, '').slice(0, 1)
+
+export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits = [], partialProducts = [], operation = 'add', onChange, onEnter }) {
   const cols = correctDigits.length
-  const totalCols = cols + 2 // padding columns
+  const isMultiply = operation === 'multiply'
+  const isAdd = operation === 'add'
+  const isSubtract = operation === 'subtract'
+
+  const extraCols = isMultiply ? bDigits.length + 1 : 1
+  const totalCols = cols + extraCols + 1
+
   const aCells = padLeft(aDigits, cols)
   const bCells = padLeft(bDigits, cols)
-  const isAdd = operation === 'add'
+
+  const partialRows = useMemo(() => (isMultiply ? (partialProducts ?? []) : []), [isMultiply, partialProducts])
+  const partialKey = useMemo(() => partialRows.map(row => row.map(v => (v ?? '')).join('')).join('|'), [partialRows])
 
   const [answerDigits, setAnswerDigits] = useState(() => Array(cols).fill(''))
   const [carryDigits, setCarryDigits] = useState(() => Array(cols).fill(''))
+  // For multiplication partial rows, inputs span the left result columns plus the right multiplier columns (excluding the dot column)
+  const partialRowWidth = isMultiply ? (cols + bDigits.length) : cols
+  const [partialInputs, setPartialInputs] = useState(() => partialRows.map(() => Array(partialRowWidth).fill('')))
 
-  // Reset state on problem change
-  useEffect(() => {
-    setAnswerDigits(Array(cols).fill(''))
-    setCarryDigits(Array(cols).fill(''))
-    // Focus rightmost result input
-    setTimeout(() => {
-      const el = document.getElementById(`res-${cols - 1}`)
-      if (el) el.focus()
-    }, 0)
-  }, [cols])
+  const navOrder = useMemo(() => {
+    if (isMultiply) {
+      const partialKeys = partialRows.map((_, idx) => `partial-${idx}`)
+      return [...partialKeys, 'carry', 'result']
+    }
+    if (isAdd) return ['carry', 'result']
+    return ['result']
+  }, [isMultiply, isAdd, partialRows])
 
-  // Emit changes to parent whenever answerDigits changes (carries don't affect result)
+  const rowIndexMap = useMemo(() => Object.fromEntries(navOrder.map((key, index) => [key, index])), [navOrder])
+  // Compute per-row widths for tab order and navigation
+  const rowWidth = (rowKey) => {
+    if (isMultiply) {
+      if (rowKey.startsWith('partial-')) return cols + bDigits.length
+      if (rowKey === 'carry' || rowKey === 'result') return cols + bDigits.length
+    }
+    return cols
+  }
+  // REPLACE tabIndexBaseMap and tabIndexFor with this new sequential mapping:
+
+  const tabIndexMap = useMemo(() => {
+    const map = new Map()
+    let seq = 0
+
+    // helper to register if the rendered cell actually contains an input
+    const partialCellHasInput = (rowIdx, globalCol) => {
+      const bIndex = rowIdx
+      const templateRow = partialRows?.[rowIdx] ?? []
+      const rowDigits = templateRow.filter(d => d !== null && d !== undefined)
+      const L = rowDigits.length
+      const rightGlobal = cols + bIndex
+      return globalCol >= (rightGlobal - L + 1) && globalCol <= rightGlobal
+    }
+
+    // For multiplication: first all partial inputs (each row right-to-left)
+    if (isMultiply) {
+      const width = cols + bDigits.length
+      for (let rowIdx = 0; rowIdx < partialInputs.length; rowIdx++) {
+        for (let col = width - 1; col >= 0; col--) {
+          if (partialCellHasInput(rowIdx, col)) {
+            map.set(`partial-${rowIdx}-${col}`, ++seq)
+          }
+        }
+      }
+    }
+
+    // After partials (or at top for add/sub) assign interleaved result/carry from right to left:
+    // order: result(col=rightmost) -> carry(col=rightmost-1) -> result(col=next) -> ...
+    for (let c = cols - 1; c >= 0; c--) {
+      // result cell (for multiply this maps to result global index start = bDigits.length + c)
+      // We store result keys by result-col index (0..cols-1)
+      map.set(`result-${c}`, ++seq)
+
+      // carry: place carry to the left of the current result (no carry for rightmost digit)
+      if (c - 1 >= 0) {
+        map.set(`carry-${c - 1}`, ++seq)
+      }
+    }
+
+    // For addition/subtraction we may also have other rows (but above mapping gives final order)
+    // For completeness, if you want partial rows to be after carries in some case, adjust earlier.
+
+    return map
+    // depend on structure that affects rendered inputs:
+  }, [isMultiply, partialInputs, partialRows, cols, bDigits.length])
+
+  const tabIndexFor = (rowKey, column) => {
+    // lookup keys must match how we set them above
+    if (rowKey.startsWith('partial-')) {
+      const key = `${rowKey}-${column}`
+      return tabIndexMap.get(key) ?? -1
+    }
+    if (rowKey === 'result') {
+      return tabIndexMap.get(`result-${column}`) ?? -1
+    }
+    if (rowKey === 'carry') {
+      return tabIndexMap.get(`carry-${column}`) ?? -1
+    }
+    return -1
+  }
+
+  // Component is keyed by the parent when the problem changes; initial state
+  // is set from props on mount. We focus in a layout effect below.
+
   useEffect(() => {
     if (!onChange) return
-    const parsed = answerDigits.map(d => d === '' ? '0' : d).join('')
+    const parsed = answerDigits.map(d => (d === '' ? '0' : d)).join('')
     const valid = answerDigits.some(d => d !== '')
     onChange({ digits: answerDigits, parsed, valid })
   }, [answerDigits, onChange])
 
-  const handleKeyDown = (e, isCarry, i) => {
-    const currentTab = parseInt(e.target.tabIndex)
+  // Focus the preferred input on mount (no setTimeout). Parent should key the component
+  // so this runs only when a new problem is mounted.
+  useLayoutEffect(() => {
+    if (cols <= 0) return
+    // Prefer tabindex=1 for deterministic focus
+    const firstTabEl = document.querySelector("input[tabindex='1']")
+    if (firstTabEl) {
+      firstTabEl.focus()
+      return
+    }
+    const el = document.getElementById(`res-${cols - 1}`)
+    if (el) el.focus()
+  }, [])
+
+  const focusCell = (rowKey, column) => {
+    const el = document.querySelector(`[data-row-key='${rowKey}'][data-col='${column}']`)
+    if (el) {
+      el.focus()
+      return true
+    }
+    return false
+  }
+
+  const focusHorizontal = (rowKey, startColumn, step) => {
+    const limit = rowWidth(rowKey)
+    let next = startColumn + step
+    while (next >= 0 && next < limit) {
+      if (focusCell(rowKey, next)) return
+      next += step
+    }
+  }
+
+  const focusVertical = (targetRow, column) => {
+    if (focusCell(targetRow, column)) return
+    const limit = rowWidth(targetRow)
+    let offset = 1
+    while (column - offset >= 0 || column + offset < limit) {
+      if (column - offset >= 0 && focusCell(targetRow, column - offset)) return
+      if (column + offset < limit && focusCell(targetRow, column + offset)) return
+      offset += 1
+    }
+  }
+
+  const handleKeyDown = (e, rowKey, column) => {
     if (e.key === 'ArrowRight') {
       e.preventDefault()
-      const next = document.querySelector(`[tabindex='${currentTab - 2}']`)
-      if (next) next.focus()
+      focusHorizontal(rowKey, column, 1)
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault()
-      const next = document.querySelector(`[tabindex='${currentTab + 2}']`)
-      if (next) next.focus()
-    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-      e.preventDefault()
-      const targetId = isCarry ? `res-${i}` : `carry-${i}`
-      const el = document.getElementById(targetId)
-      if (el) el.focus()
+      focusHorizontal(rowKey, column, -1)
+    } else if (e.key === 'ArrowUp') {
+      const currentIndex = rowIndexMap[rowKey]
+      if (currentIndex > 0) {
+        e.preventDefault()
+        const targetRow = navOrder[currentIndex - 1]
+        focusVertical(targetRow, column)
+      }
+    } else if (e.key === 'ArrowDown') {
+      const currentIndex = rowIndexMap[rowKey]
+      if (currentIndex < navOrder.length - 1) {
+        e.preventDefault()
+        const targetRow = navOrder[currentIndex + 1]
+        focusVertical(targetRow, column)
+      }
     } else if (e.key === 'Enter') {
       e.preventDefault()
       onEnter && onEnter()
-    } else if (!isAdd && !isCarry && (e.key === 'i' || e.key === 'I' || e.key === ' ' || e.code === 'Space' || e.key === 'Spacebar')) {
-      // Toggle borrow mark left of current result input
+    } else if (isSubtract && rowKey === 'result' && (e.key === 'i' || e.key === 'I' || e.key === ' ' || e.code === 'Space' || e.key === 'Spacebar')) {
       e.preventDefault()
-      const targetIndex = i - 1
+      const targetIndex = column - 1
       if (targetIndex >= 0) {
         setCarryDigits(prev => {
           const arr = [...prev]
@@ -74,92 +195,300 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
     }
   }
 
-  return (
-    <div className="schriftlich-grid-container">
-      <div className="schriftlich-grid" style={{gridTemplateColumns: `repeat(${totalCols}, 50px)`, gridTemplateRows: `repeat(4, 50px)`}}>
-        {/* Row 1: first number (minuend or first addend) */}
+  const renderAddition = () => (
+    <>
+      <Fragment key="row1">
         <div className="grid-cell" />
-        {aCells.map((d,i)=>(<div key={`a-${i}`} className="grid-cell digit">{d ?? ''}</div>))}
+        {aCells.map((d, i) => (
+          <div key={`add-a-${i}`} className="grid-cell digit">{d ?? ''}</div>
+        ))}
         <div className="grid-cell" />
-
-        {isAdd ? (
-          <>
-            {/* Row 2: second addend */}
-            <div className="grid-cell" />
-            {bCells.map((d,i)=>(<div key={`b-${i}`} className="grid-cell digit">{d ?? ''}</div>))}
-            <div className="grid-cell" />
-
-            {/* Row 3: plus sign and carries */}
-            <div className="grid-cell plus">+</div>
-            {Array.from({length: cols}).map((_, i)=>(
-              <div key={`c-${i}`} className="grid-cell">
-                <input
-                  id={`carry-${i}`}
-                  className="digit-input red small"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  tabIndex={2*(cols-1-i)+1}
-                  value={carryDigits[i] || ''}
-                  onChange={e=>{
-                    const v=e.target.value.replace(/[^0-9]/g,'').slice(0,1)
-                    setCarryDigits(prev=>{const arr=[...prev];arr[i]=v;return arr})
-                    // Auto-advance disabled intentionally
-                  }}
-                  onKeyDown={e => handleKeyDown(e, true, i)}
-                />
-              </div>
-            ))}
-            <div className="grid-cell" />
-          </>
-        ) : (
-          <>
-            {/* Row 2: borrow row between minuend and subtrahend */}
-            <div className="grid-cell" />
-            {Array.from({length: cols}).map((_, i)=>(
-              <div key={`borr-${i}`} className="grid-cell" onClick={()=>{
-                setCarryDigits(prev=>{
-                  const arr=[...prev]
-                  arr[i] = arr[i] === 'I' ? '' : 'I'
-                  return arr
-                })
-              }}>
-                <div className="borrow-cell">
-                  {carryDigits[i] === 'I' ? <span className="borrow-mark" /> : null}
-                </div>
-              </div>
-            ))}
-            <div className="grid-cell" />
-
-            {/* Row 3: minus sign and second number (subtrahend) */}
-            <div className="grid-cell plus">−</div>
-            {bCells.map((d,i)=>(<div key={`b-${i}`} className="grid-cell digit">{d ?? ''}</div>))}
-            <div className="grid-cell" />
-          </>
-        )}
-
-        {/* Row 4: result row with thick top border */}
+      </Fragment>
+      <Fragment key="row2">
+        <div className="grid-cell" />
+        {bCells.map((d, i) => (
+          <div key={`add-b-${i}`} className="grid-cell digit">{d ?? ''}</div>
+        ))}
+        <div className="grid-cell" />
+      </Fragment>
+      <Fragment key="row3">
+        <div className="grid-cell plus">+</div>
+        {Array.from({ length: cols }).map((_, i) => (
+          <div key={`add-c-${i}`} className="grid-cell">
+            {i === cols - 1 ? null : (
+              <input
+                id={`carry-${i}`}
+                data-row-key="carry"
+                data-col={i}
+                className="digit-input red small"
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                tabIndex={tabIndexFor('carry', i)}
+                value={carryDigits[i] || ''}
+                onChange={e => {
+                  const v = sanitizeDigit(e.target.value)
+                  setCarryDigits(prev => {
+                    const arr = [...prev]
+                    arr[i] = v
+                    return arr
+                  })
+                }}
+                onKeyDown={e => handleKeyDown(e, 'carry', i)}
+              />
+            )}
+          </div>
+        ))}
+        <div className="grid-cell" />
+      </Fragment>
+      <Fragment key="row4">
         <div className="grid-cell result-sep" />
-        {Array.from({length: cols}).map((_, i)=>(
-          <div key={`r-${i}`} className="grid-cell result-sep">
+        {Array.from({ length: cols }).map((_, i) => (
+          <div key={`add-r-${i}`} className="grid-cell result-sep">
             <input
               id={`res-${i}`}
+              data-row-key="result"
+              data-col={i}
               className="digit-input blue"
               type="text"
               inputMode="numeric"
               maxLength={1}
-              tabIndex={2*(cols-1-i)+2}
+              tabIndex={tabIndexFor('result', i)}
               value={answerDigits[i] || ''}
-              onChange={e=>{
-                const v=e.target.value.replace(/[^0-9]/g,'').slice(0,1)
-                setAnswerDigits(prev=>{const arr=[...prev];arr[i]=v;return arr})
-                // Auto-advance disabled intentionally
+              onChange={e => {
+                const v = sanitizeDigit(e.target.value)
+                setAnswerDigits(prev => {
+                  const arr = [...prev]
+                  arr[i] = v
+                  return arr
+                })
               }}
-              onKeyDown={e => handleKeyDown(e, false, i)}
+              onKeyDown={e => handleKeyDown(e, 'result', i)}
             />
           </div>
         ))}
         <div className="grid-cell result-sep" />
+      </Fragment>
+    </>
+  )
+
+  const renderSubtraction = () => (
+    <>
+      <Fragment key="row1">
+        <div className="grid-cell" />
+        {aCells.map((d, i) => (
+          <div key={`sub-a-${i}`} className="grid-cell digit">{d ?? ''}</div>
+        ))}
+        <div className="grid-cell" />
+      </Fragment>
+      <Fragment key="row2">
+        <div className="grid-cell" />
+        {Array.from({ length: cols }).map((_, i) => (
+          <div
+            key={`borr-${i}`}
+            className="grid-cell"
+            onClick={() => {
+              setCarryDigits(prev => {
+                const arr = [...prev]
+                arr[i] = arr[i] === 'I' ? '' : 'I'
+                return arr
+              })
+            }}
+          >
+            <div className="borrow-cell">{carryDigits[i] === 'I' ? <span className="borrow-mark" /> : null}</div>
+          </div>
+        ))}
+        <div className="grid-cell" />
+      </Fragment>
+      <Fragment key="row3">
+        <div className="grid-cell plus">−</div>
+        {bCells.map((d, i) => (
+          <div key={`sub-b-${i}`} className="grid-cell digit">{d ?? ''}</div>
+        ))}
+        <div className="grid-cell" />
+      </Fragment>
+      <Fragment key="row4">
+        <div className="grid-cell result-sep" />
+        {Array.from({ length: cols }).map((_, i) => (
+          <div key={`sub-r-${i}`} className="grid-cell result-sep">
+            <input
+              id={`res-${i}`}
+              data-row-key="result"
+              data-col={i}
+              className="digit-input blue"
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              tabIndex={tabIndexFor('result', i)}
+              value={answerDigits[i] || ''}
+              onChange={e => {
+                const v = sanitizeDigit(e.target.value)
+                setAnswerDigits(prev => {
+                  const arr = [...prev]
+                  arr[i] = v
+                  return arr
+                })
+              }}
+              onKeyDown={e => handleKeyDown(e, 'result', i)}
+            />
+          </div>
+        ))}
+        <div className="grid-cell result-sep" />
+      </Fragment>
+    </>
+  )
+
+  const renderMultiplication = () => (
+    <>
+      <Fragment key="row1">
+        {aCells.map((d, i) => (
+          <div key={`mul-a-${i}`} className="grid-cell digit">{d ?? ''}</div>
+        ))}
+        <div className="grid-cell plus">·</div>
+        {bDigits.map((d, i) => (
+          <div key={`mul-btop-${i}`} className="grid-cell digit">{d}</div>
+        ))}
+        {/* rightmost empty column for consistency */}
+        <div className="grid-cell" />
+      </Fragment>
+
+      {partialInputs.map((row, rowIdx) => (
+        <Fragment key={`partial-${rowIdx}`}>
+          <div className={`grid-cell plus ${rowIdx === 0 ? 'result-sep' : ''}`}>+</div>
+          {(() => {
+            // Determine which columns should have digits so that the rightmost digit
+            // aligns with the corresponding multiplier digit (left-to-right index)
+            const bIndex = rowIdx // row order matches bDigits order (left-to-right)
+            const rightGlobal = cols + bIndex // align directly under the multiplier digit after left shift
+            const templateRow = partialRows?.[rowIdx] ?? []
+            const rowDigits = templateRow.filter(d => d !== null && d !== undefined)
+            const L = rowDigits.length
+            const width = cols + bDigits.length
+            return Array.from({ length: width }).map((_, globalCol) => {
+              const within = globalCol >= (rightGlobal - L + 1) && globalCol <= rightGlobal
+              const valueIdx = L - 1 - (rightGlobal - globalCol)
+              return (
+                <div key={`mul-part-${rowIdx}-${globalCol}`} className={`grid-cell ${rowIdx === 0 ? 'result-sep' : ''}`}>
+                  {within ? (
+                    <input
+                      data-row-key={`partial-${rowIdx}`}
+                      data-col={globalCol}
+                      className="digit-input"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      tabIndex={tabIndexFor(`partial-${rowIdx}`, globalCol)}
+                      value={row[globalCol] || ''}
+                      onChange={e => {
+                        const v = sanitizeDigit(e.target.value)
+                        setPartialInputs(prev => {
+                          const next = prev.map(inner => [...inner])
+                          next[rowIdx][globalCol] = v
+                          return next
+                        })
+                      }}
+                      onKeyDown={e => handleKeyDown(e, `partial-${rowIdx}`, globalCol)}
+                    />
+                  ) : null}
+                </div>
+              )
+            })
+          })()}
+          <div className={`grid-cell ${rowIdx === 0 ? 'result-sep' : ''}`} />
+        </Fragment>
+      ))}
+
+      <Fragment key="carry-row">
+        <div className="grid-cell" />
+        {(() => {
+          const width = cols + bDigits.length
+          const start = bDigits.length
+          return Array.from({ length: width }).map((_, globalCol) => {
+            const within = globalCol >= start && globalCol < start + cols
+            const idx = globalCol - start
+            return (
+              <div key={`mul-carry-col-${globalCol}`} className="grid-cell">
+                {within && idx !== cols - 1 ? (
+                  <input
+                    id={`carry-${idx}`}
+                    data-row-key="carry"
+                    data-col={globalCol}
+                    className="digit-input red small"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    tabIndex={tabIndexFor('carry', idx)}
+                    value={carryDigits[idx] || ''}
+                    onChange={e => {
+                      const v = sanitizeDigit(e.target.value)
+                      setCarryDigits(prev => {
+                        const arr = [...prev]
+                        arr[idx] = v
+                        return arr
+                      })
+                    }}
+                    onKeyDown={e => handleKeyDown(e, 'carry', globalCol)}
+                  />
+                ) : null}
+              </div>
+            )
+          })
+        })()}
+        <div className="grid-cell" />
+      </Fragment>
+
+      <Fragment key="result-row">
+        <div className="grid-cell result-sep" />
+        {(() => {
+          const width = cols + bDigits.length
+          const start = bDigits.length
+          return Array.from({ length: width }).map((_, globalCol) => {
+            const within = globalCol >= start && globalCol < start + cols
+            const idx = globalCol - start
+            return (
+              <div key={`mul-res-col-${globalCol}`} className="grid-cell result-sep">
+                {within ? (
+                  <input
+                    id={`res-${idx}`}
+                    data-row-key="result"
+                    data-col={globalCol}
+                    className="digit-input blue"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    tabIndex={tabIndexFor('result', idx)}
+                    value={answerDigits[idx] || ''}
+                    onChange={e => {
+                      const v = sanitizeDigit(e.target.value)
+                      setAnswerDigits(prev => {
+                        const arr = [...prev]
+                        arr[idx] = v
+                        return arr
+                      })
+                    }}
+                    onKeyDown={e => handleKeyDown(e, 'result', globalCol)}
+                  />
+                ) : null}
+              </div>
+            )
+          })
+        })()}
+        <div className="grid-cell result-sep" />
+      </Fragment>
+    </>
+  )
+
+  const gridContent = isMultiply ? renderMultiplication() : (isAdd ? renderAddition() : renderSubtraction())
+  // Multiply: header + partial rows + carry + result (separator is styled on first partial row)
+  const rowCount = isMultiply ? partialInputs.length + 3 : 4
+
+  return (
+    <div className="schriftlich-grid-container">
+      <div
+        className="schriftlich-grid"
+        style={{ gridTemplateColumns: `repeat(${totalCols}, 50px)`, gridTemplateRows: `repeat(${rowCount}, 50px)` }}
+      >
+        {gridContent}
       </div>
     </div>
   )
