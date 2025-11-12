@@ -139,16 +139,7 @@ export default function Game({ isSinglePlayer }) {
       parsed = p
       isCorrect = ok
     } else if (prob.type === 'schriftlich') {
-      const { isCorrect: ok, parsed: p, valid } = validateSchriftlich(schriftlichInput.digits, prob.correctDigits)
-      if (!valid) {
-        const el = document.getElementById('res-0')
-        if (el) {
-          el.focus()
-          el.style.background = '#ffebee'
-          setTimeout(() => (el.style.background = ''), 300)
-        }
-        return
-      }
+      const { isCorrect: ok, parsed: p } = validateSchriftlich(schriftlichInput.digits, prob.correctDigits)
       parsed = p
       isCorrect = ok
     } else {
