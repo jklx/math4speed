@@ -19,6 +19,8 @@ body{font-family:Inter,Segoe UI,Arial,Helvetica,sans-serif;background:var(--bg);
 header{margin-bottom:1rem}
 .center{text-align:center;padding:2rem;background:var(--card);border-radius:8px}
 .big{background:var(--accent);color:white;border:none;padding:0.6rem 1rem;border-radius:6px;cursor:pointer}
+/* Secondary variant for less-prominent big buttons (e.g., Undo) */
+.big.secondary{background:transparent;color:var(--accent);border:2px solid rgba(43,108,176,0.12);box-shadow:none}
 .top-row{display:flex;justify-content:space-between;margin-bottom:1rem}
 .question{display:flex;align-items:center;justify-content:center;gap:1.5rem;background:var(--card);padding:2rem;border-radius:8px;text-align:center}
 .expression{font-size:2rem;font-weight:700}

@@ -43,6 +43,10 @@ export default function Game({ isSinglePlayer }) {
   // removed legacy single carryValue, we now exclusively use carryDigits for carries/borrows
   // schriftlich input state lifted from component via onChange
   const [schriftlichInput, setSchriftlichInput] = useState({ digits: [], parsed: '', valid: false })
+  // Multi-step undo support without premounting: keep a stack of snapshots
+  // Unified history snapshots keyed by problem index; used for both undo and forward-restore
+  const [snapshots, setSnapshots] = useState({}) // Record<number, { index, problem, schriftlichInput, inputValue }>
+  const [restoreSnapshot, setRestoreSnapshot] = useState(null)
   const [finished, setFinished] = useState(false)
   const [startTime, setStartTime] = useState(null)
   const [endTime, setEndTime] = useState(null)
@@ -80,11 +84,12 @@ export default function Game({ isSinglePlayer }) {
     setStarted(false)
     setCountdown(3)
     setCurrent(0)
-    setAnswers([])
+  setAnswers([])
     setInputValue('')
     setFinished(false)
     setStartTime(null)
     setEndTime(null)
+  setSnapshots({})
     // clear any existing countdown timer before starting a new one
     if (countdownTimerRef.current) {
       clearInterval(countdownTimerRef.current)
@@ -150,6 +155,12 @@ export default function Game({ isSinglePlayer }) {
     const newEntry = { ...prob, user: parsed, isCorrect }
     const newAnswers = [...answers, newEntry]
     setAnswers(newAnswers)
+    // Store/overwrite snapshot for this index so we can undo and forward-restore later
+    if (isSinglePlayer) {
+      setSnapshots(prev => ({ ...prev, [current]: { index: current, problem: prob, schriftlichInput, inputValue } }))
+    } else {
+      setSnapshots({})
+    }
   setInputValue('')
   setSchriftlichInput({ digits: [], parsed: '', valid: false })
     if (current + 1 >= problems.length) {
@@ -171,12 +182,45 @@ export default function Game({ isSinglePlayer }) {
       setFinished(true)
     } else {
       setCurrent(c => c + 1)
+      // If moving forward after undos, auto-restore the next problem from existing snapshot history
+      if (isSinglePlayer) {
+        const nextIndex = current + 1
+        const nextSnap = snapshots[nextIndex]
+        if (nextSnap) {
+          setInputValue(nextSnap.inputValue || '')
+          if (nextSnap.schriftlichInput) setSchriftlichInput(nextSnap.schriftlichInput)
+          // Defer setting restoreSnapshot until after current updates
+          setTimeout(() => setRestoreSnapshot(nextSnap), 0)
+        }
+      }
       if (roomId && !isSinglePlayer) {
         const progress = ((current + 1) / problems.length) * 100
         // Send current progress with all solved problems so far
         updateProgress(roomId, progress, newAnswers)
       }
     }
+  }
+
+  const undoLast = () => {
+    // Undo last submission if any
+    if (!answers.length) return
+    const targetIndex = answers.length - 1
+    const snap = snapshots[targetIndex]
+    // Remove the last answer and prepare to restore the snapshot into the next mount
+    setAnswers(prev => prev.slice(0, -1))
+    setRestoreSnapshot(snap)
+    // Restore simple input immediately and also restore lifted schriftlich snapshot for immediate submit
+    setInputValue(snap?.inputValue || '')
+    if (snap?.schriftlichInput) setSchriftlichInput(snap.schriftlichInput)
+    setCurrent(targetIndex)
+    // Clear finished state if we were finished
+    setFinished(false)
+    setEndTime(null)
+    // focus will be handled after render; keep a small timeout to ensure DOM ready
+    setTimeout(() => {
+      const el = document.querySelector("input[tabindex='1']")
+      if (el) el.focus()
+    }, 0)
   }
 
 
@@ -195,6 +239,15 @@ export default function Game({ isSinglePlayer }) {
       }
     }
   }, [])
+
+  // After restoring snapshot into a mounted problem, clear the restoreSnapshot so
+  // it doesn't apply repeatedly. We wait a tick so the child can read the prop on mount.
+  useEffect(() => {
+    if (!restoreSnapshot) return
+    if (restoreSnapshot.index !== current) return
+    const t = setTimeout(() => setRestoreSnapshot(null), 0)
+    return () => clearTimeout(t)
+  }, [restoreSnapshot, current])
 
   return (
     <div className="app">
@@ -303,6 +356,7 @@ export default function Game({ isSinglePlayer }) {
                 operation={problems[current].operation}
                 onChange={setSchriftlichInput}
                 onEnter={submitAnswer}
+                initialState={restoreSnapshot && restoreSnapshot.index === current ? restoreSnapshot.schriftlichInput : undefined}
               />
             ) : problems[current].type === 'multiplication' ? (
               <Einmaleins
@@ -317,6 +371,9 @@ export default function Game({ isSinglePlayer }) {
           </div>
 
           <div className="controls">
+            {answers.length > 0 && isSinglePlayer ? (
+              <button onClick={undoLast} className="big secondary">Zurück</button>
+            ) : null}
             <button onClick={submitAnswer} className="big">Nächste</button>
           </div>
         </main>

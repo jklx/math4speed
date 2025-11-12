@@ -3,7 +3,7 @@ import { padLeft } from './utils/padLeft'
 
 const sanitizeDigit = (value) => value.replace(/[^0-9]/g, '').slice(0, 1)
 
-export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits = [], partialProducts = [], operation = 'add', onChange, onEnter }) {
+export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits = [], partialProducts = [], operation = 'add', onChange, onEnter, initialState }) {
   const cols = correctDigits.length
   const isMultiply = operation === 'multiply'
   const isAdd = operation === 'add'
@@ -112,12 +112,36 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
     if (!onChange) return
     const parsed = answerDigits.map(d => (d === '' ? '0' : d)).join('')
     const valid = answerDigits.some(d => d !== '')
-    onChange({ digits: answerDigits, parsed, valid })
-  }, [answerDigits, onChange])
+    // Provide full local state so parent can snapshot/restore on undo without premounting
+    onChange({ digits: answerDigits, parsed, valid, carryDigits, partialInputs })
+  }, [answerDigits, carryDigits, partialInputs, onChange])
 
   // Focus the preferred input on mount (no setTimeout). Parent should key the component
   // so this runs only when a new problem is mounted.
   useLayoutEffect(() => {
+    // Hydrate from initialState when provided (e.g., after undo)
+    if (initialState) {
+      if (Array.isArray(initialState.digits)) {
+        const arr = Array(cols).fill('')
+        for (let i = 0; i < Math.min(cols, initialState.digits.length); i++) arr[i] = initialState.digits[i] || ''
+        setAnswerDigits(arr)
+      }
+      if (Array.isArray(initialState.carryDigits)) {
+        const carr = Array(cols).fill('')
+        for (let i = 0; i < Math.min(cols, initialState.carryDigits.length); i++) carr[i] = initialState.carryDigits[i] || ''
+        setCarryDigits(carr)
+      }
+      if (Array.isArray(initialState.partialInputs)) {
+        const width = cols + bDigits.length
+        const parts = initialState.partialInputs.map(row => {
+          const arr = Array(width).fill('')
+          for (let i = 0; i < Math.min(row.length, width); i++) arr[i] = row[i] || ''
+          return arr
+        })
+        setPartialInputs(parts)
+      }
+    }
+
     if (cols <= 0) return
     // Prefer tabindex=1 for deterministic focus
     const firstTabEl = document.querySelector("input[tabindex='1']")
