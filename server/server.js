@@ -37,7 +37,11 @@ io.on('connection', (socket) => {
       players: new Map(),
       status: 'waiting', // waiting, playing, finished
       startTime: null,
-      settings: null // Will be set when game starts
+      settings: {
+        category: 'einmaleins',
+        includeSquares11_20: false,
+        includeSquares21_25: false
+      }
     });
     socket.join(roomId);
     socket.emit('roomCreated', { roomId, isAdmin: true, adminName: roomName, adminToken });
@@ -104,9 +108,14 @@ io.on('connection', (socket) => {
     if (!room || room.admin !== socket.id) return;
     
     // Store settings in room state
+    const category = settings && typeof settings.category === 'string'
+      ? settings.category
+      : (room.settings?.category || 'einmaleins');
+    const enableSquares = category === 'einmaleins';
     room.settings = {
-      includeSquares11_20: settings.includeSquares11_20 || false,
-      includeSquares21_25: settings.includeSquares21_25 || false
+      category,
+      includeSquares11_20: enableSquares && !!settings?.includeSquares11_20,
+      includeSquares21_25: enableSquares && !!settings?.includeSquares21_25
     };
     
     room.status = 'playing';
@@ -128,7 +137,7 @@ io.on('connection', (socket) => {
       socket.emit('roomCheckResult', { roomId: rid, exists: false, status: null });
       return;
     }
-    socket.emit('roomCheckResult', { roomId: rid, exists: true, status: room.status });
+    socket.emit('roomCheckResult', { roomId: rid, exists: true, status: room.status, settings: room.settings || null });
   });
 
   // Allow clients (especially admin) to request current room state
@@ -146,6 +155,7 @@ io.on('connection', (socket) => {
       admin: room.admin,
       adminName: room.adminName,
       status: room.status,
+      settings: room.settings || null,
       players: Array.from(room.players.entries()).map(([id, data]) => ({
         id,
         username: data.username,
@@ -240,6 +250,7 @@ function updateRoomState(roomId) {
     admin: room.admin,
     adminName: room.adminName,
     status: room.status,
+    settings: room.settings || null,
     players: Array.from(room.players.entries()).map(([id, data]) => ({
       id,
       username: data.username,

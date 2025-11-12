@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useLocation } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
 // Refactored imports
 import { generateProblems } from './problems/generators'
 import { validateSchriftlich, validatePrimfaktorisierung } from './problems/validate'
-import { getPerformanceComment, getPerformanceMarkerPosition } from './utils/performanceFeedback'
+import { getPerformanceComment } from './utils/performanceFeedback'
+import { getCategoryLabel } from './utils/categories'
 import Schriftlich from './Schriftlich'
 import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
@@ -25,6 +26,10 @@ export default function Game({ isSinglePlayer }) {
     }
     return 'einmaleins';
   }); // 'einmaleins' | 'schriftlich' | 'primfaktorisierung'
+  const multiplayerSettings = roomState?.settings || {};
+  const multiplayerCategory = multiplayerSettings.category || 'einmaleins';
+  const activeCategory = isSinglePlayer ? category : multiplayerCategory;
+  const activeCategoryLabel = getCategoryLabel(activeCategory);
   
   // Settings for problem generation (only for training mode)
   const [settings, setSettings] = useState({
@@ -54,6 +59,35 @@ export default function Game({ isSinglePlayer }) {
   const inputRef = useRef(null)
   const countdownTimerRef = useRef(null)
 
+  const renderCategoryDescription = (cat) => {
+    if (cat === 'einmaleins') {
+      return (
+        <>
+          <p>Du bekommst 50 Einmaleinsaufgaben. Aufgaben mit ·1 und ·10 kommen seltener vor.</p>
+          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
+        </>
+      )
+    }
+    if (cat === 'schriftlich') {
+      return (
+        <>
+          <p>Du bekommst 15 schriftliche Rechenaufgaben (5 Addition, 5 Subtraktion, 5 Multiplikation).</p>
+          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
+        </>
+      )
+    }
+    if (cat === 'primfaktorisierung') {
+      return (
+        <>
+          <p>Du bekommst 20 Zahlen, die du in ihre Primfaktoren zerlegen musst.</p>
+          <p>Gib die Primfaktoren durch Leerzeichen getrennt ein (z.B. "2 2 3" für 12).</p>
+          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
+        </>
+      )
+    }
+    return null
+  }
+
   useEffect(() => {
     if (started && !finished) {
       inputRef.current?.focus()
@@ -74,22 +108,22 @@ export default function Game({ isSinglePlayer }) {
 
   const handleStart = () => {
     // Generate problems when game starts (not before)
-    const gameSettings = isSinglePlayer ? settings : (roomState?.settings || {});
-    const gameCategory = isSinglePlayer ? category : 'einmaleins'; // multiplayer only supports einmaleins for now
-  // Determine count based on category: schriftlich=15, primfaktorisierung=20, einmaleins=50
-  const problemCount = gameCategory === 'schriftlich' ? 15 : gameCategory === 'primfaktorisierung' ? 20 : 50;
+    const gameSettings = isSinglePlayer ? settings : multiplayerSettings;
+    const gameCategory = isSinglePlayer ? category : multiplayerCategory;
+    // Determine count based on category: schriftlich=15, primfaktorisierung=20, einmaleins=50
+    const problemCount = gameCategory === 'schriftlich' ? 15 : gameCategory === 'primfaktorisierung' ? 20 : 50;
     const newProblems = generateProblems(problemCount, gameCategory, gameSettings);
     setProblems(newProblems);
     
     setStarted(false)
     setCountdown(3)
     setCurrent(0)
-  setAnswers([])
+    setAnswers([])
     setInputValue('')
     setFinished(false)
     setStartTime(null)
     setEndTime(null)
-  setSnapshots({})
+    setSnapshots({})
     // clear any existing countdown timer before starting a new one
     if (countdownTimerRef.current) {
       clearInterval(countdownTimerRef.current)
@@ -260,55 +294,35 @@ export default function Game({ isSinglePlayer }) {
               {isSinglePlayer ? (
                 <>
                   <h2>Trainingsmodus</h2>
-                  
+                  {renderCategoryDescription(category)}
                   {category === 'einmaleins' && (
-                    <>
-                      <p>Du bekommst 50 Einmaleinsaufgaben. Aufgaben mit ·1 und ·10 kommen seltener vor.</p>
-                      <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
-                      
-                      <div className="settings-box">
-                        <h3>Aufgaben</h3>
-                        <label className="checkbox-label">
-                          <input 
-                            type="checkbox" 
-                            checked={true}
-                            disabled={true}
-                          />
-                          <span>Einmaleins 1-10</span>
-                        </label>
-                        <label className="checkbox-label">
-                          <input 
-                            type="checkbox" 
-                            checked={settings.includeSquares11_20}
-                            onChange={(e) => setSettings({...settings, includeSquares11_20: e.target.checked})}
-                          />
-                          <span>Quadratzahlen 11-20 (z.B. 11², 15², 20²)</span>
-                        </label>
-                        <label className="checkbox-label">
-                          <input 
-                            type="checkbox" 
-                            checked={settings.includeSquares21_25}
-                            onChange={(e) => setSettings({...settings, includeSquares21_25: e.target.checked})}
-                          />
-                          <span>Quadratzahlen 21-25 (z.B. 21², 23², 25²)</span>
-                        </label>
-                      </div>
-                    </>
-                  )}
-
-                  {category === 'schriftlich' && (
-                    <>
-                      <p>Du bekommst 15 schriftliche Rechenaufgaben (5 Addition, 5 Subtraktion, 5 Multiplikation).</p>
-                      <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
-                    </>
-                  )}
-
-                  {category === 'primfaktorisierung' && (
-                    <>
-                      <p>Du bekommst 20 Zahlen, die du in ihre Primfaktoren zerlegen musst.</p>
-                      <p>Gib die Primfaktoren durch Leerzeichen getrennt ein (z.B. "2 2 3" für 12).</p>
-                      <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
-                    </>
+                    <div className="settings-box">
+                      <h3>Aufgaben</h3>
+                      <label className="checkbox-label">
+                        <input 
+                          type="checkbox" 
+                          checked={true}
+                          disabled={true}
+                        />
+                        <span>Einmaleins 1-10</span>
+                      </label>
+                      <label className="checkbox-label">
+                        <input 
+                          type="checkbox" 
+                          checked={settings.includeSquares11_20}
+                          onChange={(e) => setSettings({...settings, includeSquares11_20: e.target.checked})}
+                        />
+                        <span>Quadratzahlen 11-20 (z.B. 11², 15², 20²)</span>
+                      </label>
+                      <label className="checkbox-label">
+                        <input 
+                          type="checkbox" 
+                          checked={settings.includeSquares21_25}
+                          onChange={(e) => setSettings({...settings, includeSquares21_25: e.target.checked})}
+                        />
+                        <span>Quadratzahlen 21-25 (z.B. 21², 23², 25²)</span>
+                      </label>
+                    </div>
                   )}
                   
                   <button onClick={handleStart} className="big">Starten</button>
@@ -319,6 +333,8 @@ export default function Game({ isSinglePlayer }) {
                   <p>Warte auf den Start durch den Admin...</p>
                   <p>Raum: <strong>{roomId?.toLowerCase()}</strong></p>
                   {username && <p>Dein Name: <strong>{username}</strong></p>}
+                  <p>Kategorie: <strong>{activeCategoryLabel}</strong></p>
+                  {renderCategoryDescription(multiplayerCategory)}
                 </>
               )}
             </>

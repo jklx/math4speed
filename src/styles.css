@@ -310,6 +310,24 @@ button:disabled {
   border-color: #e6e6e6;
 }
 
+.admin-settings-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0 0 1rem 0;
+  color: #444;
+}
+
+.admin-settings-summary .settings-pill {
+  background: rgba(43,108,176,0.08);
+  color: var(--accent);
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
 .room-title h2 {
   margin: 0 0 0.4rem 0;
   font-size: 1.35rem;

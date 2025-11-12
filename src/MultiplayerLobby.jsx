@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMultiplayer } from './MultiplayerContext';
+import { getCategoryLabel } from './utils/categories';
 
 function JoinRoomStatus({ roomCode }) {
   const { roomCheck } = useMultiplayer();
@@ -18,8 +19,14 @@ function JoinRoomStatus({ roomCode }) {
   }
 
   if (checkingThis && roomCheck.exists === true && roomCheck.status === 'waiting') {
+    const categoryLabel = roomCheck.settings?.category
+      ? getCategoryLabel(roomCheck.settings.category)
+      : null;
     return (
       <div className="tile-actions">
+        {categoryLabel && (
+          <div className="hint">Kategorie: {categoryLabel}</div>
+        )}
         <button
           type="submit"
           className="big"

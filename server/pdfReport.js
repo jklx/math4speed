@@ -68,8 +68,18 @@ function generateReport(res, room, finishedPlayers, options = {}) {
     doc.fontSize(10);
     if (p.solved && p.solved.length) {
       p.solved.forEach((prob) => {
-        const userAnswer = Number.isNaN(Number(prob.user)) ? '(keine Antwort)' : prob.user;
-        doc.text(`${prob.a} × ${prob.b} = ${prob.correct}  (Deine Antwort: ${userAnswer})`);
+        const userAnswer = (prob && prob.user !== undefined && prob.user !== null && prob.user !== '') ? prob.user : '(keine Antwort)';
+        if (prob.type === 'primfaktorisierung') {
+          doc.text(`Primfaktoren von ${prob.number} = ${prob.correct}  (Deine Antwort: ${userAnswer})`);
+        } else if (prob) {
+          const op = (prob.operation === 'add' || prob.type === 'add') ? '+'
+            : (prob.operation === 'subtract' || prob.type === 'subtract') ? '−'
+            : '·';
+          const left = typeof prob.a !== 'undefined' ? prob.a : '—';
+          const right = typeof prob.b !== 'undefined' ? prob.b : '—';
+          const correct = (prob.correct !== undefined && prob.correct !== null) ? prob.correct : '—';
+          doc.text(`${left} ${op} ${right} = ${correct}  (Deine Antwort: ${userAnswer})`);
+        }
       });
     } else {
       doc.text('Keine gelösten Aufgaben vorhanden.');

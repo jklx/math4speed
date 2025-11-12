@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
 import Logo from './Logo'
+import { getOperator } from './utils/getOperator'
+import { getCategoryLabel } from './utils/categories'
 
 export default function AdminView() {
   const { roomId } = useParams()
@@ -11,10 +13,12 @@ export default function AdminView() {
   const [toast, setToast] = useState(null)
   
   // Local settings state (only for admin)
-  const [settings, setSettings] = useState({
+  const defaultSettings = {
+    category: 'einmaleins',
     includeSquares11_20: false,
     includeSquares21_25: false
-  });
+  }
+  const [settings, setSettings] = useState(defaultSettings);
 
   useEffect(() => {
     if (!toast) return
@@ -49,6 +53,76 @@ export default function AdminView() {
       }
     })
   }, [roomState])
+
+  useEffect(() => {
+    if (roomState?.settings) {
+      setSettings(prev => ({ ...defaultSettings, ...roomState.settings }))
+    }
+  }, [roomState?.settings])
+
+  const renderCategoryInfo = (cat) => {
+    if (cat === 'einmaleins') {
+      return (
+        <>
+          <p>50 gemischte Einmaleins-Aufgaben. Aufgaben mit ·1 und ·10 kommen seltener vor.</p>
+          <p>Optional können zusätzliche Quadratzahlen zugeschaltet werden.</p>
+        </>
+      )
+    }
+    if (cat === 'schriftlich') {
+      return (
+        <>
+          <p>15 schriftliche Aufgaben: 5× Addition, 5× Subtraktion, 5× Multiplikation.</p>
+          <p>Schüler:innen geben Zwischenergebnisse direkt in den Stellenwerttabellen ein.</p>
+        </>
+      )
+    }
+    if (cat === 'primfaktorisierung') {
+      return (
+        <>
+          <p>20 Zahlen werden in Primfaktoren zerlegt. Antworten bitte mit Leerzeichen trennen (z.B. "2 2 3").</p>
+        </>
+      )
+    }
+    return null
+  }
+
+  const currentSettings = roomState?.status === 'waiting' ? settings : (roomState?.settings || settings)
+  const currentCategoryLabel = getCategoryLabel(currentSettings.category)
+
+  const handleStartClick = () => {
+    if (!roomId) return
+    const sanitized = settings.category === 'einmaleins'
+      ? settings
+      : { ...settings, includeSquares11_20: false, includeSquares21_25: false }
+    startGame(roomId, sanitized)
+  }
+
+  const formatProblemPrompt = (problem) => {
+    if (!problem) return 'Aufgabe'
+    if (problem.type === 'primfaktorisierung') {
+      return `Primfaktoren von ${problem.number}`
+    }
+    if (typeof problem.a !== 'undefined' && typeof problem.b !== 'undefined') {
+      const op = getOperator(problem)
+      return `${problem.a} ${op} ${problem.b}`
+    }
+    return 'Aufgabe'
+  }
+
+  const formatCorrectAnswer = (problem) => {
+    if (!problem) return '—'
+    if (problem.type === 'primfaktorisierung') return problem.correct || '—'
+    if (typeof problem.correct !== 'undefined' && problem.correct !== null) return problem.correct
+    return '—'
+  }
+
+  const formatUserAnswer = (problem) => {
+    if (!problem) return '—'
+    if (problem.type === 'primfaktorisierung') return problem.user || '—'
+    if (problem.user === '' || problem.user === null || typeof problem.user === 'undefined') return '—'
+    return problem.user
+  }
 
   if (!roomState) {
     return (
@@ -154,48 +228,86 @@ export default function AdminView() {
           </div>
         </header>
 
+        <div className="admin-settings-summary">
+          <span><strong>Kategorie:</strong> {currentCategoryLabel}</span>
+          {currentSettings.category === 'einmaleins' && (
+            <span className="settings-pill">Quadratzahlen 11-20: {currentSettings.includeSquares11_20 ? 'an' : 'aus'}</span>
+          )}
+          {currentSettings.category === 'einmaleins' && (
+            <span className="settings-pill">Quadratzahlen 21-25: {currentSettings.includeSquares21_25 ? 'an' : 'aus'}</span>
+          )}
+        </div>
+
         {roomState.status === 'waiting' && (
           <div className="settings-box">
             <h3>Aufgaben-Einstellungen</h3>
-            <label className="checkbox-label">
-              <input 
-                type="checkbox" 
-                className="app-input"
-                checked={true}
-                disabled={true}
-              />
-              <span>Einmaleins 1-10 (immer aktiv)</span>
-            </label>
-            <label className="checkbox-label">
-              <input 
-                type="checkbox" 
-                className="app-input"
-                checked={settings.includeSquares11_20}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  includeSquares11_20: e.target.checked
-                })}
-              />
-              <span>Quadratzahlen 11-20 (z.B. 11², 15², 20²)</span>
-            </label>
-            <label className="checkbox-label">
-              <input 
-                type="checkbox" 
-                className="app-input"
-                checked={settings.includeSquares21_25}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  includeSquares21_25: e.target.checked
-                })}
-              />
-              <span>Quadratzahlen 21-25 (z.B. 21², 23², 25²)</span>
-            </label>
+            <div className="category-selection">
+              <h4>Kategorie wählen</h4>
+              <div className="category-buttons">
+                {[
+                  { value: 'einmaleins', label: 'Einmaleins' },
+                  { value: 'schriftlich', label: 'Schriftlich rechnen' },
+                  { value: 'primfaktorisierung', label: 'Primfaktorisierung' }
+                ].map(option => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`category-btn ${settings.category === option.value ? 'active' : ''}`}
+                    onClick={() => setSettings(prev => ({ ...prev, category: option.value }))}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="category-details">
+              {renderCategoryInfo(settings.category)}
+            </div>
+
+            {settings.category === 'einmaleins' && (
+              <>
+                <label className="checkbox-label">
+                  <input 
+                    type="checkbox" 
+                    className="app-input"
+                    checked={true}
+                    disabled={true}
+                  />
+                  <span>Einmaleins 1-10 (immer aktiv)</span>
+                </label>
+                <label className="checkbox-label">
+                  <input 
+                    type="checkbox" 
+                    className="app-input"
+                    checked={settings.includeSquares11_20}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      includeSquares11_20: e.target.checked
+                    })}
+                  />
+                  <span>Quadratzahlen 11-20 (z.B. 11², 15², 20²)</span>
+                </label>
+                <label className="checkbox-label">
+                  <input 
+                    type="checkbox" 
+                    className="app-input"
+                    checked={settings.includeSquares21_25}
+                    onChange={(e) => setSettings({
+                      ...settings,
+                      includeSquares21_25: e.target.checked
+                    })}
+                  />
+                  <span>Quadratzahlen 21-25 (z.B. 21², 23², 25²)</span>
+                </label>
+              </>
+            )}
           </div>
         )}
 
         <div className="admin-actions">
           {roomState.status === 'waiting' && (
-            <button className="big" onClick={() => startGame(roomId, settings)}>
+            <button className="big" onClick={handleStartClick}>
               🚀 Spiel starten
             </button>
           )}
@@ -254,9 +366,9 @@ export default function AdminView() {
               <div className="player-problems" ref={el => { problemRefs.current[player.id] = el }}>
                 {player.solved.map((problem, idx) => (
                   <div key={idx} className={`problem-entry ${problem.isCorrect ? 'correct' : 'incorrect'}`}>
-                    <span>{problem.a} · {problem.b} = {problem.user}</span>
+                    <span>{formatProblemPrompt(problem)} = {formatUserAnswer(problem)}</span>
                     <span style={{ fontWeight: 'bold' }}>
-                      {problem.isCorrect ? '✓' : `✗ (${problem.correct})`}
+                      {problem.isCorrect ? '✓' : `✗ (${formatCorrectAnswer(problem)})`}
                     </span>
                   </div>
                 ))}

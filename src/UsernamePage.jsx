@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
+import { getCategoryLabel } from './utils/categories'
 
 export default function UsernamePage() {
   const { roomId: urlRoomId } = useParams()
@@ -44,10 +45,17 @@ export default function UsernamePage() {
   }
 
   // Room exists and waiting, or still checking
+  const selectedCategory = roomCheck?.settings?.category
+    ? getCategoryLabel(roomCheck.settings.category)
+    : null
+
   return (
     <div className="username-page">
       <h2>Raum beitreten</h2>
       <p>Du trittst Raum <tt className="room-id">{urlRoomId.toLowerCase()}</tt> bei.</p>
+      {selectedCategory && (
+        <p>Ausgewählte Kategorie: <strong>{selectedCategory}</strong></p>
+      )}
       
       {error && <div className="error">{error}</div>}
       
