@@ -4,6 +4,14 @@ const PDFDocument = require('pdfkit');
  * generateReport(res, room, finishedPlayers)
  * - writes PDF into express response stream and ends response
  */
+const formatFactorString = (value = '') => {
+  const tokens = String(value || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  return tokens.length ? tokens.join(' ⋅ ') : '—'
+}
+
 function generateReport(res, room, finishedPlayers) {
   const doc = new PDFDocument({ autoFirstPage: false });
   // pipe to response
@@ -68,9 +76,10 @@ function generateReport(res, room, finishedPlayers) {
     doc.fontSize(10);
     if (p.solved && p.solved.length) {
       p.solved.forEach((prob) => {
-        const userAnswer = (prob && prob.user !== undefined && prob.user !== null && prob.user !== '') ? prob.user : '(keine Antwort)';
+  const userAnswerRaw = (prob && prob.user !== undefined && prob.user !== null && prob.user !== '') ? prob.user : '(keine Antwort)';
+  const userAnswer = userAnswerRaw === '(keine Antwort)' ? '—' : formatFactorString(userAnswerRaw);
         if (prob.type === 'primfaktorisierung') {
-          doc.text(`Primfaktoren von ${prob.number} = ${prob.correct}  (Deine Antwort: ${userAnswer})`);
+          doc.text(`Primfaktoren von ${prob.number} = ${formatFactorString(prob.correct)}  (Deine Antwort: ${userAnswer})`);
         } else if (prob) {
           const op = (prob.operation === 'add' || prob.type === 'add') ? '+'
             : (prob.operation === 'subtract' || prob.type === 'subtract') ? '−'

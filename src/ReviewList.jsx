@@ -1,5 +1,6 @@
 import React from 'react'
 import { getOperator } from './utils/getOperator'
+import { formatFactors } from './utils/formatFactors'
 
 /**
  * ReviewList displays a list of answers (correct or incorrect).
@@ -18,7 +19,7 @@ export default function ReviewList({ answers, isCorrect }) {
         if (q.type === 'primfaktorisierung') {
           return (
             <li key={q.id}>
-              Primfaktoren von {q.number} = {q.correct} (Deine Antwort: {q.user || '—'})
+              Primfaktoren von {q.number} = {formatFactors(q.correct)} (Deine Antwort: {formatFactors(q.user)})
             </li>
           )
         }
