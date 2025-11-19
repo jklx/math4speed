@@ -507,12 +507,14 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
   const rowCount = isMultiply ? partialInputs.length + 3 : 4
 
   return (
-    <div className="schriftlich-grid-container">
-      <div
-        className="schriftlich-grid"
-        style={{ gridTemplateColumns: `repeat(${totalCols}, 50px)`, gridTemplateRows: `repeat(${rowCount}, 50px)` }}
-      >
-        {gridContent}
+    <div className="question-centered">
+      <div className="schriftlich-grid-container">
+        <div
+          className="schriftlich-grid"
+          style={{ gridTemplateColumns: `repeat(${totalCols}, 50px)`, gridTemplateRows: `repeat(${rowCount}, 50px)` }}
+        >
+          {gridContent}
+        </div>
       </div>
     </div>
   )

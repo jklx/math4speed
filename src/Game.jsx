@@ -169,13 +169,15 @@ export default function Game({ isSinglePlayer }) {
     return liveSecondsState
   }
 
-  const submitAnswer = () => {
+  const submitAnswer = (overrideValueOrEvent) => {
+    const overrideValue = typeof overrideValueOrEvent === 'string' ? overrideValueOrEvent : undefined
     const prob = problems[current]
     let parsed = ''
     let isCorrect = false
 
     if (prob.type === 'primfaktorisierung') {
-      const { isCorrect: ok, parsed: p } = validatePrimfaktorisierung(inputValue, prob.factors)
+      const candidateValue = overrideValue ?? inputValue
+      const { isCorrect: ok, parsed: p } = validatePrimfaktorisierung(candidateValue, prob.factors)
       parsed = p
       isCorrect = ok
     } else if (prob.type === 'schriftlich') {
@@ -183,7 +185,8 @@ export default function Game({ isSinglePlayer }) {
       parsed = p
       isCorrect = ok
     } else {
-      parsed = Number(inputValue)
+      const candidateValue = overrideValue ?? inputValue
+      parsed = Number(candidateValue)
       isCorrect = parsed === prob.correct
     }
 
@@ -220,7 +223,7 @@ export default function Game({ isSinglePlayer }) {
       // If moving forward after undos, auto-restore the next problem from existing snapshot history
       if (isSinglePlayer) {
         const nextIndex = current + 1
-        const nextSnap = snapshots[nextIndex]
+  const nextSnap = snapshots[nextIndex]
         if (nextSnap) {
           setInputValue(nextSnap.inputValue || '')
           if (nextSnap.schriftlichInput) setSchriftlichInput(nextSnap.schriftlichInput)

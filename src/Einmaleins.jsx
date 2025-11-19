@@ -18,7 +18,7 @@ export default function Einmaleins({ a, b, value = '', onChange, onEnter }) {
     }
   }
   return (
-    <>
+    <div className="question-centered">
       <div className="expression">{a} · {b} =</div>
       <input
         type="number"
@@ -30,6 +30,6 @@ export default function Einmaleins({ a, b, value = '', onChange, onEnter }) {
         onChange={e => onChange && onChange(e.target.value)}
         onKeyDown={handleKey}
       />
-    </>
+    </div>
   )
 }
