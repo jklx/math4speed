@@ -16,7 +16,6 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
   const bCells = padLeft(bDigits, cols)
 
   const partialRows = useMemo(() => (isMultiply ? (partialProducts ?? []) : []), [isMultiply, partialProducts])
-  const partialKey = useMemo(() => partialRows.map(row => row.map(v => (v ?? '')).join('')).join('|'), [partialRows])
 
   const [answerDigits, setAnswerDigits] = useState(() => Array(cols).fill(''))
   const [carryDigits, setCarryDigits] = useState(() => Array(cols).fill(''))
@@ -390,7 +389,6 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
             const width = cols + bDigits.length
             return Array.from({ length: width }).map((_, globalCol) => {
               const within = globalCol >= (rightGlobal - L + 1) && globalCol <= rightGlobal
-              const valueIdx = L - 1 - (rightGlobal - globalCol)
               return (
                 <div key={`mul-part-${rowIdx}-${globalCol}`} className={`grid-cell ${rowIdx === 0 ? 'result-sep' : ''}`}>
                   {within ? (

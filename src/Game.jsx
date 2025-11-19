@@ -21,12 +21,9 @@ export default function Game({ isSinglePlayer }) {
   const { roomState, updateProgress, finishGame, username } = multiplayerContext || {};
   
   // Category selection (only for training mode)
-  const [category, setCategory] = useState(() => {
-    if (isSinglePlayer && location.state && location.state.category) {
-      return location.state.category;
-    }
-    return 'einmaleins';
-  }); // 'einmaleins' | 'schriftlich' | 'primfaktorisierung'
+  const category = isSinglePlayer && location.state && location.state.category
+    ? location.state.category
+    : 'einmaleins'; // 'einmaleins' | 'schriftlich' | 'primfaktorisierung'
   const multiplayerSettings = roomState?.settings || {};
   const multiplayerCategory = multiplayerSettings.category || 'einmaleins';
   const activeCategory = isSinglePlayer ? category : multiplayerCategory;
@@ -81,7 +78,7 @@ export default function Game({ isSinglePlayer }) {
       return (
         <>
           <p>Du bekommst 20 Zahlen, die du in ihre Primfaktoren zerlegen musst.</p>
-          <p>Gib die Primfaktoren durch Leerzeichen getrennt ein (z.B. "2 2 3" für 12).</p>
+  <p>Gib die Primfaktoren durch Leerzeichen getrennt ein (z. B. „2 2 3“ für 12).</p>
           <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
         </>
       )

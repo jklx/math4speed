@@ -43,7 +43,7 @@ export function MultiplayerProvider({ children }) {
         try {
           localStorage.setItem(`m4s_admin_${roomId}`, adminToken);
         } catch (e) {
-          // ignore storage errors
+          console.warn('[Context] Unable to persist admin token', e);
         }
       }
 
@@ -51,7 +51,9 @@ export function MultiplayerProvider({ children }) {
       try {
         if (isAdmin) navigate(`/admin/${roomId}`);
         else navigate(`/play/${roomId}`);
-      } catch (e) {}
+      } catch (e) {
+        console.warn('[Context] Navigation suppressed', e);
+      }
     });
 
     socket.on('roomJoined', ({ roomId, isAdmin }) => {
@@ -61,7 +63,9 @@ export function MultiplayerProvider({ children }) {
       try {
         if (isAdmin) navigate(`/admin/${roomId}`);
         else navigate(`/play/${roomId}`);
-      } catch (e) {}
+      } catch (e) {
+        console.warn('[Context] Navigation suppressed', e);
+      }
     });
 
     socket.on('roomRejoined', ({ roomId, isAdmin, adminName }) => {

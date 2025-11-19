@@ -4,7 +4,6 @@ import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
 import Logo from './Logo'
 import { getOperator } from './utils/getOperator'
-import { getCategoryLabel } from './utils/categories'
 
 export default function AdminView() {
   const { roomId } = useParams()
@@ -56,7 +55,7 @@ export default function AdminView() {
 
   useEffect(() => {
     if (roomState?.settings) {
-      setSettings(prev => ({ ...defaultSettings, ...roomState.settings }))
+      setSettings(() => ({ ...defaultSettings, ...roomState.settings }))
     }
   }, [roomState?.settings])
 
@@ -80,15 +79,12 @@ export default function AdminView() {
     if (cat === 'primfaktorisierung') {
       return (
         <>
-          <p>20 Zahlen werden in Primfaktoren zerlegt. Antworten bitte mit Leerzeichen trennen (z.B. "2 2 3").</p>
+          <p>20 Zahlen werden in Primfaktoren zerlegt. Antworten bitte mit Leerzeichen trennen (z. B. „2 2 3“).</p>
         </>
       )
     }
     return null
   }
-
-  const currentSettings = roomState?.status === 'waiting' ? settings : (roomState?.settings || settings)
-  const currentCategoryLabel = getCategoryLabel(currentSettings.category)
 
   const handleStartClick = () => {
     if (!roomId) return
@@ -173,9 +169,6 @@ export default function AdminView() {
   const joinUrl = (typeof window !== 'undefined' && roomId)
     ? `${window.location.origin}/room/${roomId.toLowerCase()}`
     : ''
-
-  const allPlayersFinished = roomState.players.length > 0 && 
-    roomState.players.every(p => p.score !== null)
 
   // Calculate statistics for finished players
   const finishedPlayers = roomState.players.filter(p => p.score !== null)

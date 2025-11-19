@@ -4,7 +4,7 @@ const PDFDocument = require('pdfkit');
  * generateReport(res, room, finishedPlayers)
  * - writes PDF into express response stream and ends response
  */
-function generateReport(res, room, finishedPlayers, options = {}) {
+function generateReport(res, room, finishedPlayers) {
   const doc = new PDFDocument({ autoFirstPage: false });
   // pipe to response
   res.setHeader('Content-Type', 'application/pdf');

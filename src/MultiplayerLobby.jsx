@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Logo from './Logo'
-import { useNavigate } from 'react-router-dom';
 import { useMultiplayer } from './MultiplayerContext';
+import { useNavigate } from 'react-router-dom';
 import { getCategoryLabel } from './utils/categories';
 
 function JoinRoomStatus({ roomCode }) {
   const { roomCheck } = useMultiplayer();
-  const navigate = useNavigate();
   
   // show appropriate UI depending on roomCheck state
   const checkingThis = roomCheck.roomId === roomCode;
