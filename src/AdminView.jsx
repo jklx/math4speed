@@ -190,207 +190,199 @@ export default function AdminView() {
       {toast && (
         <div className="copy-toast" role="status">{toast}</div>
       )}
-  <div className="admin-inner">
-  <div className="admin-content">
-  <Logo />
-  <header>
-          <div className="room-title">
-            <h2>{roomState.adminName ? roomState.adminName : 'Admin-Ansicht'}</h2>
-          </div>
-
-          <div className="join-info">
-            <div className="big-room-id">
-              <tt className="room-id">{roomId?.toLowerCase()}</tt>
+      <div className="admin-inner">
+        {/* Top header */}
+        <div className="admin-header">
+          <div className="admin-header-left">
+            <Logo />
+            <div className="room-title">
+              <h2 className="logo-text room-name-text">{roomState.adminName ? roomState.adminName : 'Admin-Ansicht'}</h2>
             </div>
-
-              <div className="join-url">
-                <a href={`/room/${roomId?.toLowerCase()}`} target="_blank" rel="noopener noreferrer">{joinUrl}</a>
-              </div>
-
-              <div className="join-actions">
-              <button
-                onClick={copyRoomId}
-                className="copy-btn copy-large"
-                title="Raum-Code kopieren"
-              >
-                ID kopieren
-              </button>
-              <button
-                onClick={copyJoinUrl}
-                className="copy-btn copy-large"
-                title="Beitritts-URL kopieren"
-              >
-                URL kopieren
-              </button>
-            </div>
-
-            <div className="join-instructions">Teile diesen Code oder die URL mit deinen Spieler:innen, damit sie beitreten können.</div>
           </div>
-        </header>
-
-        <div className="admin-settings-summary">
-          <span><strong>Kategorie:</strong> {currentCategoryLabel}</span>
-          {currentSettings.category === 'einmaleins' && (
-            <span className="settings-pill">Quadratzahlen 11-20: {currentSettings.includeSquares11_20 ? 'an' : 'aus'}</span>
-          )}
-          {currentSettings.category === 'einmaleins' && (
-            <span className="settings-pill">Quadratzahlen 21-25: {currentSettings.includeSquares21_25 ? 'an' : 'aus'}</span>
-          )}
+          <div className="admin-header-right" />
         </div>
 
-        {roomState.status === 'waiting' && (
-          <div className="settings-box">
-            <h3>Aufgaben-Einstellungen</h3>
-            <div className="category-selection">
-              <h4>Kategorie wählen</h4>
-              <div className="category-buttons">
-                {[
-                  { value: 'einmaleins', label: 'Einmaleins' },
-                  { value: 'schriftlich', label: 'Schriftlich rechnen' },
-                  { value: 'primfaktorisierung', label: 'Primfaktorisierung' }
-                ].map(option => (
+        {/* Main two-column layout */}
+        <div className="admin-layout">
+          {/* Sidebar */}
+          <aside className="admin-sidebar">
+            {roomState.status === 'waiting' && (
+            <div className="card join-card">
+              <div className="card-header">
+                <div className="big-room-id">
+                  <tt className="room-id">{roomId?.toLowerCase()}</tt>
                   <button
-                    key={option.value}
                     type="button"
-                    className={`category-btn ${settings.category === option.value ? 'active' : ''}`}
-                    onClick={() => setSettings(prev => ({ ...prev, category: option.value }))}
+                    className="icon-btn"
+                    onClick={copyRoomId}
+                    title="Raum-Code kopieren"
+                    aria-label="Raum-Code kopieren"
                   >
-                    {option.label}
+                    {/* copy icon (overlapping rectangles) */}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                      <rect x="9" y="7" width="9" height="12" rx="1.5" stroke="#334155" strokeWidth="1.5" fill="none" />
+                      <rect x="4" y="4" width="9" height="12" rx="1.5" stroke="#334155" strokeWidth="1.5" fill="none" />
+                    </svg>
                   </button>
-                ))}
+                </div>
+              </div>
+              <div className="card-body">
+                <div className="join-url">
+                  <a href={`/room/${roomId?.toLowerCase()}`} target="_blank" rel="noopener noreferrer">{joinUrl}</a>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={copyJoinUrl}
+                    title="Beitritts-URL kopieren"
+                    aria-label="Beitritts-URL kopieren"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                      <rect x="9" y="7" width="9" height="12" rx="1.5" stroke="#334155" strokeWidth="1.5" fill="none" />
+                      <rect x="4" y="4" width="9" height="12" rx="1.5" stroke="#334155" strokeWidth="1.5" fill="none" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="join-instructions">Teile diesen Code oder die URL mit deinen Spieler:innen.</div>
+                <div className="join-primary-action">
+                  <button className="big" onClick={handleStartClick}>🚀 Spiel starten</button>
+                </div>
               </div>
             </div>
-
-            <div className="category-details">
-              {renderCategoryInfo(settings.category)}
-            </div>
-
-            {settings.category === 'einmaleins' && (
-              <>
-                <label className="checkbox-label">
-                  <input 
-                    type="checkbox" 
-                    className="app-input"
-                    checked={true}
-                    disabled={true}
-                  />
-                  <span>Einmaleins 1-10 (immer aktiv)</span>
-                </label>
-                <label className="checkbox-label">
-                  <input 
-                    type="checkbox" 
-                    className="app-input"
-                    checked={settings.includeSquares11_20}
-                    onChange={(e) => setSettings({
-                      ...settings,
-                      includeSquares11_20: e.target.checked
-                    })}
-                  />
-                  <span>Quadratzahlen 11-20 (z.B. 11², 15², 20²)</span>
-                </label>
-                <label className="checkbox-label">
-                  <input 
-                    type="checkbox" 
-                    className="app-input"
-                    checked={settings.includeSquares21_25}
-                    onChange={(e) => setSettings({
-                      ...settings,
-                      includeSquares21_25: e.target.checked
-                    })}
-                  />
-                  <span>Quadratzahlen 21-25 (z.B. 21², 23², 25²)</span>
-                </label>
-              </>
             )}
-          </div>
-        )}
 
-        <div className="admin-actions">
-          {roomState.status === 'waiting' && (
-            <button className="big" onClick={handleStartClick}>
-              🚀 Spiel starten
-            </button>
-          )}
-          {(
-            <button className="big" onClick={handleDownloadPDF}>
-              📄 PDF-Bericht herunterladen
-            </button>
-          )}
-        </div>
-
-        {stats && (
-          <div className="admin-stats">
-            <h3>📊 Raum-Statistiken</h3>
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-label">Abgeschlossen</div>
-                <div className="stat-value blue">{stats.totalPlayers}</div>
-                <div className="stat-unit">
-                  {stats.totalPlayers === 1 ? 'Spieler' : 'Spieler'}
-                </div>
+            {roomState.status === 'waiting' && (
+            <div className="card settings-card">
+              <div className="card-header">
+                <h3>Aufgaben-Einstellungen</h3>
               </div>
-              <div className="stat-card">
-                <div className="stat-label">Ø Lösungszeit</div>
-                <div className="stat-value green">
-                  {stats.avgTime}<span className="stat-suffix">s</span>
-                </div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Ø Fehleranzahl</div>
-                <div className="stat-value red">{stats.avgErrors}</div>
-              </div>
-            </div>
-          </div>
-        )}
-        </div>
-
-        {roomState.players.filter(p => p.id !== roomState.admin).map(player => (
-          <div key={player.id} className="player-card">
-            <div className="player-card-header">
-              <h3>
-                {player.username}
-                {player.id === roomState.admin && (
-                  <span className="admin-badge">(Admin)</span>
-                )}
-              </h3>
-              <span className={`progress-percent ${player.progress >= 100 ? 'complete' : 'active'}`}>
-                {(player.progress || 0).toFixed(0)}%
-              </span>
-            </div>
-
-            <div className="progress-wrapper">
-              <ProgressBar progress={player.progress || 0} />
-            </div>
-
-            {player.solved && player.solved.length > 0 && (
-              <div className="player-problems" ref={el => { problemRefs.current[player.id] = el }}>
-                {player.solved.map((problem, idx) => (
-                  <div key={idx} className={`problem-entry ${problem.isCorrect ? 'correct' : 'incorrect'}`}>
-                    <span>{formatProblemPrompt(problem)} = {formatUserAnswer(problem)}</span>
-                    <span style={{ fontWeight: 'bold' }}>
-                      {problem.isCorrect ? '✓' : `✗ (${formatCorrectAnswer(problem)})`}
-                    </span>
+              <div className="card-body">
+                <div className="category-selection">
+                  <h4>Kategorie wählen</h4>
+                  <div className="category-buttons">
+                    {[
+                      { value: 'einmaleins', label: 'Einmaleins' },
+                      { value: 'schriftlich', label: 'Schriftlich rechnen' },
+                      { value: 'primfaktorisierung', label: 'Primfaktorisierung' }
+                    ].map(option => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`category-btn ${settings.category === option.value ? 'active' : ''}`}
+                        onClick={() => setSettings(prev => ({ ...prev, category: option.value }))}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                <div className="category-details">
+                  {renderCategoryInfo(settings.category)}
+                </div>
+
+                {settings.category === 'einmaleins' && (
+                  <div className="einmaleins-toggles">
+                    <label className="checkbox-label">
+                      <input type="checkbox" className="app-input" checked={true} disabled={true} />
+                      <span>Einmaleins 1-10 (immer aktiv)</span>
+                    </label>
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        className="app-input"
+                        checked={settings.includeSquares11_20}
+                        onChange={(e) => setSettings({ ...settings, includeSquares11_20: e.target.checked })}
+                      />
+                      <span>Quadratzahlen 11-20 (z.B. 11², 15², 20²)</span>
+                    </label>
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        className="app-input"
+                        checked={settings.includeSquares21_25}
+                        onChange={(e) => setSettings({ ...settings, includeSquares21_25: e.target.checked })}
+                      />
+                      <span>Quadratzahlen 21-25 (z.B. 21², 23², 25²)</span>
+                    </label>
+                  </div>
+                )}
               </div>
+            </div>
             )}
 
-            {player.score && (
-              <div className="player-score">
-                <div className="score-title">✓ Fertig!</div>
-                <div className="score-detail">
-                  Zeit: <strong>{player.score.time}s</strong>
-                </div>
-                <div className="score-detail">
-                  Fehler: <strong>{player.score.wrongCount}</strong>
-                </div>
-                <div className="score-progress">
-                  <ProgressBar finalTime={player.score.time} />
+            {stats && (
+              <div className="card stats-card">
+                <div className="card-header"><h3>📊 Raum-Statistiken</h3></div>
+                <div className="card-body">
+                  <div className="stats-grid">
+                    <div className="stat-card">
+                      <div className="stat-label">Abgeschlossen</div>
+                      <div className="stat-value blue">{stats.totalPlayers}</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-label">Ø Lösungszeit</div>
+                      <div className="stat-value green">{stats.avgTime}<span className="stat-suffix">s</span></div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-label">Ø Fehleranzahl</div>
+                      <div className="stat-value red">{stats.avgErrors}</div>
+                    </div>
+                  </div>
+                  <div className="stats-actions" style={{ marginTop: '0.75rem' }}>
+                    <button className="big" onClick={handleDownloadPDF}>📄 PDF herunterladen</button>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
-        ))}
+          </aside>
+
+          {/* Players grid */}
+          <section className="players-grid">
+            {roomState.players.filter(p => p.id !== roomState.admin).map(player => (
+              <div key={player.id} className="player-card">
+                <div className="player-card-header">
+                  <h3>
+                    {player.username}
+                    {player.id === roomState.admin && (
+                      <span className="admin-badge">(Admin)</span>
+                    )}
+                  </h3>
+                  <span className={`progress-percent ${player.progress >= 100 ? 'complete' : 'active'}`}>
+                    {(player.progress || 0).toFixed(0)}%
+                  </span>
+                </div>
+
+                <div className="progress-wrapper">
+                  <ProgressBar progress={player.progress || 0} />
+                </div>
+
+                {player.solved && player.solved.length > 0 && (
+                  <div className="player-problems" ref={el => { problemRefs.current[player.id] = el }}>
+                    {player.solved.map((problem, idx) => (
+                      <div key={idx} className={`problem-entry ${problem.isCorrect ? 'correct' : 'incorrect'}`}>
+                        <span>{formatProblemPrompt(problem)} = {formatUserAnswer(problem)}</span>
+                        <span style={{ fontWeight: 'bold' }}>
+                          {problem.isCorrect ? '✓' : `✗ (${formatCorrectAnswer(problem)})`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {player.score && (
+                  <div className="player-score">
+                    <div className="score-title">✓ Fertig!</div>
+                    <div className="score-detail">Zeit: <strong>{player.score.time}s</strong></div>
+                    <div className="score-detail">Fehler: <strong>{player.score.wrongCount}</strong></div>
+                    <div className="score-progress">
+                      <ProgressBar finalTime={player.score.time} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </section>
+        </div>
       </div>
     </div>
   )

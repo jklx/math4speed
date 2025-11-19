@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Logo from './Logo'
 import { useNavigate } from 'react-router-dom';
 import { useMultiplayer } from './MultiplayerContext';
 import { getCategoryLabel } from './utils/categories';
@@ -66,8 +67,10 @@ export default function MultiplayerLobby() {
   
 
   return (
-    <div className="lobby">
-      {error && <div className="error">{error}</div>}
+    <div className="app">
+      <div className="lobby">
+        <Logo />
+        {error && <div className="error">{error}</div>}
 
       <div className="menu-grid">
         <div className="tile big">
@@ -171,6 +174,7 @@ export default function MultiplayerLobby() {
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
+import Logo from './Logo'
 import { useParams, useLocation } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
@@ -285,6 +286,7 @@ export default function Game({ isSinglePlayer }) {
 
   return (
     <div className="app">
+      <Logo />
 
 
       {!started && (

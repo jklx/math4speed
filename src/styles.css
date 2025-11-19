@@ -274,14 +274,9 @@ button:disabled {
 
 /* Admin Grid View */
 .admin-view {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  /* no absolute/fixed positioning here so the admin view participates in normal document flow */
   background: var(--bg);
   padding: 1rem;
-  overflow: auto;
 }
 
 .admin-view header {
@@ -360,6 +355,26 @@ button:disabled {
   border-radius: 8px;
 }
 
+/* Small icon button used for inline copy actions */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 4px;
+  margin-left: 0.5rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.08s ease;
+}
+.icon-btn svg { display: block; }
+.icon-btn:hover { background: rgba(43,108,176,0.06); }
+.icon-btn:active { transform: translateY(1px); }
+.icon-btn:focus { outline: 2px solid rgba(43,108,176,0.18); outline-offset: 2px; }
+
 .join-instructions {
   font-size: 0.9rem;
   color: #555;
@@ -374,6 +389,25 @@ button:disabled {
 
 .join-url a:hover {
   text-decoration: underline;
+}
+/* layout for inline join url + icon */
+.join-url {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+/* spacing for the body of the join card */
+.join-instructions {
+  margin-top: 0.75rem;
+  color: #555;
+}
+.join-primary-action {
+  margin-top: 1rem;
+}
+.join-primary-action .big {
+  width: 100%;
 }
 /* small toast for copy feedback */
 .copy-toast {
@@ -432,6 +466,26 @@ button:disabled {
   /* ensure stat cards keep their intrinsic size and don't stretch to full width */
 }
 
+/* Make stats grid wrap on narrow widths and avoid overlapping the card header */
+.stats-grid {
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  margin: 0.25rem;
+}
+
+/* Ensure card header stays above stat tiles (prevents visual overlap) */
+.card-header {
+  position: relative;
+  z-index: 2;
+}
+
+/* Allow card body content to flow under header if shadows exist */
+.card {
+  overflow: visible;
+}
+
 .stat-card {
   flex: 0 0 auto;
 }
@@ -477,6 +531,8 @@ button:disabled {
   margin-top: 0.25rem;
 }
 
+
+/* Admin shell */
 .admin-view {
   display: flex;
   justify-content: center;
@@ -485,24 +541,80 @@ button:disabled {
 }
 
 .admin-inner {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, 320px);
-  gap: 1rem;
-  align-items: start;
-  padding: 1rem 0;
-  justify-content: center;
-  width: 100%;
-  max-width: calc(100vw - 2rem);
-}
-
-/* Make the top content span all grid columns so it matches the cards width */
-.admin-content {
-  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
+  align-items: stretch;
   width: 100%;
+  max-width: 1280px;
+  padding: 0 1rem;
+}
+
+/* Header */
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.admin-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.admin-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Two-column layout */
+.admin-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 1rem;
+}
+
+.admin-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Cards */
+.card {
+  background: var(--card);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(30,40,50,0.06);
+  border: 1px solid #e6e9ef;
+}
+.card-header {
+  padding: 0.9rem 1rem 0.2rem 1rem;
+  border-bottom: 1px solid #f0f2f6;
+}
+.card-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #334155;
+}
+/* Tweak join card header so the room code and icon align */
+.card-header .big-room-id {
+  display: flex;
+  align-items: center;
+}
+.card-header .big-room-id .room-id {
+  margin-left: 0; /* remove default indent in this context */
+  font-size: 1.35rem;}
+.card-body {
+  padding: 0.75rem 1rem 1rem 1rem;
+}
+
+/* Players grid */
+.players-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  align-content: start;
 }
 
 /* no .admin-grid wrapper needed anymore; player cards are direct children of .admin-inner */
@@ -514,8 +626,6 @@ button:disabled {
   display: flex;
   flex-direction: column;
   height: 500px;
-  /* keep tiles a consistent width */
-  width: 320px;
 }
 
 .player-card-header {
@@ -611,11 +721,7 @@ button:disabled {
 .room-id {
   font-size: 1.25rem;
   background: #fff;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  color: var(--accent);
   display: inline-block;
-  margin-left: 0.5rem;
 }
 
 .waiting-message{font-size:1.05rem;color:#444}
@@ -657,6 +763,13 @@ footer{margin-top:1.5rem;text-align:center;color:#666}
   display: inline-flex;
   align-items: baseline;
   gap: 0.1rem;
+}
+
+/* Room name variant: same typography as logo but solid black and no gradient */
+.room-name-text {
+  color: #000;
+  -webkit-text-fill-color: #000;
+  background: none !important;
 }
 
 .logo-math {

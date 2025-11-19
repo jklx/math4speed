@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import Logo from './Logo'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
 import { getCategoryLabel } from './utils/categories'
@@ -50,8 +51,10 @@ export default function UsernamePage() {
     : null
 
   return (
-    <div className="username-page">
-      <h2>Raum beitreten</h2>
+    <div className="app">
+      <div className="username-page">
+        <Logo />
+        <h2>Raum beitreten</h2>
       <p>Du trittst Raum <tt className="room-id">{urlRoomId.toLowerCase()}</tt> bei.</p>
       {selectedCategory && (
         <p>Ausgewählte Kategorie: <strong>{selectedCategory}</strong></p>
@@ -80,6 +83,7 @@ export default function UsernamePage() {
       </form>
       
       {roomCheck.exists === null && <div className="hint">Prüfe Raum…</div>}
+      </div>
     </div>
   )
 }
