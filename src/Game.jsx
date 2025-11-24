@@ -50,6 +50,8 @@ export default function Game({ isSinglePlayer }) {
   // Unified history snapshots keyed by problem index; used for both undo and forward-restore
   const [snapshots, setSnapshots] = useState({}) // Record<number, { index, problem, schriftlichInput, inputValue }>
   const [restoreSnapshot, setRestoreSnapshot] = useState(null)
+  const [selectedSchriftlichId, setSelectedSchriftlichId] = useState(null)
+  const [reviewShowCorrect, setReviewShowCorrect] = useState(false)
   const [finished, setFinished] = useState(false)
   const [startTime, setStartTime] = useState(null)
   const [endTime, setEndTime] = useState(null)
@@ -187,7 +189,7 @@ export default function Game({ isSinglePlayer }) {
       isCorrect = parsed === prob.correct
     }
 
-    const newEntry = { ...prob, user: parsed, isCorrect }
+  const newEntry = { ...prob, user: parsed, isCorrect, schriftlichSnapshot: prob.type === 'schriftlich' ? schriftlichInput : undefined }
     const newAnswers = [...answers, newEntry]
     setAnswers(newAnswers)
     // Store/overwrite snapshot for this index so we can undo and forward-restore later
@@ -263,6 +265,11 @@ export default function Game({ isSinglePlayer }) {
   const elapsed = finished ? Math.floor((endTime - startTime) / 1000) : liveSeconds()
   const penalty = wrongCount * 10
   const finalTime = finished ? elapsed + penalty : null
+
+  const schriftlichAnswers = answers.filter(a => a.type === 'schriftlich')
+  const selectedSchriftlich = selectedSchriftlichId == null
+    ? null
+    : schriftlichAnswers.find(a => a.id === selectedSchriftlichId) || null
 
   // Remove legacy focus/reset for schriftlich; handled by array-based effect above
   // Cleanup countdown timer on unmount
@@ -422,13 +429,66 @@ export default function Game({ isSinglePlayer }) {
           <div className="review-container">
             <div className="review-column">
               <h4>Richtig gelöst ({answers.filter(a => a.isCorrect).length})</h4>
-              <ReviewList answers={answers} isCorrect={true} />
+              <ReviewList
+                answers={answers}
+                isCorrect={true}
+                onSelectSchriftlich={id => setSelectedSchriftlichId(id)}
+              />
             </div>
             <div className="review-column">
               <h4>Falsch gelöst ({answers.filter(a => !a.isCorrect).length})</h4>
-              <ReviewList answers={answers} isCorrect={false} />
+              <ReviewList
+                answers={answers}
+                isCorrect={false}
+                onSelectSchriftlich={id => setSelectedSchriftlichId(id)}
+              />
             </div>
           </div>
+
+          {selectedSchriftlich && (
+            <div className="schriftlich-review-detail">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <h4 style={{ margin: 0 }}>Detailansicht</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div className="toggle-group">
+                    <button
+                      type="button"
+                      className={`toggle-btn${!reviewShowCorrect ? ' active' : ''}`}
+                      onClick={() => setReviewShowCorrect(false)}
+                    >
+                      Meine Eingabe
+                    </button>
+                    <button
+                      type="button"
+                      className={`toggle-btn${reviewShowCorrect ? ' active' : ''}`}
+                      onClick={() => setReviewShowCorrect(true)}
+                    >
+                      Lösung
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="big secondary"
+                    onClick={() => setSelectedSchriftlichId(null)}
+                    style={{ marginRight: '0.5rem' }}
+                  >
+                    Schließen
+                  </button>
+                </div>
+              </div>
+              <Schriftlich
+                key={`review-${selectedSchriftlich.id}`}
+                aDigits={selectedSchriftlich.aDigits}
+                bDigits={selectedSchriftlich.bDigits}
+                correctDigits={selectedSchriftlich.correctDigits}
+                partialProducts={selectedSchriftlich.partialProducts}
+                operation={selectedSchriftlich.operation}
+                initialState={selectedSchriftlich.schriftlichSnapshot}
+                review
+                showCorrect={reviewShowCorrect}
+              />
+            </div>
+          )}
 
           {isSinglePlayer && (
             <div className="actions">

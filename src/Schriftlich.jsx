@@ -3,7 +3,7 @@ import { padLeft } from './utils/padLeft'
 
 const sanitizeDigit = (value) => value.replace(/[^0-9]/g, '').slice(0, 1)
 
-export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits = [], partialProducts = [], operation = 'add', onChange, onEnter, initialState }) {
+export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits = [], partialProducts = [], operation = 'add', onChange, onEnter, initialState, review, showCorrect = false }) {
   const cols = correctDigits.length
   const isMultiply = operation === 'multiply'
   const isAdd = operation === 'add'
@@ -108,12 +108,12 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
   // is set from props on mount. We focus in a layout effect below.
 
   useEffect(() => {
-    if (!onChange) return
+    if (!onChange || review) return
     const parsed = answerDigits.map(d => (d === '' ? '0' : d)).join('')
     const valid = answerDigits.some(d => d !== '')
     // Provide full local state so parent can snapshot/restore on undo without premounting
     onChange({ digits: answerDigits, parsed, valid, carryDigits, partialInputs })
-  }, [answerDigits, carryDigits, partialInputs, onChange])
+  }, [answerDigits, carryDigits, partialInputs, onChange, review])
 
   // Focus the preferred input on mount (no setTimeout). Parent should key the component
   // so this runs only when a new problem is mounted.
@@ -141,6 +141,7 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
       }
     }
 
+    if (review) return
     if (cols <= 0) return
     // Prefer tabindex=1 for deterministic focus
     const firstTabEl = document.querySelector("input[tabindex='1']")
@@ -203,6 +204,7 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
         focusVertical(targetRow, column)
       }
     } else if (e.key === 'Enter') {
+      if (review) return
       e.preventDefault()
       onEnter && onEnter()
     } else if (isSubtract && rowKey === 'result' && (e.key === 'i' || e.key === 'I' || e.key === ' ' || e.code === 'Space' || e.key === 'Spacebar')) {
@@ -216,6 +218,88 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
         })
       }
     }
+  }
+
+  const handleResultChange = (index, value) => {
+    if (review) return
+    const v = sanitizeDigit(value)
+    setAnswerDigits(prev => {
+      const arr = [...prev]
+      arr[index] = v
+      return arr
+    })
+  }
+
+  const handleCarryChange = (index, value) => {
+    if (review) return
+    const v = sanitizeDigit(value)
+    setCarryDigits(prev => {
+      const arr = [...prev]
+      arr[index] = v
+      return arr
+    })
+  }
+
+  const handleBorrowToggle = (index) => {
+    if (review) return
+    setCarryDigits(prev => {
+      const arr = [...prev]
+      arr[index] = arr[index] === 'I' ? '' : 'I'
+      return arr
+    })
+  }
+
+  const handlePartialChange = (rowIndex, index, value) => {
+    if (review) return
+    const v = sanitizeDigit(value)
+    setPartialInputs(prev => {
+      const next = prev.map(inner => [...inner])
+      next[rowIndex][index] = v
+      return next
+    })
+  }
+
+  const isResultWrong = (index) => {
+    if (!review || showCorrect) return false
+    const user = answerDigits[index] || ''
+    const correct = (correctDigits[index] ?? '').toString()
+    return user !== '' && user !== correct
+  }
+
+  const isResultMissing = (index) => {
+    if (!review || showCorrect) return false
+    const correct = (correctDigits[index] ?? '').toString()
+    const user = answerDigits[index]
+    return correct !== '' && user === ''
+  }
+
+  const isPartialWrong = (rowIndex, globalCol) => {
+    if (!review || showCorrect) return false
+    const correctRow = partialRows?.[rowIndex]
+    if (!correctRow) return false
+    const width = cols + bDigits.length
+    const start = width - correctRow.length
+    const localIndex = globalCol - start
+    if (localIndex < 0 || localIndex >= correctRow.length) return false
+    const correctDigit = correctRow[localIndex]
+    if (correctDigit == null) return false
+    const user = (partialInputs[rowIndex]?.[globalCol] || '').toString()
+    const correct = correctDigit.toString()
+    return user !== '' && user !== correct
+  }
+
+  const isPartialMissing = (rowIndex, globalCol) => {
+    if (!review || showCorrect) return false
+    const correctRow = partialRows?.[rowIndex]
+    if (!correctRow) return false
+    const width = cols + bDigits.length
+    const start = width - correctRow.length
+    const localIndex = globalCol - start
+    if (localIndex < 0 || localIndex >= correctRow.length) return false
+    const correctDigit = correctRow[localIndex]
+    if (correctDigit == null) return false
+    const user = (partialInputs[rowIndex]?.[globalCol] ?? '')
+    return user === ''
   }
 
   const renderAddition = () => (
@@ -243,20 +327,13 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
                 id={`carry-${i}`}
                 data-row-key="carry"
                 data-col={i}
-                className="digit-input red small"
+                className="digit-input blue small"
                 type="text"
                 inputMode="numeric"
                 maxLength={1}
                 tabIndex={tabIndexFor('carry', i)}
                 value={carryDigits[i] || ''}
-                onChange={e => {
-                  const v = sanitizeDigit(e.target.value)
-                  setCarryDigits(prev => {
-                    const arr = [...prev]
-                    arr[i] = v
-                    return arr
-                  })
-                }}
+                onChange={e => handleCarryChange(i, e.target.value)}
                 onKeyDown={e => handleKeyDown(e, 'carry', i)}
               />
             )}
@@ -272,20 +349,13 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
               id={`res-${i}`}
               data-row-key="result"
               data-col={i}
-              className="digit-input blue"
+              className={`digit-input blue${isResultWrong(i) ? ' wrong' : ''}${isResultMissing(i) ? ' missing' : ''}`}
               type="text"
               inputMode="numeric"
               maxLength={1}
               tabIndex={tabIndexFor('result', i)}
-              value={answerDigits[i] || ''}
-              onChange={e => {
-                const v = sanitizeDigit(e.target.value)
-                setAnswerDigits(prev => {
-                  const arr = [...prev]
-                  arr[i] = v
-                  return arr
-                })
-              }}
+              value={showCorrect ? (correctDigits[i] ?? '').toString() : (answerDigits[i] || '')}
+              onChange={e => handleResultChange(i, e.target.value)}
               onKeyDown={e => handleKeyDown(e, 'result', i)}
             />
           </div>
@@ -310,13 +380,7 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
           <div
             key={`borr-${i}`}
             className="grid-cell"
-            onClick={() => {
-              setCarryDigits(prev => {
-                const arr = [...prev]
-                arr[i] = arr[i] === 'I' ? '' : 'I'
-                return arr
-              })
-            }}
+            onClick={() => handleBorrowToggle(i)}
           >
             <div className="borrow-cell">{carryDigits[i] === 'I' ? <span className="borrow-mark" /> : null}</div>
           </div>
@@ -338,20 +402,13 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
               id={`res-${i}`}
               data-row-key="result"
               data-col={i}
-              className="digit-input blue"
+              className={`digit-input blue${isResultWrong(i) ? ' wrong' : ''}${isResultMissing(i) ? ' missing' : ''}`}
               type="text"
               inputMode="numeric"
               maxLength={1}
               tabIndex={tabIndexFor('result', i)}
-              value={answerDigits[i] || ''}
-              onChange={e => {
-                const v = sanitizeDigit(e.target.value)
-                setAnswerDigits(prev => {
-                  const arr = [...prev]
-                  arr[i] = v
-                  return arr
-                })
-              }}
+              value={showCorrect ? (correctDigits[i] ?? '').toString() : (answerDigits[i] || '')}
+              onChange={e => handleResultChange(i, e.target.value)}
               onKeyDown={e => handleKeyDown(e, 'result', i)}
             />
           </div>
@@ -395,20 +452,13 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
                     <input
                       data-row-key={`partial-${rowIdx}`}
                       data-col={globalCol}
-                      className="digit-input"
+                      className={`digit-input${isPartialWrong(rowIdx, globalCol) ? ' wrong' : ''}${isPartialMissing(rowIdx, globalCol) ? ' missing' : ''}`}
                       type="text"
                       inputMode="numeric"
                       maxLength={1}
                       tabIndex={tabIndexFor(`partial-${rowIdx}`, globalCol)}
-                      value={row[globalCol] || ''}
-                      onChange={e => {
-                        const v = sanitizeDigit(e.target.value)
-                        setPartialInputs(prev => {
-                          const next = prev.map(inner => [...inner])
-                          next[rowIdx][globalCol] = v
-                          return next
-                        })
-                      }}
+                      value={showCorrect ? (templateRow.filter(d => d !== null && d !== undefined)[L - 1 - (rightGlobal - globalCol)] ?? '').toString() : (row[globalCol] || '')}
+                      onChange={e => handlePartialChange(rowIdx, globalCol, e.target.value)}
                       onKeyDown={e => handleKeyDown(e, `partial-${rowIdx}`, globalCol)}
                     />
                   ) : null}
@@ -435,20 +485,13 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
                     id={`carry-${idx}`}
                     data-row-key="carry"
                     data-col={globalCol}
-                    className="digit-input red small"
+                    className="digit-input blue small"
                     type="text"
                     inputMode="numeric"
                     maxLength={1}
                     tabIndex={tabIndexFor('carry', idx)}
                     value={carryDigits[idx] || ''}
-                    onChange={e => {
-                      const v = sanitizeDigit(e.target.value)
-                      setCarryDigits(prev => {
-                        const arr = [...prev]
-                        arr[idx] = v
-                        return arr
-                      })
-                    }}
+                    onChange={e => handleCarryChange(idx, e.target.value)}
                     onKeyDown={e => handleKeyDown(e, 'carry', globalCol)}
                   />
                 ) : null}
@@ -474,20 +517,13 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
                     id={`res-${idx}`}
                     data-row-key="result"
                     data-col={globalCol}
-                    className="digit-input blue"
+                    className={`digit-input blue${isResultWrong(idx) ? ' wrong' : ''}${isResultMissing(idx) ? ' missing' : ''}`}
                     type="text"
                     inputMode="numeric"
                     maxLength={1}
                     tabIndex={tabIndexFor('result', idx)}
-                    value={answerDigits[idx] || ''}
-                    onChange={e => {
-                      const v = sanitizeDigit(e.target.value)
-                      setAnswerDigits(prev => {
-                        const arr = [...prev]
-                        arr[idx] = v
-                        return arr
-                      })
-                    }}
+                    value={showCorrect ? (correctDigits[idx] ?? '').toString() : (answerDigits[idx] || '')}
+                    onChange={e => handleResultChange(idx, e.target.value)}
                     onKeyDown={e => handleKeyDown(e, 'result', globalCol)}
                   />
                 ) : null}

@@ -70,10 +70,54 @@ input[type=number]{padding:0.6rem 0.8rem;font-size:1.5rem;width:120px;text-align
 .review-column{flex:1;background:var(--card);padding:1.5rem;border-radius:8px;max-height:400px;overflow:auto}
 .review-column h4{margin-top:0;margin-bottom:1rem;color:#444}
 .review-list{list-style:none;padding:0;margin:0}
-.review-list li{padding:0.5rem;border-bottom:1px solid rgba(0,0,0,0.05);font-size:0.95rem}
+.review-list li{padding:0.5rem;border-bottom:1px solid rgba(0,0,0,0.05);font-size:0.95rem;cursor:pointer}
 .review-list li:last-child{border-bottom:none}
 .review-list.ok li{color:var(--ok)}
 .review-list.bad li{color:var(--bad)}
+
+.schriftlich-review-detail {
+  margin-top: 1.5rem;
+  background: var(--card);
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.toggle-group {
+  display: inline-flex;
+  border-radius: 999px;
+  background: #edf2f7;
+  padding: 2px;
+}
+
+.toggle-btn {
+  border: none;
+  background: transparent;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #4a5568;
+}
+
+.toggle-btn.active {
+  background: white;
+  color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(43, 108, 176, 0.45);
+}
+
+.digit-input.wrong {
+  color: #c22;
+  background-color: rgba(229, 62, 62, 0.08);
+}
+
+.digit-input.missing {
+  background-color: rgba(229, 62, 62, 0.08);
+}
+
+/* Ensure wrong always overrides the blue color on result digits */
+.digit-input.blue.wrong {
+  color: #c22;
+}
 .small{color:#333;opacity:0.8}
 .lobby{max-width:600px;margin:2rem auto;text-align:center}
 .mode-select{display:flex;flex-direction:column;gap:1rem;align-items:center}
