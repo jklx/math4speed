@@ -1,11 +1,11 @@
 // Centralized difficulty multipliers used across performance and penalties
 // Performance bar ranges per problem (seconds): [left, right]
 export const PERFORMANCE_RANGES = {
-  einmaleins: { perProblem: [1.8, 3.6] },
-  primfaktorisierung: { perProblem: [4.0, 8.0] },
-  schriftlich_add: { perProblem: [5.0, 10.0] },
-  schriftlich_subtract: { perProblem: [6.0, 12.0] },
-  schriftlich_multiply: { perProblem: [10.0, 20.0] },
+  einmaleins: { perProblem: [2.2, 6] },
+  primfaktorisierung: { perProblem: [20, 60] },
+  schriftlich_add: { perProblem: [20, 55] },
+  schriftlich_subtract: { perProblem: [20, 55] },
+  schriftlich_multiply: { perProblem: [60, 200] },
   // Fallback
   schriftlich: { perProblem: [6.0, 12.0] }
 }
