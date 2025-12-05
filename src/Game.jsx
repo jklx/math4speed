@@ -206,17 +206,14 @@ export default function Game({ isSinglePlayer }) {
       isCorrect = parsed === prob.correct
     }
 
-  const newEntry = { ...prob, user: parsed, isCorrect, schriftlichSnapshot: prob.type === 'schriftlich' ? schriftlichInput : undefined }
+    const newEntry = { ...prob, user: parsed, isCorrect, schriftlichSnapshot: prob.type === 'schriftlich' ? schriftlichInput : undefined }
     const newAnswers = [...answers, newEntry]
     setAnswers(newAnswers)
     // Store/overwrite snapshot for this index so we can undo and forward-restore later
-    if (isSinglePlayer) {
-      setSnapshots(prev => ({ ...prev, [current]: { index: current, problem: prob, schriftlichInput, inputValue } }))
-    } else {
-      setSnapshots({})
-    }
-  setInputValue('')
-  setSchriftlichInput({ digits: [], parsed: '', valid: false })
+    setSnapshots(prev => ({ ...prev, [current]: { index: current, problem: prob, schriftlichInput, inputValue } }))
+
+    setInputValue('')
+    setSchriftlichInput({ digits: [], parsed: '', valid: false })
     if (current + 1 >= problems.length) {
       // finalize and report
       const now = Date.now()
@@ -237,16 +234,15 @@ export default function Game({ isSinglePlayer }) {
     } else {
       setCurrent(c => c + 1)
       // If moving forward after undos, auto-restore the next problem from existing snapshot history
-      if (isSinglePlayer) {
-        const nextIndex = current + 1
-  const nextSnap = snapshots[nextIndex]
-        if (nextSnap) {
-          setInputValue(nextSnap.inputValue || '')
-          if (nextSnap.schriftlichInput) setSchriftlichInput(nextSnap.schriftlichInput)
-          // Defer setting restoreSnapshot until after current updates
-          setTimeout(() => setRestoreSnapshot(nextSnap), 0)
-        }
+      const nextIndex = current + 1
+      const nextSnap = snapshots[nextIndex]
+      if (nextSnap) {
+        setInputValue(nextSnap.inputValue || '')
+        if (nextSnap.schriftlichInput) setSchriftlichInput(nextSnap.schriftlichInput)
+        // Defer setting restoreSnapshot until after current updates
+        setTimeout(() => setRestoreSnapshot(nextSnap), 0)
       }
+
       if (roomId && !isSinglePlayer) {
         const progress = ((current + 1) / problems.length) * 100
         // Send current progress with all solved problems so far
@@ -261,7 +257,8 @@ export default function Game({ isSinglePlayer }) {
     const targetIndex = answers.length - 1
     const snap = snapshots[targetIndex]
     // Remove the last answer and prepare to restore the snapshot into the next mount
-    setAnswers(prev => prev.slice(0, -1))
+    const newAnswers = answers.slice(0, -1)
+    setAnswers(newAnswers)
     setRestoreSnapshot(snap)
     // Restore simple input immediately and also restore lifted schriftlich snapshot for immediate submit
     setInputValue(snap?.inputValue || '')
@@ -270,6 +267,12 @@ export default function Game({ isSinglePlayer }) {
     // Clear finished state if we were finished
     setFinished(false)
     setEndTime(null)
+
+    if (roomId && !isSinglePlayer) {
+      const progress = (targetIndex / problems.length) * 100
+      updateProgress(roomId, progress, newAnswers)
+    }
+
     // focus will be handled after render; keep a small timeout to ensure DOM ready
     setTimeout(() => {
       const el = document.querySelector("input[tabindex='1']")
@@ -421,7 +424,7 @@ export default function Game({ isSinglePlayer }) {
           </div>
 
           <div className="controls">
-            {answers.length > 0 && isSinglePlayer ? (
+            {answers.length > 0 ? (
               <button onClick={undoLast} className="big secondary">Zurück</button>
             ) : null}
             <button onClick={submitAnswer} className="big">Nächste</button>
