@@ -1,11 +1,12 @@
 import React from 'react'
 
-export default function ProgressBar({ progress = 0, finalTime = null, category = 'einmaleins', problemCount = 1, getMarkerPosition: externalGetMarker }) {
+export default function ProgressBar({ progress = 0, finalTime = null, range = [90, 210], getMarkerPosition: externalGetMarker }) {
   const getMarkerPosition = (totalSeconds) => {
-    // If parent provides a category-aware function, use it
-    if (typeof externalGetMarker === 'function') return externalGetMarker(totalSeconds, category, problemCount)
+    // If parent provides a range-aware function, use it
+    if (typeof externalGetMarker === 'function') return externalGetMarker(totalSeconds, range)
     // Fallback: simple mapping if utils not provided
-    const position = Math.min(100, Math.max(0, ((totalSeconds - 90) / (210 - 90)) * 100));
+    const [minS, maxS] = range
+    const position = Math.min(100, Math.max(0, ((totalSeconds - minS) / (maxS - minS)) * 100));
     return `${position}%`;
   }
 

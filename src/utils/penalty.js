@@ -3,18 +3,12 @@
 // - Schriftlich multiply: per partial row wrong = 5s; final result wrong = 10s
 //   Do not penalize final result if any partial row is wrong (to avoid consequential double penalty)
 
-import { getMultiplier } from './difficulty'
-
-function categoryOfAnswer(answer) {
-  if (!answer) return 'einmaleins'
-  if (answer.type === 'multiplication') return 'einmaleins'
-  if (answer.type === 'primfaktorisierung') return 'primfaktorisierung'
-  if (answer.type === 'schriftlich') return 'schriftlich'
-  return 'einmaleins'
-}
+import { getProblemMaxTime } from './difficulty'
 
 export function computePenaltySeconds(answer) {
   if (!answer || answer.isCorrect) return 0
+
+  const maxTime = getProblemMaxTime(answer)
 
   if (answer.type === 'schriftlich' && answer.operation === 'multiply') {
     const snapshot = answer.schriftlichSnapshot || {}
@@ -45,7 +39,9 @@ export function computePenaltySeconds(answer) {
       if (rowWrong) partialWrongRows += 1
     }
 
-    const partialPenalty = partialWrongRows * 10
+    // Penalty per wrong row is 1/4 of maxTime
+    const rowPenalty = Math.round(maxTime / 4)
+    const partialPenalty = partialWrongRows * rowPenalty
 
     // Final result penalty only if no partial row is wrong
     let finalPenalty = 0
@@ -53,19 +49,13 @@ export function computePenaltySeconds(answer) {
       const userDigits = (snapshot.digits || []).map(d => (d === '' ? 0 : Number(d)))
       const correctDigits = (answer.correctDigits || [])
       const finalCorrect = JSON.stringify(userDigits) === JSON.stringify(correctDigits)
-      if (!finalCorrect) finalPenalty = 10
+      if (!finalCorrect) finalPenalty = maxTime
     }
 
     return partialPenalty + finalPenalty
   }
 
-  // Default rule
-  return 10
+  // Default rule: penalty is the max time of the problem
+  return maxTime
 }
 
-export function computeWeightedPenaltySeconds(answer) {
-  const base = computePenaltySeconds(answer)
-  const cat = categoryOfAnswer(answer)
-  const mult = getMultiplier(cat, answer?.operation)
-  return Math.round(base * mult)
-}

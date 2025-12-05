@@ -1,7 +1,5 @@
-import { getPerformanceRange } from './difficulty'
-
-export function getPerformanceComment(totalSeconds, category = 'einmaleins', problemCount = 1) {
-  const [minS, maxS] = getPerformanceRange(category, problemCount)
+export function getPerformanceComment(totalSeconds, range = [90, 210]) {
+  const [minS, maxS] = range
   // Map into quartiles of the range
   const q1 = minS + (maxS - minS) * 0.25
   const q2 = minS + (maxS - minS) * 0.5
@@ -12,9 +10,10 @@ export function getPerformanceComment(totalSeconds, category = 'einmaleins', pro
   return "Nicht schlecht! Mit Übung wird es besser! 💪"
 }
 
-export function getPerformanceMarkerPosition(totalSeconds, category = 'einmaleins', problemCount = 1) {
-  const [minS, maxS] = getPerformanceRange(category, problemCount)
+export function getPerformanceMarkerPosition(totalSeconds, range = [90, 210]) {
+  const [minS, maxS] = range
   const clamped = Math.min(maxS, Math.max(minS, totalSeconds))
   const position = ((clamped - minS) / (maxS - minS)) * 100
   return `${position}%`
 }
+

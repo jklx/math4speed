@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useMemo } from 'react'
 import Logo from './Logo'
 import { useParams, useLocation } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
@@ -7,7 +7,8 @@ import ProgressBar from './ProgressBar'
 import { generateProblems } from './problems/generators'
 import { validateSchriftlich, validatePrimfaktorisierung } from './problems/validate'
 import { getPerformanceComment, getPerformanceMarkerPosition } from './utils/performanceFeedback'
-import { computeWeightedPenaltySeconds } from './utils/penalty'
+import { computePenaltySeconds } from './utils/penalty'
+import { getProblemRange } from './utils/difficulty'
 import { getCategoryLabel } from './utils/categories'
 import Schriftlich from './Schriftlich'
 import Einmaleins from './Einmaleins'
@@ -65,7 +66,7 @@ export default function Game({ isSinglePlayer }) {
       return (
         <>
           <p>Du bekommst 50 Einmaleinsaufgaben. Aufgaben mit ·1 und ·10 kommen seltener vor.</p>
-          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
+          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende eine Zeitstrafe.</p>
         </>
       )
     }
@@ -73,7 +74,7 @@ export default function Game({ isSinglePlayer }) {
       return (
         <>
           <p>Du bekommst 15 schriftliche Rechenaufgaben (5 Addition, 5 Subtraktion, 5 Multiplikation).</p>
-          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
+          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende eine Zeitstrafe.</p>
         </>
       )
     }
@@ -82,7 +83,7 @@ export default function Game({ isSinglePlayer }) {
         <>
           <p>Du bekommst 20 Zahlen, die du in ihre Primfaktoren zerlegen musst.</p>
   <p>Gib die Primfaktoren durch Leerzeichen getrennt ein (z. B. „2 2 3“ für 12).</p>
-          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende 10 Strafsekunden.</p>
+          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende eine Zeitstrafe.</p>
         </>
       )
     }
@@ -224,7 +225,7 @@ export default function Game({ isSinglePlayer }) {
       const rawSeconds = startTime ? Math.floor((now - startTime) / 1000) : 0
       // compute wrongs and penalty
       const wrongs = newAnswers.filter(a => !a.isCorrect).length
-      const penaltySeconds = wrongs * 10
+      const penaltySeconds = newAnswers.reduce((sum, a) => sum + computePenaltySeconds(a), 0)
       const finalTimeWithPenalty = rawSeconds + penaltySeconds
       // send solved problems to server and finish (include penalty in reported time)
       if (roomId && !isSinglePlayer) {
@@ -279,8 +280,15 @@ export default function Game({ isSinglePlayer }) {
 
   const wrongCount = answers.filter(a => !a.isCorrect).length
   const elapsed = finished ? Math.floor((endTime - startTime) / 1000) : liveSeconds()
-  const penalty = answers.reduce((sum, a) => sum + computeWeightedPenaltySeconds(a), 0)
+  const penalty = answers.reduce((sum, a) => sum + computePenaltySeconds(a), 0)
   const finalTime = finished ? elapsed + penalty : null
+
+  const totalRange = useMemo(() => {
+    return problems.reduce((acc, p) => {
+      const [min, max] = getProblemRange(p)
+      return [acc[0] + min, acc[1] + max]
+    }, [0, 0])
+  }, [problems])
 
   const schriftlichAnswers = answers.filter(a => a.type === 'schriftlich')
   const selectedSchriftlich = selectedSchriftlichId == null
@@ -430,14 +438,14 @@ export default function Game({ isSinglePlayer }) {
             <div className="final">Endzeit (mit Strafe): {formatTime(finalTime)}</div>
 
             <div className="performance">
-              <ProgressBar finalTime={finalTime} category={activeCategory} problemCount={problems.length} getMarkerPosition={getPerformanceMarkerPosition} />
+              <ProgressBar finalTime={finalTime} range={totalRange} getMarkerPosition={getPerformanceMarkerPosition} />
               <div className="performance-labels">
                 <span>Hervorragend</span>
                 <span>Gut</span>
                 <span>Üben</span>
               </div>
               <div className="performance-comment">
-                {getPerformanceComment(finalTime, activeCategory, problems.length)}
+                {getPerformanceComment(finalTime, totalRange)}
               </div>
             </div>
           </div>

@@ -1,42 +1,31 @@
 // Centralized difficulty multipliers used across performance and penalties
-// Base multipliers per category (relative time requirement)
-export const DIFFICULTY_MULTIPLIER = {
-  einmaleins: 1.0,
-  schriftlich: 6.0,
-  primfaktorisierung: 4.0
-}
-
-// Optional operation-specific overrides for schriftlich
-const OPERATION_MULTIPLIER = {
-  add: 5.0,
-  subtract: 6.0,
-  multiply: 10.0
-}
-
-export const getMultiplier = (category = 'einmaleins', operation) => {
-  if (category === 'schriftlich' && operation && OPERATION_MULTIPLIER[operation] != null) {
-    return OPERATION_MULTIPLIER[operation]
-  }
-  return DIFFICULTY_MULTIPLIER[category] ?? 1.0
-}
-
-export const normalizeSecondsByCategory = (totalSeconds, category = 'einmaleins', operation) => {
-  const mult = getMultiplier(category, operation)
-  return totalSeconds / mult
-}
-
 // Performance bar ranges per problem (seconds): [left, right]
-// Total range = per-problem * problemCount
 export const PERFORMANCE_RANGES = {
   einmaleins: { perProblem: [1.8, 3.6] },
-  // Schriftlich takes significantly longer per task
-  schriftlich: { perProblem: [6.0, 12.0] },
-  // Primfaktorisierung also longer
-  primfaktorisierung: { perProblem: [4.0, 8.0] }
+  primfaktorisierung: { perProblem: [4.0, 8.0] },
+  schriftlich_add: { perProblem: [5.0, 10.0] },
+  schriftlich_subtract: { perProblem: [6.0, 12.0] },
+  schriftlich_multiply: { perProblem: [10.0, 20.0] },
+  // Fallback
+  schriftlich: { perProblem: [6.0, 12.0] }
 }
 
-export const getPerformanceRange = (category = 'einmaleins', problemCount = 1) => {
-  const cfg = PERFORMANCE_RANGES[category] || PERFORMANCE_RANGES.einmaleins
-  const [left, right] = cfg.perProblem
-  return [left * problemCount, right * problemCount]
+export const getProblemRange = (problem) => {
+  let key = problem.type
+  if (problem.type === 'schriftlich' && problem.operation) {
+    key = `${problem.type}_${problem.operation}`
+  }
+  // Fallback to type if specific key not found
+  if (!PERFORMANCE_RANGES[key]) {
+    key = problem.type
+  }
+  // Fallback to einmaleins if still not found
+  const cfg = PERFORMANCE_RANGES[key] || PERFORMANCE_RANGES.einmaleins
+  return cfg.perProblem
 }
+
+export const getProblemMaxTime = (problem) => {
+  const [, max] = getProblemRange(problem)
+  return max
+}
+
