@@ -1,29 +1,20 @@
-// Difficulty multipliers reflect relative time needed per problem type
-// Lower multiplier = faster problems; higher = more time per problem
-const DIFFICULTY_MULTIPLIER = {
-  einmaleins: 1.0,
-  schriftlich: 4.0,
-  primfaktorisierung: 3.0
+import { getPerformanceRange } from './difficulty'
+
+export function getPerformanceComment(totalSeconds, category = 'einmaleins', problemCount = 1) {
+  const [minS, maxS] = getPerformanceRange(category, problemCount)
+  // Map into quartiles of the range
+  const q1 = minS + (maxS - minS) * 0.25
+  const q2 = minS + (maxS - minS) * 0.5
+  const q3 = minS + (maxS - minS) * 0.75
+  if (totalSeconds <= q1) return "Hervorragend! Du bist ein Profi! 🏆"
+  if (totalSeconds <= q2) return "Sehr gut! Starke Leistung! 🌟"
+  if (totalSeconds <= q3) return "Gut gemacht! Weiter so! 👍"
+  return "Nicht schlecht! Mit Übung wird es besser! 💪"
 }
 
-function normalizeSeconds(totalSeconds, category) {
-  const mult = DIFFICULTY_MULTIPLIER[category] ?? 1.0
-  return totalSeconds / mult
-}
-
-export function getPerformanceComment(totalSeconds, category = 'einmaleins') {
-  const s = normalizeSeconds(totalSeconds, category)
-  if (s <= 90) return "Hervorragend! Du bist ein Einmaleins-Profi! 🏆"
-  if (s <= 120) return "Sehr gut! Fast perfekte Zeit! 🌟"
-  if (s <= 150) return "Gut gemacht! Du bist auf dem richtigen Weg! 👍"
-  if (s <= 180) return "Nicht schlecht! Mit etwas Übung wird es noch besser! 💪"
-  return "Weiter üben! Du schaffst das! 🎯"
-}
-
-export function getPerformanceMarkerPosition(totalSeconds, category = 'einmaleins') {
-  const s = normalizeSeconds(totalSeconds, category)
-  const position = Math.min(100, Math.max(0, 
-    ((s - 90) / (210 - 90)) * 100
-  ))
+export function getPerformanceMarkerPosition(totalSeconds, category = 'einmaleins', problemCount = 1) {
+  const [minS, maxS] = getPerformanceRange(category, problemCount)
+  const clamped = Math.min(maxS, Math.max(minS, totalSeconds))
+  const position = ((clamped - minS) / (maxS - minS)) * 100
   return `${position}%`
 }

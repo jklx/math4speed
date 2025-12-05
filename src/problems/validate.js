@@ -1,12 +1,19 @@
 // Validators for different problem types
 
 export function validateSchriftlich(answerDigits, correctDigits) {
-  // Treat empty as 0 to allow omitting leading zeros
-  const userDigits = answerDigits.map(d => d === '' ? 0 : Number(d));
-  const isCorrect = JSON.stringify(userDigits) === JSON.stringify(correctDigits);
-  const parsed = answerDigits.map(d => d === '' ? '0' : d).join('');
-  // Require at least one digit to avoid submitting completely empty
+  // Normalize user's digits: join provided digits without injecting zeros
+  const userStrRaw = answerDigits.map(d => (d === '' ? '' : String(d))).join('');
   const hasAnyDigit = answerDigits.some(d => d !== '');
+  const userStr = hasAnyDigit ? String(parseInt(userStrRaw || '0', 10)) : '';
+
+  // Normalize correct to number comparison
+  const correctStr = String((correctDigits ?? []).join(''));
+  const correctNum = parseInt(correctStr || '0', 10);
+  const userNum = hasAnyDigit ? parseInt(userStr, 10) : NaN;
+
+  const isCorrect = hasAnyDigit && userNum === correctNum;
+  // parsed is the simplified, non-padded string the UI should show
+  const parsed = hasAnyDigit ? userStr : '';
   return { isCorrect, parsed, valid: hasAnyDigit };
 }
 

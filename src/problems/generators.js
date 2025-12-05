@@ -88,8 +88,34 @@ export function generateSchriftlichProblems(count = 15) {
   }
 
   for (let i = 0; i < subtractionCount; i++) {
-    const a = Math.floor(Math.random() * 9000) + 1000;
-    let b = Math.floor(Math.random() * (a - 1000)) + 1000;
+    // Generate 5-digit subtraction with increased likelihood of borrows
+    const genMinuend = () => Math.floor(Math.random() * 90000) + 10000; // 10000-99999
+    const estimateBorrows = (aDigits, bDigits) => {
+      // Approximate: count positions where a digit < b digit (right-to-left)
+      let count = 0;
+      for (let k = aDigits.length - 1, j = bDigits.length - 1; k >= 0; k--, j--) {
+        const ad = aDigits[k] || 0;
+        const bd = j >= 0 ? bDigits[j] : 0;
+        if (ad < bd) count++;
+      }
+      return count;
+    }
+    let a = genMinuend();
+    let b;
+    let attempts = 0;
+    while (attempts < 20) {
+      // Prefer subtrahends closer to minuend to increase borrow chances
+      // Choose b as a random value in [a-9000, a-1], clamped to >=10000
+      const minB = Math.max(10000, a - 9000);
+      const maxB = a - 1;
+      b = Math.floor(Math.random() * (maxB - minB + 1)) + minB;
+      const aDigits = String(a).split('').map(Number);
+      const bDigits = String(b).split('').map(Number);
+      const borrows = estimateBorrows(aDigits, bDigits);
+      if (borrows >= 2) break; // good enough likelihood of borrows
+      attempts++;
+      if (attempts % 5 === 0) a = genMinuend(); // refresh minuend sometimes
+    }
     if (b >= a) b = a - 1;
     const correct = a - b;
     subtraction.push({
@@ -100,7 +126,8 @@ export function generateSchriftlichProblems(count = 15) {
       operation: 'subtract',
       aDigits: String(a).split('').map(Number),
       bDigits: String(b).split('').map(Number),
-      correctDigits: String(correct).padStart(4, '0').split('').map(Number)
+      // Do not pad with leading zeros; use natural digit length
+      correctDigits: String(correct).split('').map(Number)
     });
   }
 

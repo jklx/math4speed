@@ -4,16 +4,21 @@ import { padLeft } from './utils/padLeft'
 const sanitizeDigit = (value) => value.replace(/[^0-9]/g, '').slice(0, 1)
 
 export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits = null, correctDigits = [], partialProducts = [], operation = 'add', onChange, onEnter, initialState, review, showCorrect = false }) {
-  const cols = correctDigits.length
   const isMultiply = operation === 'multiply'
   const isAdd = operation === 'add'
   const isSubtract = operation === 'subtract'
+  // Ensure grid columns cover all digits present (avoid overflow when correct has fewer digits)
+  const maxSummandLen = Array.isArray(summandsDigits) && summandsDigits.length
+    ? Math.max(...summandsDigits.map(row => (row?.length ?? 0)))
+    : 0
+  const cols = Math.max(correctDigits.length, aDigits.length, bDigits.length, maxSummandLen)
 
   const extraCols = isMultiply ? bDigits.length + 1 : 1
   const totalCols = cols + extraCols + 1
 
   const aCells = padLeft(aDigits, cols)
   const bCells = padLeft(bDigits, cols)
+  const correctCells = padLeft(correctDigits, cols)
   const addRows = useMemo(() => {
     if (!isAdd) return []
     const rows = Array.isArray(summandsDigits) && summandsDigits.length >= 2
@@ -116,8 +121,9 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
 
   useEffect(() => {
     if (!onChange || review) return
-    const parsed = answerDigits.map(d => (d === '' ? '0' : d)).join('')
     const valid = answerDigits.some(d => d !== '')
+    const raw = answerDigits.map(d => (d === '' ? '' : String(d))).join('')
+    const parsed = valid ? String(parseInt(raw || '0', 10)) : ''
     // Provide full local state so parent can snapshot/restore on undo without premounting
     onChange({ digits: answerDigits, parsed, valid, carryDigits, partialInputs })
   }, [answerDigits, carryDigits, partialInputs, onChange, review])
@@ -269,13 +275,15 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
   const isResultWrong = (index) => {
     if (!review || showCorrect) return false
     const user = answerDigits[index] || ''
-    const correct = (correctDigits[index] ?? '').toString()
+    const correct = (correctCells[index] ?? '').toString()
+    // Allow leading zeros
+    if (correct === '' && user === '0') return false
     return user !== '' && user !== correct
   }
 
   const isResultMissing = (index) => {
     if (!review || showCorrect) return false
-    const correct = (correctDigits[index] ?? '').toString()
+    const correct = (correctCells[index] ?? '').toString()
     const user = answerDigits[index]
     return correct !== '' && user === ''
   }
@@ -356,7 +364,7 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
               inputMode="numeric"
               maxLength={1}
               tabIndex={tabIndexFor('result', i)}
-              value={showCorrect ? (correctDigits[i] ?? '').toString() : (answerDigits[i] || '')}
+              value={showCorrect ? (correctCells[i] ?? '').toString() : (answerDigits[i] || '')}
               onChange={e => handleResultChange(i, e.target.value)}
               onKeyDown={e => handleKeyDown(e, 'result', i)}
             />
@@ -409,7 +417,7 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
               inputMode="numeric"
               maxLength={1}
               tabIndex={tabIndexFor('result', i)}
-              value={showCorrect ? (correctDigits[i] ?? '').toString() : (answerDigits[i] || '')}
+              value={showCorrect ? (correctCells[i] ?? '').toString() : (answerDigits[i] || '')}
               onChange={e => handleResultChange(i, e.target.value)}
               onKeyDown={e => handleKeyDown(e, 'result', i)}
             />
@@ -524,7 +532,7 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
                     inputMode="numeric"
                     maxLength={1}
                     tabIndex={tabIndexFor('result', idx)}
-                    value={showCorrect ? (correctDigits[idx] ?? '').toString() : (answerDigits[idx] || '')}
+                    value={showCorrect ? (correctCells[idx] ?? '').toString() : (answerDigits[idx] || '')}
                     onChange={e => handleResultChange(idx, e.target.value)}
                     onKeyDown={e => handleKeyDown(e, 'result', globalCol)}
                   />

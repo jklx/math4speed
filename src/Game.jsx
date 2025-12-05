@@ -7,6 +7,7 @@ import ProgressBar from './ProgressBar'
 import { generateProblems } from './problems/generators'
 import { validateSchriftlich, validatePrimfaktorisierung } from './problems/validate'
 import { getPerformanceComment, getPerformanceMarkerPosition } from './utils/performanceFeedback'
+import { computeWeightedPenaltySeconds } from './utils/penalty'
 import { getCategoryLabel } from './utils/categories'
 import Schriftlich from './Schriftlich'
 import Einmaleins from './Einmaleins'
@@ -174,8 +175,23 @@ export default function Game({ isSinglePlayer }) {
     let parsed = ''
     let isCorrect = false
 
+    // In production, block submitting completely empty answers; allow in dev
+    const isDev = !!import.meta.env.DEV
+    if (!isDev) {
+      if (prob.type === 'primfaktorisierung') {
+        const candidateValue = (((overrideValue ?? inputValue)) || '').trim()
+        if (!candidateValue.length) return
+      } else if (prob.type === 'schriftlich') {
+        // Use lifted validity flag from Schriftlich
+        if (!schriftlichInput?.valid) return
+      } else {
+        const candidateValue = ((overrideValue ?? inputValue) || '')
+        if (!String(candidateValue).trim().length) return
+      }
+    }
+
     if (prob.type === 'primfaktorisierung') {
-      const candidateValue = overrideValue ?? inputValue
+      const candidateValue = (overrideValue ?? inputValue)
       const { isCorrect: ok, parsed: p } = validatePrimfaktorisierung(candidateValue, prob.factors)
       parsed = p
       isCorrect = ok
@@ -263,7 +279,7 @@ export default function Game({ isSinglePlayer }) {
 
   const wrongCount = answers.filter(a => !a.isCorrect).length
   const elapsed = finished ? Math.floor((endTime - startTime) / 1000) : liveSeconds()
-  const penalty = wrongCount * 10
+  const penalty = answers.reduce((sum, a) => sum + computeWeightedPenaltySeconds(a), 0)
   const finalTime = finished ? elapsed + penalty : null
 
   const schriftlichAnswers = answers.filter(a => a.type === 'schriftlich')
@@ -414,14 +430,14 @@ export default function Game({ isSinglePlayer }) {
             <div className="final">Endzeit (mit Strafe): {formatTime(finalTime)}</div>
 
             <div className="performance">
-              <ProgressBar finalTime={finalTime} category={activeCategory} getMarkerPosition={getPerformanceMarkerPosition} />
+              <ProgressBar finalTime={finalTime} category={activeCategory} problemCount={problems.length} getMarkerPosition={getPerformanceMarkerPosition} />
               <div className="performance-labels">
                 <span>Hervorragend</span>
                 <span>Gut</span>
                 <span>Üben</span>
               </div>
               <div className="performance-comment">
-                {getPerformanceComment(finalTime, activeCategory)}
+                {getPerformanceComment(finalTime, activeCategory, problems.length)}
               </div>
             </div>
           </div>
@@ -450,45 +466,47 @@ export default function Game({ isSinglePlayer }) {
             <div className="schriftlich-review-detail">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                 <h4 style={{ margin: 0 }}>Detailansicht</h4>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div className="toggle-group">
-                    <button
-                      type="button"
-                      className={`toggle-btn${!reviewShowCorrect ? ' active' : ''}`}
-                      onClick={() => setReviewShowCorrect(false)}
-                    >
-                      Meine Eingabe
-                    </button>
-                    <button
-                      type="button"
-                      className={`toggle-btn${reviewShowCorrect ? ' active' : ''}`}
-                      onClick={() => setReviewShowCorrect(true)}
-                    >
-                      Lösung
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    className="big secondary"
-                    onClick={() => setSelectedSchriftlichId(null)}
-                    style={{ marginRight: '0.5rem' }}
-                  >
-                    Schließen
-                  </button>
+                <button
+                  type="button"
+                  className="big secondary"
+                  onClick={() => setSelectedSchriftlichId(null)}
+                  style={{ marginRight: '0.5rem' }}
+                >
+                  Schließen
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'start' }}>
+                <div>
+                  <h5 style={{ marginTop: 0 }}>Meine Eingabe</h5>
+                  <Schriftlich
+                    key={`review-user-${selectedSchriftlich.id}`}
+                    aDigits={selectedSchriftlich.aDigits}
+                    bDigits={selectedSchriftlich.bDigits}
+                    summandsDigits={selectedSchriftlich.summandsDigits}
+                    correctDigits={selectedSchriftlich.correctDigits}
+                    partialProducts={selectedSchriftlich.partialProducts}
+                    operation={selectedSchriftlich.operation}
+                    initialState={selectedSchriftlich.schriftlichSnapshot}
+                    review
+                    showCorrect={false}
+                  />
+                </div>
+                <div>
+                  <h5 style={{ marginTop: 0 }}>Lösung</h5>
+                  <Schriftlich
+                    key={`review-solution-${selectedSchriftlich.id}`}
+                    aDigits={selectedSchriftlich.aDigits}
+                    bDigits={selectedSchriftlich.bDigits}
+                    summandsDigits={selectedSchriftlich.summandsDigits}
+                    correctDigits={selectedSchriftlich.correctDigits}
+                    partialProducts={selectedSchriftlich.partialProducts}
+                    operation={selectedSchriftlich.operation}
+                    initialState={selectedSchriftlich.schriftlichSnapshot}
+                    review
+                    showCorrect={true}
+                  />
                 </div>
               </div>
-              <Schriftlich
-                key={`review-${selectedSchriftlich.id}`}
-                aDigits={selectedSchriftlich.aDigits}
-                bDigits={selectedSchriftlich.bDigits}
-                summandsDigits={selectedSchriftlich.summandsDigits}
-                correctDigits={selectedSchriftlich.correctDigits}
-                partialProducts={selectedSchriftlich.partialProducts}
-                operation={selectedSchriftlich.operation}
-                initialState={selectedSchriftlich.schriftlichSnapshot}
-                review
-                showCorrect={reviewShowCorrect}
-              />
             </div>
           )}
 

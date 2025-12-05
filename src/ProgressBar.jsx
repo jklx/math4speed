@@ -1,9 +1,9 @@
 import React from 'react'
 
-export default function ProgressBar({ progress = 0, finalTime = null, category = 'einmaleins', getMarkerPosition: externalGetMarker }) {
+export default function ProgressBar({ progress = 0, finalTime = null, category = 'einmaleins', problemCount = 1, getMarkerPosition: externalGetMarker }) {
   const getMarkerPosition = (totalSeconds) => {
     // If parent provides a category-aware function, use it
-    if (typeof externalGetMarker === 'function') return externalGetMarker(totalSeconds, category)
+    if (typeof externalGetMarker === 'function') return externalGetMarker(totalSeconds, category, problemCount)
     // Fallback: simple mapping if utils not provided
     const position = Math.min(100, Math.max(0, ((totalSeconds - 90) / (210 - 90)) * 100));
     return `${position}%`;
