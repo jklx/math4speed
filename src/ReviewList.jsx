@@ -13,6 +13,15 @@ import { formatFactors } from './utils/formatFactors'
 export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) {
   const filtered = answers.filter(a => a.isCorrect === isCorrect)
   const className = isCorrect ? 'ok' : 'bad'
+  const normalizeNumberString = (val) => {
+    if (val == null) return '—'
+    const s = String(val).trim()
+    if (!s.length) return '—'
+    // Normalize any zero-padded numeric strings like 0000 -> 0
+    const n = parseInt(s, 10)
+    if (isNaN(n)) return s
+    return String(n)
+  }
   
   return (
     <ul className={`review-list ${className}`}>
@@ -30,9 +39,19 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
           )
         }
         const op = getOperator(q)
+        // For schriftlich, normalize padded zero strings to a compact number
+        if (q.type === 'schriftlich') {
+          const shown = normalizeNumberString(q.user)
+          return (
+            <li key={q.id} onClick={handleClick}>
+              {q.a} {op} {q.b} = {q.correct} (Deine Antwort: {shown})
+            </li>
+          )
+        }
+        // Default numeric display for Einmaleins
         return (
           <li key={q.id} onClick={handleClick}>
-            {q.a} {op} {q.b} = {q.correct} (Deine Antwort: {isNaN(q.user) ? '—' : q.user})
+            {q.a} {op} {q.b} = {q.correct} (Deine Antwort: {isNaN(q.user) ? '—' : normalizeNumberString(q.user)})
           </li>
         )
       })}
