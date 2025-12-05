@@ -6,7 +6,7 @@ import ProgressBar from './ProgressBar'
 // Refactored imports
 import { generateProblems } from './problems/generators'
 import { validateSchriftlich, validatePrimfaktorisierung } from './problems/validate'
-import { getPerformanceComment } from './utils/performanceFeedback'
+import { getPerformanceComment, getPerformanceMarkerPosition } from './utils/performanceFeedback'
 import { getCategoryLabel } from './utils/categories'
 import Schriftlich from './Schriftlich'
 import Einmaleins from './Einmaleins'
@@ -376,6 +376,7 @@ export default function Game({ isSinglePlayer }) {
                 key={problems[current].id}
                 aDigits={problems[current].aDigits}
                 bDigits={problems[current].bDigits}
+                summandsDigits={problems[current].summandsDigits}
                 correctDigits={problems[current].correctDigits}
                 partialProducts={problems[current].partialProducts}
                 operation={problems[current].operation}
@@ -413,14 +414,14 @@ export default function Game({ isSinglePlayer }) {
             <div className="final">Endzeit (mit Strafe): {formatTime(finalTime)}</div>
 
             <div className="performance">
-              <ProgressBar finalTime={finalTime} />
+              <ProgressBar finalTime={finalTime} category={activeCategory} getMarkerPosition={getPerformanceMarkerPosition} />
               <div className="performance-labels">
                 <span>Hervorragend</span>
                 <span>Gut</span>
                 <span>Üben</span>
               </div>
               <div className="performance-comment">
-                {getPerformanceComment(finalTime)}
+                {getPerformanceComment(finalTime, activeCategory)}
               </div>
             </div>
           </div>
@@ -480,6 +481,7 @@ export default function Game({ isSinglePlayer }) {
                 key={`review-${selectedSchriftlich.id}`}
                 aDigits={selectedSchriftlich.aDigits}
                 bDigits={selectedSchriftlich.bDigits}
+                summandsDigits={selectedSchriftlich.summandsDigits}
                 correctDigits={selectedSchriftlich.correctDigits}
                 partialProducts={selectedSchriftlich.partialProducts}
                 operation={selectedSchriftlich.operation}

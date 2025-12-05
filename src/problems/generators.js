@@ -57,17 +57,32 @@ export function generateSchriftlichProblems(count = 15) {
   const multiplication = [];
 
   for (let i = 0; i < additionCount; i++) {
-    const a = Math.floor(Math.random() * 9000) + 1000;
-    const b = Math.floor(Math.random() * 9000) + 1000;
-    const correct = a + b;
+    // Randomly choose 2, 3, or 4 summands with bias towards 2
+    const choices = [2, 3, 4];
+    const weights = [3, 2, 1];
+    const totalW = weights.reduce((a,b)=>a+b,0);
+    const r = Math.random() * totalW;
+    let pick = 2;
+    let acc = 0;
+    for (let j = 0; j < choices.length; j++) {
+      acc += weights[j];
+      if (r <= acc) { pick = choices[j]; break; }
+    }
+
+    const nums = Array.from({ length: pick }).map(() => Math.floor(Math.random() * 9000) + 1000);
+    const correct = nums.reduce((s,n)=>s+n,0);
+    const summandsDigits = nums.map(n => String(n).split('').map(Number));
+
     addition.push({
-      a,
-      b,
+      // Backward-compat fields for components already expecting a/b
+      a: nums[0],
+      b: nums[1] ?? 0,
       correct,
       type: 'schriftlich',
       operation: 'add',
-      aDigits: String(a).split('').map(Number),
-      bDigits: String(b).split('').map(Number),
+      aDigits: String(nums[0]).split('').map(Number),
+      bDigits: nums[1] != null ? String(nums[1]).split('').map(Number) : [],
+      summandsDigits,
       correctDigits: String(correct).padStart(5, '0').split('').map(Number)
     });
   }

@@ -3,7 +3,7 @@ import { padLeft } from './utils/padLeft'
 
 const sanitizeDigit = (value) => value.replace(/[^0-9]/g, '').slice(0, 1)
 
-export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits = [], partialProducts = [], operation = 'add', onChange, onEnter, initialState, review, showCorrect = false }) {
+export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits = null, correctDigits = [], partialProducts = [], operation = 'add', onChange, onEnter, initialState, review, showCorrect = false }) {
   const cols = correctDigits.length
   const isMultiply = operation === 'multiply'
   const isAdd = operation === 'add'
@@ -14,6 +14,13 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
 
   const aCells = padLeft(aDigits, cols)
   const bCells = padLeft(bDigits, cols)
+  const addRows = useMemo(() => {
+    if (!isAdd) return []
+    const rows = Array.isArray(summandsDigits) && summandsDigits.length >= 2
+      ? summandsDigits.map(digs => padLeft(digs, cols))
+      : [aCells, bCells]
+    return rows
+  }, [isAdd, summandsDigits, aCells, bCells, cols])
 
   const partialRows = useMemo(() => (isMultiply ? (partialProducts ?? []) : []), [isMultiply, partialProducts])
 
@@ -304,21 +311,16 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
 
   const renderAddition = () => (
     <>
-      <Fragment key="row1">
-        <div className="grid-cell" />
-        {aCells.map((d, i) => (
-          <div key={`add-a-${i}`} className="grid-cell digit">{d ?? ''}</div>
-        ))}
-        <div className="grid-cell" />
-      </Fragment>
-      <Fragment key="row2">
-        <div className="grid-cell" />
-        {bCells.map((d, i) => (
-          <div key={`add-b-${i}`} className="grid-cell digit">{d ?? ''}</div>
-        ))}
-        <div className="grid-cell" />
-      </Fragment>
-      <Fragment key="row3">
+      {addRows.map((row, rIdx) => (
+        <Fragment key={`add-row-${rIdx}`}>
+          <div className="grid-cell" />
+          {row.map((d, i) => (
+            <div key={`add-${rIdx}-${i}`} className="grid-cell digit">{d ?? ''}</div>
+          ))}
+          <div className="grid-cell" />
+        </Fragment>
+      ))}
+      <Fragment key="row-carry">
         <div className="grid-cell plus">+</div>
         {Array.from({ length: cols }).map((_, i) => (
           <div key={`add-c-${i}`} className="grid-cell">
@@ -341,7 +343,7 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
         ))}
         <div className="grid-cell" />
       </Fragment>
-      <Fragment key="row4">
+      <Fragment key="row-result">
         <div className="grid-cell result-sep" />
         {Array.from({ length: cols }).map((_, i) => (
           <div key={`add-r-${i}`} className="grid-cell result-sep">
@@ -538,7 +540,7 @@ export default function Schriftlich({ aDigits = [], bDigits = [], correctDigits 
 
   const gridContent = isMultiply ? renderMultiplication() : (isAdd ? renderAddition() : renderSubtraction())
   // Multiply: header + partial rows + carry + result (separator is styled on first partial row)
-  const rowCount = isMultiply ? partialInputs.length + 3 : 4
+  const rowCount = isMultiply ? partialInputs.length + 3 : (isAdd ? addRows.length + 2 : 4)
 
   return (
     <div className="question-centered">
