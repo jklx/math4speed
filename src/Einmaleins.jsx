@@ -18,7 +18,7 @@ export default function Einmaleins({ a, b, value = '', onChange, onEnter }) {
     }
   }
   return (
-    <div className="question-centered">
+    <div className="question-centered einmaleins-row">
       <div className="expression">{a} · {b} =</div>
       <input
         type="number"
