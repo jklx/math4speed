@@ -47,16 +47,45 @@ export function generateEinmaleinsProblems(count = 100, settings = {}) {
   return problems;
 }
 
-export function generateSchriftlichProblems(count = 15) {
-  const additionCount = Math.floor(count / 3);
-  const subtractionCount = Math.floor(count / 3);
-  const multiplicationCount = count - additionCount - subtractionCount;
+export function generateSchriftlichProblems(count = 15, settings = {}) {
+  // Default to all true if settings are missing or properties are undefined
+  const {
+    schriftlichAdd = true,
+    schriftlichSubtract = true,
+    schriftlichMultiply = true
+  } = settings;
+
+  // Determine enabled types
+  const types = [];
+  if (schriftlichAdd) types.push('add');
+  if (schriftlichSubtract) types.push('subtract');
+  if (schriftlichMultiply) types.push('multiply');
+
+  // Fallback: if nothing selected, enable all
+  if (types.length === 0) {
+    types.push('add', 'subtract', 'multiply');
+  }
+
+  // Distribute count
+  const baseCount = Math.floor(count / types.length);
+  const remainder = count % types.length;
+
+  const counts = {
+    add: types.includes('add') ? baseCount : 0,
+    subtract: types.includes('subtract') ? baseCount : 0,
+    multiply: types.includes('multiply') ? baseCount : 0
+  };
+
+  // Distribute remainder
+  for (let i = 0; i < remainder; i++) {
+    counts[types[i]]++;
+  }
 
   const addition = [];
   const subtraction = [];
   const multiplication = [];
 
-  for (let i = 0; i < additionCount; i++) {
+  for (let i = 0; i < counts.add; i++) {
     // Randomly choose 2, 3, or 4 summands with bias towards 2
     const choices = [2, 3, 4];
     const weights = [3, 2, 1];
@@ -87,7 +116,7 @@ export function generateSchriftlichProblems(count = 15) {
     });
   }
 
-  for (let i = 0; i < subtractionCount; i++) {
+  for (let i = 0; i < counts.subtract; i++) {
     // Generate 5-digit subtraction with increased likelihood of borrows
     const genMinuend = () => Math.floor(Math.random() * 90000) + 10000; // 10000-99999
     const estimateBorrows = (aDigits, bDigits) => {
@@ -131,7 +160,7 @@ export function generateSchriftlichProblems(count = 15) {
     });
   }
 
-  for (let i = 0; i < multiplicationCount; i++) {
+  for (let i = 0; i < counts.multiply; i++) {
     const a = Math.floor(Math.random() * 900) + 100; // 100-999
     const b = Math.floor(Math.random() * 900) + 100; // 100-999
     const correct = a * b;
@@ -172,7 +201,13 @@ export function generateSchriftlichProblems(count = 15) {
   return combined.map((problem, index) => ({ ...problem, id: index + 1 }));
 }
 
-export function generatePrimfaktorisierungProblems(count = 20) {
+export function generatePrimfaktorisierungProblems(count = 20, settings = {}) {
+  const { primfaktorisierung_easy = true, primfaktorisierung_hard = true } = settings;
+  
+  // Fallback: if both false, enable both
+  const useEasy = primfaktorisierung_easy || (!primfaktorisierung_easy && !primfaktorisierung_hard);
+  const useHard = primfaktorisierung_hard || (!primfaktorisierung_easy && !primfaktorisierung_hard);
+
   const problems = [];
   const getPrimeFactors = (n) => {
     const factors = [];
@@ -191,7 +226,17 @@ export function generatePrimfaktorisierungProblems(count = 20) {
     return factors;
   };
   for (let i = 0; i < count; i++) {
-    const num = Math.floor(Math.random() * 189) + 12;
+    let num;
+    if (useEasy && useHard) {
+      // 12 to 200
+      num = Math.floor(Math.random() * 189) + 12;
+    } else if (useEasy) {
+      // 12 to 100
+      num = Math.floor(Math.random() * 89) + 12;
+    } else {
+      // 101 to 200
+      num = Math.floor(Math.random() * 100) + 101;
+    }
     const factors = getPrimeFactors(num);
     problems.push({ id: i + 1, number: num, correct: factors.join(' '), factors, type: 'primfaktorisierung' });
   }
@@ -200,7 +245,7 @@ export function generatePrimfaktorisierungProblems(count = 20) {
 
 export function generateProblems(count, category, settings = {}) {
   if (category === 'einmaleins') return generateEinmaleinsProblems(count, settings);
-  if (category === 'schriftlich') return generateSchriftlichProblems(count);
-  if (category === 'primfaktorisierung') return generatePrimfaktorisierungProblems(count);
+  if (category === 'schriftlich') return generateSchriftlichProblems(count, settings);
+  if (category === 'primfaktorisierung') return generatePrimfaktorisierungProblems(count, settings);
   return [];
 }

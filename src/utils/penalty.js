@@ -3,7 +3,7 @@
 // - Schriftlich multiply: per partial row wrong = 5s; final result wrong = 10s
 //   Do not penalize final result if any partial row is wrong (to avoid consequential double penalty)
 
-import { getProblemMaxTime } from './difficulty'
+import { getProblemMaxTime } from './categories'
 
 export function computePenaltySeconds(answer) {
   if (!answer || answer.isCorrect) return 0

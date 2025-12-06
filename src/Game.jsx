@@ -8,8 +8,7 @@ import { generateProblems } from './problems/generators'
 import { validateSchriftlich, validatePrimfaktorisierung } from './problems/validate'
 import { getPerformanceComment, getPerformanceMarkerPosition } from './utils/performanceFeedback'
 import { computePenaltySeconds } from './utils/penalty'
-import { getProblemRange } from './utils/difficulty'
-import { getCategoryLabel } from './utils/categories'
+import { getCategoryLabel, CATEGORIES, getDefaultSettings, getProblemRange } from './utils/categories'
 import Schriftlich from './Schriftlich'
 import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
@@ -32,10 +31,7 @@ export default function Game({ isSinglePlayer }) {
   const activeCategoryLabel = getCategoryLabel(activeCategory);
   
   // Settings for problem generation (only for training mode)
-  const [settings, setSettings] = useState({
-    includeSquares11_20: false,
-    includeSquares21_25: false
-  });
+  const [settings, setSettings] = useState(() => getDefaultSettings('einmaleins'));
   
   // Problems will be generated when game starts, not before
   const [problems, setProblems] = useState([])
@@ -112,9 +108,19 @@ export default function Game({ isSinglePlayer }) {
     // Generate problems when game starts (not before)
     const gameSettings = isSinglePlayer ? settings : multiplayerSettings;
     const gameCategory = isSinglePlayer ? category : multiplayerCategory;
+    
+    // Sanitize settings for single player schriftlich to ensure at least one type is selected
+    // (The generator handles this fallback too, but good to be explicit)
+    let finalSettings = gameSettings;
+    if (isSinglePlayer && gameCategory === 'schriftlich') {
+      if (!settings.schriftlichAdd && !settings.schriftlichSubtract && !settings.schriftlichMultiply) {
+        finalSettings = { ...settings, schriftlichAdd: true, schriftlichSubtract: true, schriftlichMultiply: true };
+      }
+    }
+
     // Determine count based on category: schriftlich=15, primfaktorisierung=20, einmaleins=50
     const problemCount = gameCategory === 'schriftlich' ? 15 : gameCategory === 'primfaktorisierung' ? 20 : 50;
-    const newProblems = generateProblems(problemCount, gameCategory, gameSettings);
+    const newProblems = generateProblems(problemCount, gameCategory, finalSettings);
     setProblems(newProblems);
     
     setStarted(false)
@@ -331,33 +337,22 @@ export default function Game({ isSinglePlayer }) {
                 <>
                   <h2>Trainingsmodus</h2>
                   {renderCategoryDescription(category)}
-                  {category === 'einmaleins' && (
+                  {CATEGORIES[category] && CATEGORIES[category].settings.length > 0 && (
                     <div className="settings-box">
                       <h3>Aufgaben</h3>
-                      <label className="checkbox-label">
-                        <input 
-                          type="checkbox" 
-                          checked={true}
-                          disabled={true}
-                        />
-                        <span>Einmaleins 1-10</span>
-                      </label>
-                      <label className="checkbox-label">
-                        <input 
-                          type="checkbox" 
-                          checked={settings.includeSquares11_20}
-                          onChange={(e) => setSettings({...settings, includeSquares11_20: e.target.checked})}
-                        />
-                        <span>Quadratzahlen 11-20 (z.B. 11², 15², 20²)</span>
-                      </label>
-                      <label className="checkbox-label">
-                        <input 
-                          type="checkbox" 
-                          checked={settings.includeSquares21_25}
-                          onChange={(e) => setSettings({...settings, includeSquares21_25: e.target.checked})}
-                        />
-                        <span>Quadratzahlen 21-25 (z.B. 21², 23², 25²)</span>
-                      </label>
+                      <div className={`${category}-toggles`} style={{ marginTop: 0, borderLeft: 'none', paddingLeft: 0 }}>
+                        {CATEGORIES[category].settings.map(setting => (
+                          <label key={setting.key} className="checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={settings[setting.key] ?? setting.defaultValue}
+                              disabled={setting.disabled}
+                              onChange={(e) => setSettings({ ...settings, [setting.key]: e.target.checked })}
+                            />
+                            <span>{setting.label}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   )}
                   

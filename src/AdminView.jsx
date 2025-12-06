@@ -4,6 +4,7 @@ import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
 import Logo from './Logo'
 import { getOperator } from './utils/getOperator'
+import { CATEGORIES, getDefaultSettings } from './utils/categories'
 
 export default function AdminView() {
   const { roomId } = useParams()
@@ -12,12 +13,10 @@ export default function AdminView() {
   const [toast, setToast] = useState(null)
   
   // Local settings state (only for admin)
-  const defaultSettings = {
+  const [settings, setSettings] = useState(() => ({
     category: 'einmaleins',
-    includeSquares11_20: false,
-    includeSquares21_25: false
-  }
-  const [settings, setSettings] = useState(defaultSettings);
+    ...getDefaultSettings('einmaleins')
+  }));
 
   useEffect(() => {
     if (!toast) return
@@ -55,7 +54,7 @@ export default function AdminView() {
 
   useEffect(() => {
     if (roomState?.settings) {
-      setSettings(() => ({ ...defaultSettings, ...roomState.settings }))
+      setSettings(prev => ({ ...prev, ...roomState.settings }))
     }
   }, [roomState?.settings])
 
@@ -89,8 +88,10 @@ export default function AdminView() {
   const handleStartClick = () => {
     if (!roomId) return
     const sanitized = settings.category === 'einmaleins'
-      ? settings
-      : { ...settings, includeSquares11_20: false, includeSquares21_25: false }
+      ? { ...settings, schriftlichAdd: false, schriftlichSubtract: false, schriftlichMultiply: false }
+      : settings.category === 'schriftlich'
+        ? { ...settings, includeSquares11_20: false, includeSquares21_25: false }
+        : { ...settings, includeSquares11_20: false, includeSquares21_25: false, schriftlichAdd: false, schriftlichSubtract: false, schriftlichMultiply: false }
     startGame(roomId, sanitized)
   }
 
@@ -306,30 +307,20 @@ export default function AdminView() {
                   {renderCategoryInfo(settings.category)}
                 </div>
 
-                {settings.category === 'einmaleins' && (
-                  <div className="einmaleins-toggles">
-                    <label className="checkbox-label">
-                      <input type="checkbox" className="app-input" checked={true} disabled={true} />
-                      <span>Einmaleins 1-10 (immer aktiv)</span>
-                    </label>
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        className="app-input"
-                        checked={settings.includeSquares11_20}
-                        onChange={(e) => setSettings({ ...settings, includeSquares11_20: e.target.checked })}
-                      />
-                      <span>Quadratzahlen 11-20 (z.B. 11², 15², 20²)</span>
-                    </label>
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        className="app-input"
-                        checked={settings.includeSquares21_25}
-                        onChange={(e) => setSettings({ ...settings, includeSquares21_25: e.target.checked })}
-                      />
-                      <span>Quadratzahlen 21-25 (z.B. 21², 23², 25²)</span>
-                    </label>
+                {CATEGORIES[settings.category] && CATEGORIES[settings.category].settings.length > 0 && (
+                  <div className={`${settings.category}-toggles`}>
+                    {CATEGORIES[settings.category].settings.map(setting => (
+                      <label key={setting.key} className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          className="app-input"
+                          checked={settings[setting.key] ?? setting.defaultValue}
+                          disabled={setting.disabled}
+                          onChange={(e) => setSettings({ ...settings, [setting.key]: e.target.checked })}
+                        />
+                        <span>{setting.label}</span>
+                      </label>
+                    ))}
                   </div>
                 )}
               </div>
