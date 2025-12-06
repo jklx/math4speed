@@ -1040,3 +1040,55 @@ footer{margin-top:1.5rem;text-align:center;color:#666}
   border-left: 2px solid #c22; /* red, like carry/borrow color */
 }
 
+/* Stat rows in sidebar */
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.stat-row:last-child {
+  border-bottom: none;
+}
+.stat-row span {
+  color: #64748b;
+}
+.stat-row strong {
+  font-size: 1.1rem;
+  color: #0f172a;
+}
+
+/* Leaderboard Table */
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.leaderboard-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+.leaderboard-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+.leaderboard-table tr:last-child td {
+  border-bottom: none;
+}
+.leaderboard-table .truncate {
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.p-0 {
+  padding: 0 !important;
+}
+

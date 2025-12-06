@@ -170,13 +170,22 @@ export default function AdminView() {
     ? `${window.location.origin}/room/${roomId.toLowerCase()}`
     : ''
 
+  // Filter out admin from players list for stats and display
+  const players = roomState.players.filter(p => p.id !== roomState.admin)
+  const totalPlayerCount = players.length
+  const finishedPlayerList = players.filter(p => p.score !== null)
+  const activePlayerCount = players.filter(p => p.score === null).length
+  const finishedPlayerCount = finishedPlayerList.length
+
   // Calculate statistics for finished players
-  const finishedPlayers = roomState.players.filter(p => p.score !== null)
-  const stats = finishedPlayers.length > 0 ? {
-    avgTime: (finishedPlayers.reduce((sum, p) => sum + p.score.time, 0) / finishedPlayers.length).toFixed(1),
-    avgErrors: (finishedPlayers.reduce((sum, p) => sum + p.score.wrongCount, 0) / finishedPlayers.length).toFixed(1),
-    totalPlayers: finishedPlayers.length
+  const stats = finishedPlayerList.length > 0 ? {
+    avgTime: (finishedPlayerList.reduce((sum, p) => sum + p.score.time, 0) / finishedPlayerList.length).toFixed(1),
+    avgErrors: (finishedPlayerList.reduce((sum, p) => sum + p.score.wrongCount, 0) / finishedPlayerList.length).toFixed(1),
+    totalPlayers: finishedPlayerList.length
   } : null
+
+  // Leaderboard: sorted by time (ascending)
+  const leaderboard = finishedPlayerList.sort((a, b) => a.score.time - b.score.time)
 
   return (
     <div className="admin-view">
@@ -199,6 +208,30 @@ export default function AdminView() {
         <div className="admin-layout">
           {/* Sidebar */}
           <aside className="admin-sidebar">
+            
+            {/* Player Count Card - Always Visible */}
+            <div className="card">
+              <div className="card-header"><h3>👥 Spieler</h3></div>
+              <div className="card-body">
+                <div className="stat-row">
+                  <span>Im Raum:</span>
+                  <strong>{totalPlayerCount}</strong>
+                </div>
+                {roomState.status !== 'waiting' && (
+                  <>
+                    <div className="stat-row">
+                      <span>Laufend:</span>
+                      <strong>{activePlayerCount}</strong>
+                    </div>
+                    <div className="stat-row">
+                      <span>Fertig:</span>
+                      <strong>{finishedPlayerCount}</strong>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
             {roomState.status === 'waiting' && (
             <div className="card join-card">
               <div className="card-header">
@@ -327,11 +360,39 @@ export default function AdminView() {
                 </div>
               </div>
             )}
+
+            {leaderboard.length > 0 && (
+              <div className="card leaderboard-card">
+                <div className="card-header"><h3>🏆 Bestenliste</h3></div>
+                <div className="card-body p-0">
+                  <table className="leaderboard-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Zeit</th>
+                        <th>Fehler</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaderboard.map((p, i) => (
+                        <tr key={p.id}>
+                          <td>{i + 1}.</td>
+                          <td className="truncate" title={p.username}>{p.username}</td>
+                          <td>{p.score.time}s</td>
+                          <td>{p.score.wrongCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </aside>
 
           {/* Players grid */}
           <section className="players-grid">
-            {roomState.players.filter(p => p.id !== roomState.admin).map(player => (
+            {players.map(player => (
               <div key={player.id} className="player-card">
                 <div className="player-card-header">
                   <h3>
