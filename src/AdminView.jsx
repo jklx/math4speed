@@ -90,6 +90,14 @@ export default function AdminView() {
         </>
       )
     }
+    if (cat === 'binomische') {
+      return (
+        <>
+          <p>20 Aufgaben zu den binomischen Formeln.</p>
+          <p>Die Schüler:innen müssen die Terme ausmultiplizieren und vereinfachen.</p>
+        </>
+      )
+    }
     return null
   }
 

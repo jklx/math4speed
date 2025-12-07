@@ -59,7 +59,17 @@ export const CATEGORIES = {
       { key: 'negativeExplicitPlus', label: 'Vorzeichen bei positiven Zahlen anzeigen (z.B. (+2))', defaultValue: false }
     ],
     performance: {
-      default: [4.0, 10.0]
+      default: [3.0, 8.0]
+    }
+  },
+  binomische: {
+    label: 'Binomische Formeln',
+    settings: [
+      { key: 'binomische_simple', label: 'Einfach (Ganzzahlen)', defaultValue: true },
+      { key: 'binomische_hard', label: 'Schwer (Dezimalzahlen)', defaultValue: true }
+    ],
+    performance: {
+      default: [15.0, 40.0]
     }
   }
 }

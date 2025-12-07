@@ -315,10 +315,114 @@ export function generateNegativeProblems(count = 20, settings = {}) {
   return problems;
 }
 
+export function generateBinomischeProblems(count = 20, settings = {}) {
+  const { binomische_simple = true, binomische_hard = true } = settings;
+  const useSimple = binomische_simple || (!binomische_simple && !binomische_hard);
+  const useHard = binomische_hard || (!binomische_simple && !binomische_hard);
+
+  const problems = [];
+  const variables = ['a', 'b', 'x', 'y', 'n'];
+
+  for (let i = 0; i < count; i++) {
+    const isHard = useHard && (!useSimple || Math.random() < 0.5);
+    const variable = variables[Math.floor(Math.random() * variables.length)];
+    
+    // 1: (a+b)^2, 2: (a-b)^2, 3: (a+b)(a-b)
+    const type = Math.floor(Math.random() * 3) + 1; 
+    
+    let c1, c2, term1, term2, expanded;
+    
+    // Generate coefficients
+    // Simple: integers 1-12
+    // Hard: one is a decimal 1.1 - 1.9 (requiring 11^2 - 19^2)
+    
+    let val1, val2;
+    
+    if (isHard) {
+      // One decimal, one integer
+      const decimalBase = Math.floor(Math.random() * 9) + 11; // 11-19
+      val1 = decimalBase / 10; // 1.1 - 1.9
+      val2 = Math.floor(Math.random() * 10) + 1; // 1-10
+      
+      // Randomly swap or make both decimal? Requirement says "one of the coefficient"
+      if (Math.random() < 0.5) [val1, val2] = [val2, val1];
+    } else {
+      val1 = Math.floor(Math.random() * 12) + 1;
+      val2 = Math.floor(Math.random() * 12) + 1;
+      // Avoid 1x, just x
+    }
+
+    // Construct terms
+    // Usually one term has variable, one is number. Or both variables?
+    // "expand sth like (x+2)^2 or (3a-7)(3a+7)"
+    // So usually term1 is linear in variable, term2 is constant.
+    // Or term1 is like 3a.
+    
+    const coeff1 = val1;
+    const coeff2 = val2;
+    
+    // Format helper
+    const fmt = (n) => {
+      if (n === 1) return '';
+      return String(n);
+    };
+    
+    // Term 1 has variable
+    const t1Str = `${fmt(coeff1)}${variable}`;
+    // Term 2 is constant number
+    const t2Str = String(coeff2);
+
+    // Calculate expanded form
+    // (c1*x + c2)^2 = (c1^2)x^2 + (2*c1*c2)x + c2^2
+    // (c1*x - c2)^2 = (c1^2)x^2 - (2*c1*c2)x + c2^2
+    // (c1*x + c2)(c1*x - c2) = (c1^2)x^2 - c2^2
+    
+    // Helper to format number, handling decimals nicely
+    const fmtNum = (n) => {
+      return parseFloat(n.toFixed(2)); // Remove floating point artifacts
+    };
+
+    const sq1 = fmtNum(coeff1 * coeff1);
+    const sq2 = fmtNum(coeff2 * coeff2);
+    const prod = fmtNum(2 * coeff1 * coeff2);
+    
+    let expression;
+    
+    if (type === 1) {
+      // (a+b)^2
+      expression = `(${t1Str} + ${t2Str})²`;
+      expanded = `${fmt(sq1)}${variable}^2 + ${prod}${variable} + ${sq2}`;
+    } else if (type === 2) {
+      // (a-b)^2
+      expression = `(${t1Str} - ${t2Str})²`;
+      expanded = `${fmt(sq1)}${variable}^2 - ${prod}${variable} + ${sq2}`;
+    } else {
+      // (a+b)(a-b)
+      expression = `(${t1Str} + ${t2Str})(${t1Str} - ${t2Str})`;
+      expanded = `${fmt(sq1)}${variable}^2 - ${sq2}`;
+    }
+    
+    // Clean up "1x^2" to "x^2" if sq1 is 1
+    if (sq1 === 1) {
+      expanded = expanded.replace(/^1([a-z])/, '$1');
+    }
+
+    problems.push({ 
+      id: i + 1, 
+      expression, 
+      correct: expanded, 
+      type: 'binomische',
+      variable 
+    });
+  }
+  return problems;
+}
+
 export function generateProblems(count, category, settings = {}) {
   if (category === 'einmaleins') return generateEinmaleinsProblems(count, settings);
   if (category === 'schriftlich') return generateSchriftlichProblems(count, settings);
   if (category === 'primfaktorisierung') return generatePrimfaktorisierungProblems(count, settings);
   if (category === 'negative') return generateNegativeProblems(count, settings);
+  if (category === 'binomische') return generateBinomischeProblems(count, settings);
   return [];
 }

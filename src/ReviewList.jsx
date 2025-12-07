@@ -84,6 +84,15 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
             </li>
           )
         }
+        if (q.type === 'binomische') {
+          const displayValue = isCorrect ? q.correct : (q.user || '—')
+          return (
+            <li key={q.id} onClick={handleClick}>
+              {q.expression} = {displayValue}
+              {renderCorrection(q.correct)}
+            </li>
+          )
+        }
         const op = getOperator(q)
         // For schriftlich, normalize padded zero strings to a compact number
         if (q.type === 'schriftlich') {

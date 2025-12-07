@@ -24,3 +24,24 @@ export function validatePrimfaktorisierung(input, correctFactors) {
   const isCorrect = user.length === correct.length && user.every((v,i)=>v===correct[i]);
   return { isCorrect, parsed: trimmed, valid: true };
 }
+
+export function validatePolynomial(input, correctExpression, variable) {
+  // Simple normalization: remove spaces, replace minus with standard hyphen
+  const normalize = (s) => s.replace(/\s+/g, '').replace(/−/g, '-').replace(/\^/g, '^');
+  
+  // This is a basic string comparison after normalization. 
+  // A full polynomial parser would be better but complex.
+  // We assume the user writes terms in standard order (descending power).
+  // We can try to be a bit smarter by splitting terms.
+  
+  // Helper to parse a polynomial string into a map of power -> coefficient
+  // Supports only single variable polynomials for now, e.g. 4x^2 - 12x + 9
+  // Also supports two variables for 3rd binomial like a^2 - b^2? 
+  // Actually, 3rd binomial (a+b)(a-b) = a^2 - b^2 has two variables usually.
+  // Let's stick to strict string comparison for now but allow flexible spacing.
+  
+  const userNorm = normalize(input);
+  const correctNorm = normalize(correctExpression);
+  
+  return { isCorrect: userNorm === correctNorm, parsed: input, valid: input.trim().length > 0 };
+}

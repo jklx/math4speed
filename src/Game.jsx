@@ -5,7 +5,7 @@ import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
 // Refactored imports
 import { generateProblems } from './problems/generators'
-import { validateSchriftlich, validatePrimfaktorisierung } from './problems/validate'
+import { validateSchriftlich, validatePrimfaktorisierung, validatePolynomial } from './problems/validate'
 import { getPerformanceComment, getPerformanceMarkerPosition } from './utils/performanceFeedback'
 import { computePenaltySeconds } from './utils/penalty'
 import { getCategoryLabel, CATEGORIES, getDefaultSettings, getProblemRange } from './utils/categories'
@@ -13,6 +13,7 @@ import Schriftlich from './Schriftlich'
 import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
 import Negative from './Negative'
+import Binomische from './Binomische'
 import ReviewList from './ReviewList'
 
 export default function Game({ isSinglePlayer }) {
@@ -92,6 +93,14 @@ export default function Game({ isSinglePlayer }) {
         </>
       )
     }
+    if (cat === 'binomische') {
+      return (
+        <>
+          <p>Du bekommst 20 Aufgaben zu den binomischen Formeln.</p>
+          <p>Multipliziere die Terme aus und vereinfache das Ergebnis vollständig.</p>
+        </>
+      )
+    }
     return null
   }
 
@@ -128,7 +137,7 @@ export default function Game({ isSinglePlayer }) {
     }
 
     // Determine count based on category: schriftlich=15, primfaktorisierung=20, einmaleins=50
-    const problemCount = gameCategory === 'schriftlich' ? 15 : gameCategory === 'primfaktorisierung' ? 20 : 50;
+    const problemCount = gameCategory === 'schriftlich' ? 15 : (gameCategory === 'primfaktorisierung' || gameCategory === 'negative' || gameCategory === 'binomische') ? 20 : 50;
     const newProblems = generateProblems(problemCount, gameCategory, finalSettings);
     setProblems(newProblems);
     
@@ -209,6 +218,11 @@ export default function Game({ isSinglePlayer }) {
     if (prob.type === 'primfaktorisierung') {
       const candidateValue = (overrideValue ?? inputValue)
       const { isCorrect: ok, parsed: p } = validatePrimfaktorisierung(candidateValue, prob.factors)
+      parsed = p
+      isCorrect = ok
+    } else if (prob.type === 'binomische') {
+      const candidateValue = (overrideValue ?? inputValue)
+      const { isCorrect: ok, parsed: p } = validatePolynomial(candidateValue, prob.correct, prob.variable)
       parsed = p
       isCorrect = ok
     } else if (prob.type === 'schriftlich') {
@@ -435,6 +449,14 @@ export default function Game({ isSinglePlayer }) {
                 onChange={setInputValue}
                 onEnter={submitAnswer}
                 explicitPlus={problems[current].explicitPlus}
+              />
+            ) : problems[current].type === 'binomische' ? (
+              <Binomische
+                key={problems[current].id}
+                expression={problems[current].expression}
+                value={inputValue}
+                onChange={setInputValue}
+                onEnter={submitAnswer}
               />
             ) : null}
           </div>
