@@ -57,6 +57,15 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
                 </mrow>
               )
             }
+            if (q.explicitPlus && val > 0) {
+              return (
+                <mrow>
+                  <mo>(</mo>
+                  <mn>+{val}</mn>
+                  <mo>)</mo>
+                </mrow>
+              )
+            }
             return <mn>{val}</mn>
           }
           const displayValue = isCorrect ? q.correct : (isNaN(q.user) ? '—' : normalizeNumberString(q.user))

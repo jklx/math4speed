@@ -55,7 +55,8 @@ export const CATEGORIES = {
       { key: 'negativeAdd', label: 'Addition', defaultValue: true },
       { key: 'negativeSubtract', label: 'Subtraktion', defaultValue: true },
       { key: 'negativeMultiply', label: 'Multiplikation', defaultValue: true },
-      { key: 'negativeDivide', label: 'Division', defaultValue: true }
+      { key: 'negativeDivide', label: 'Division', defaultValue: true },
+      { key: 'negativeExplicitPlus', label: 'Vorzeichen bei positiven Zahlen anzeigen (z.B. (+2))', defaultValue: false }
     ],
     performance: {
       default: [4.0, 10.0]

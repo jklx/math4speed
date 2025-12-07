@@ -434,6 +434,7 @@ export default function Game({ isSinglePlayer }) {
                 value={inputValue}
                 onChange={setInputValue}
                 onEnter={submitAnswer}
+                explicitPlus={problems[current].explicitPlus}
               />
             ) : null}
           </div>
