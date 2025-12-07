@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Logo from './Logo'
 import { useMultiplayer } from './MultiplayerContext';
 import { useNavigate } from 'react-router-dom';
-import { getCategoryLabel } from './utils/categories';
+import { getCategoryLabel, CATEGORIES } from './utils/categories';
 
 function JoinRoomStatus({ roomCode }) {
   const { roomCheck } = useMultiplayer();
@@ -79,27 +79,16 @@ export default function MultiplayerLobby() {
             <div className="category-selection">
               <h3>Wähle eine Kategorie:</h3>
               <div className="category-buttons">
-                <button 
-                  className={`category-btn ${category === 'einmaleins' ? 'active' : ''}`}
-                  onClick={() => setCategory('einmaleins')}
-                  type="button"
-                >
-                  Einmaleins
-                </button>
-                <button 
-                  className={`category-btn ${category === 'schriftlich' ? 'active' : ''}`}
-                  onClick={() => setCategory('schriftlich')}
-                  type="button"
-                >
-                  Schriftlich rechnen
-                </button>
-                <button 
-                  className={`category-btn ${category === 'primfaktorisierung' ? 'active' : ''}`}
-                  onClick={() => setCategory('primfaktorisierung')}
-                  type="button"
-                >
-                  Primfaktorisierung
-                </button>
+                {Object.entries(CATEGORIES).map(([key, config]) => (
+                  <button 
+                    key={key}
+                    className={`category-btn ${category === key ? 'active' : ''}`}
+                    onClick={() => setCategory(key)}
+                    type="button"
+                  >
+                    {config.label}
+                  </button>
+                ))}
               </div>
             </div>
             <div className="tile-actions">

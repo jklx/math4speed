@@ -12,6 +12,7 @@ import { getCategoryLabel, CATEGORIES, getDefaultSettings, getProblemRange } fro
 import Schriftlich from './Schriftlich'
 import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
+import Negative from './Negative'
 import ReviewList from './ReviewList'
 
 export default function Game({ isSinglePlayer }) {
@@ -79,6 +80,14 @@ export default function Game({ isSinglePlayer }) {
         <>
           <p>Du bekommst 20 Zahlen, die du in ihre Primfaktoren zerlegen musst.</p>
   <p>Gib die Primfaktoren durch Leerzeichen getrennt ein (z. B. „2 2 3“ für 12).</p>
+          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende eine Zeitstrafe.</p>
+        </>
+      )
+    }
+    if (cat === 'negative') {
+      return (
+        <>
+          <p>Du bekommst 20 Aufgaben mit negativen Zahlen (+, -, ·, ∶).</p>
           <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende eine Zeitstrafe.</p>
         </>
       )
@@ -208,7 +217,8 @@ export default function Game({ isSinglePlayer }) {
       isCorrect = ok
     } else {
       const candidateValue = overrideValue ?? inputValue
-      parsed = Number(candidateValue)
+      const sanitized = String(candidateValue).replace(/−/g, '-')
+      parsed = Number(sanitized)
       isCorrect = parsed === prob.correct
     }
 
@@ -411,6 +421,16 @@ export default function Game({ isSinglePlayer }) {
                 key={problems[current].id}
                 a={problems[current].a}
                 b={problems[current].b}
+                value={inputValue}
+                onChange={setInputValue}
+                onEnter={submitAnswer}
+              />
+            ) : problems[current].type === 'negative' ? (
+              <Negative
+                key={problems[current].id}
+                a={problems[current].a}
+                b={problems[current].b}
+                operator={problems[current].operator}
                 value={inputValue}
                 onChange={setInputValue}
                 onEnter={submitAnswer}

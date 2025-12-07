@@ -19,8 +19,8 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
     if (!s.length) return '—'
     // Normalize any zero-padded numeric strings like 0000 -> 0
     const n = parseInt(s, 10)
-    if (isNaN(n)) return s
-    return String(n)
+    if (isNaN(n)) return s.replace(/-/g, '−')
+    return String(n).replace(/-/g, '−')
   }
   
   return (
@@ -35,6 +35,34 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
           return (
             <li key={q.id} onClick={handleClick}>
               Primfaktoren von {q.number} = {formatFactors(q.correct)} (Deine Antwort: {formatFactors(q.user)})
+            </li>
+          )
+        }
+        if (q.type === 'negative') {
+          const renderOperand = (val) => {
+            if (val < 0) {
+              return (
+                <mrow>
+                  <mo>(</mo>
+                  <mn>{String(val).replace('-', '−')}</mn>
+                  <mo>)</mo>
+                </mrow>
+              )
+            }
+            return <mn>{val}</mn>
+          }
+          return (
+            <li key={q.id} onClick={handleClick} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <math display="inline">
+                <mrow>
+                  {renderOperand(q.a)}
+                  <mo style={{ margin: '0 0.2em' }}>{q.operator}</mo>
+                  {renderOperand(q.b)}
+                  <mo style={{ margin: '0 0.2em' }}>=</mo>
+                  <mn>{q.correct}</mn>
+                </mrow>
+              </math>
+              <span>(Deine Antwort: {isNaN(q.user) ? '—' : normalizeNumberString(q.user)})</span>
             </li>
           )
         }

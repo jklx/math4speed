@@ -82,6 +82,14 @@ export default function AdminView() {
         </>
       )
     }
+    if (cat === 'negative') {
+      return (
+        <>
+          <p>20 Aufgaben mit negativen Zahlen (+, -, ·, ∶).</p>
+          <p>Die Schüler:innen müssen das Ergebnis berechnen.</p>
+        </>
+      )
+    }
     return null
   }
 
@@ -286,18 +294,14 @@ export default function AdminView() {
                 <div className="category-selection">
                   <h4>Kategorie wählen</h4>
                   <div className="category-buttons">
-                    {[
-                      { value: 'einmaleins', label: 'Einmaleins' },
-                      { value: 'schriftlich', label: 'Schriftlich rechnen' },
-                      { value: 'primfaktorisierung', label: 'Primfaktorisierung' }
-                    ].map(option => (
+                    {Object.entries(CATEGORIES).map(([key, config]) => (
                       <button
-                        key={option.value}
+                        key={key}
                         type="button"
-                        className={`category-btn ${settings.category === option.value ? 'active' : ''}`}
-                        onClick={() => setSettings(prev => ({ ...prev, category: option.value }))}
+                        className={`category-btn ${settings.category === key ? 'active' : ''}`}
+                        onClick={() => setSettings(prev => ({ ...prev, category: key }))}
                       >
-                        {option.label}
+                        {config.label}
                       </button>
                     ))}
                   </div>

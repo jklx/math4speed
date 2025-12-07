@@ -243,9 +243,68 @@ export function generatePrimfaktorisierungProblems(count = 20, settings = {}) {
   return problems;
 }
 
+export function generateNegativeProblems(count = 20, settings = {}) {
+  const {
+    negativeAdd = true,
+    negativeSubtract = true,
+    negativeMultiply = true,
+    negativeDivide = true
+  } = settings;
+
+  const types = [];
+  if (negativeAdd) types.push('add');
+  if (negativeSubtract) types.push('subtract');
+  if (negativeMultiply) types.push('multiply');
+  if (negativeDivide) types.push('divide');
+
+  if (types.length === 0) types.push('add', 'subtract', 'multiply', 'divide');
+
+  const problems = [];
+  for (let i = 0; i < count; i++) {
+    const type = types[Math.floor(Math.random() * types.length)];
+    let a, b, expression, correct, operator;
+
+    switch (type) {
+      case 'add':
+        a = Math.floor(Math.random() * 41) - 20; // -20 to 20
+        b = Math.floor(Math.random() * 41) - 20;
+        operator = '+';
+        expression = `${a < 0 ? `(${a})` : a} + ${b < 0 ? `(${b})` : b}`;
+        correct = a + b;
+        break;
+      case 'subtract':
+        a = Math.floor(Math.random() * 41) - 20;
+        b = Math.floor(Math.random() * 41) - 20;
+        operator = '−';
+        expression = `${a < 0 ? `(${a})` : a} - ${b < 0 ? `(${b})` : b}`;
+        correct = a - b;
+        break;
+      case 'multiply':
+        a = Math.floor(Math.random() * 25) - 12; // -12 to 12
+        b = Math.floor(Math.random() * 25) - 12;
+        operator = '·';
+        expression = `${a < 0 ? `(${a})` : a} · ${b < 0 ? `(${b})` : b}`;
+        correct = a * b;
+        break;
+      case 'divide':
+        b = Math.floor(Math.random() * 25) - 12;
+        if (b === 0) b = 1;
+        const res = Math.floor(Math.random() * 25) - 12;
+        a = b * res;
+        operator = '∶';
+        expression = `${a < 0 ? `(${a})` : a} ∶ ${b < 0 ? `(${b})` : b}`;
+        correct = res;
+        break;
+    }
+    problems.push({ id: i + 1, expression, a, b, operator, correct, type: 'negative' });
+  }
+  return problems;
+}
+
 export function generateProblems(count, category, settings = {}) {
   if (category === 'einmaleins') return generateEinmaleinsProblems(count, settings);
   if (category === 'schriftlich') return generateSchriftlichProblems(count, settings);
   if (category === 'primfaktorisierung') return generatePrimfaktorisierungProblems(count, settings);
+  if (category === 'negative') return generateNegativeProblems(count, settings);
   return [];
 }

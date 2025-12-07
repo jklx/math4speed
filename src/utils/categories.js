@@ -48,6 +48,18 @@ export const CATEGORIES = {
       hard: [20, 60],
       default: [20, 60]
     }
+  },
+  negative: {
+    label: 'Rechnen mit negativen Zahlen',
+    settings: [
+      { key: 'negativeAdd', label: 'Addition', defaultValue: true },
+      { key: 'negativeSubtract', label: 'Subtraktion', defaultValue: true },
+      { key: 'negativeMultiply', label: 'Multiplikation', defaultValue: true },
+      { key: 'negativeDivide', label: 'Division', defaultValue: true }
+    ],
+    performance: {
+      default: [4.0, 10.0]
+    }
   }
 }
 
