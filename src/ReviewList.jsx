@@ -31,10 +31,18 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
             onSelectSchriftlich(q.id)
           }
         }
+
+        const renderCorrection = (correctValue) => {
+          if (isCorrect) return null
+          return <span style={{ color: 'var(--ok)', marginLeft: '10px', fontWeight: 'bold' }}>{correctValue}</span>
+        }
+
         if (q.type === 'primfaktorisierung') {
+          const displayValue = isCorrect ? formatFactors(q.correct) : formatFactors(q.user)
           return (
             <li key={q.id} onClick={handleClick}>
-              Primfaktoren von {q.number} = {formatFactors(q.correct)} (Deine Antwort: {formatFactors(q.user)})
+              Primfaktoren von {q.number} = {displayValue}
+              {renderCorrection(formatFactors(q.correct))}
             </li>
           )
         }
@@ -51,6 +59,7 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
             }
             return <mn>{val}</mn>
           }
+          const displayValue = isCorrect ? q.correct : (isNaN(q.user) ? '—' : normalizeNumberString(q.user))
           return (
             <li key={q.id} onClick={handleClick} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <math display="inline">
@@ -59,10 +68,10 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
                   <mo style={{ margin: '0 0.2em' }}>{q.operator}</mo>
                   {renderOperand(q.b)}
                   <mo style={{ margin: '0 0.2em' }}>=</mo>
-                  <mn>{q.correct}</mn>
+                  <mn>{displayValue}</mn>
                 </mrow>
               </math>
-              <span>(Deine Antwort: {isNaN(q.user) ? '—' : normalizeNumberString(q.user)})</span>
+              {renderCorrection(q.correct)}
             </li>
           )
         }
@@ -70,16 +79,20 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
         // For schriftlich, normalize padded zero strings to a compact number
         if (q.type === 'schriftlich') {
           const shown = normalizeNumberString(q.user)
+          const displayValue = isCorrect ? q.correct : shown
           return (
             <li key={q.id} onClick={handleClick}>
-              {q.a} {op} {q.b} = {q.correct} (Deine Antwort: {shown})
+              {q.a} {op} {q.b} = {displayValue}
+              {renderCorrection(q.correct)}
             </li>
           )
         }
         // Default numeric display for Einmaleins
+        const displayValue = isCorrect ? q.correct : (isNaN(q.user) ? '—' : normalizeNumberString(q.user))
         return (
           <li key={q.id} onClick={handleClick}>
-            {q.a} {op} {q.b} = {q.correct} (Deine Antwort: {isNaN(q.user) ? '—' : normalizeNumberString(q.user)})
+            {q.a} {op} {q.b} = {displayValue}
+            {renderCorrection(q.correct)}
           </li>
         )
       })}
