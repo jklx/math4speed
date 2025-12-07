@@ -263,39 +263,46 @@ export function generateNegativeProblems(count = 20, settings = {}) {
   for (let i = 0; i < count; i++) {
     const type = types[Math.floor(Math.random() * types.length)];
     let a, b, expression, correct, operator;
+    let attempts = 0;
 
-    switch (type) {
-      case 'add':
-        a = Math.floor(Math.random() * 41) - 20; // -20 to 20
-        b = Math.floor(Math.random() * 41) - 20;
-        operator = '+';
-        expression = `${a < 0 ? `(${a})` : a} + ${b < 0 ? `(${b})` : b}`;
-        correct = a + b;
-        break;
-      case 'subtract':
-        a = Math.floor(Math.random() * 41) - 20;
-        b = Math.floor(Math.random() * 41) - 20;
-        operator = '−';
-        expression = `${a < 0 ? `(${a})` : a} - ${b < 0 ? `(${b})` : b}`;
-        correct = a - b;
-        break;
-      case 'multiply':
-        a = Math.floor(Math.random() * 25) - 12; // -12 to 12
-        b = Math.floor(Math.random() * 25) - 12;
-        operator = '·';
-        expression = `${a < 0 ? `(${a})` : a} · ${b < 0 ? `(${b})` : b}`;
-        correct = a * b;
-        break;
-      case 'divide':
-        b = Math.floor(Math.random() * 25) - 12;
-        if (b === 0) b = 1;
-        const res = Math.floor(Math.random() * 25) - 12;
-        a = b * res;
-        operator = '∶';
-        expression = `${a < 0 ? `(${a})` : a} ∶ ${b < 0 ? `(${b})` : b}`;
-        correct = res;
-        break;
-    }
+    do {
+      attempts++;
+      switch (type) {
+        case 'add':
+          a = Math.floor(Math.random() * 41) - 20; // -20 to 20
+          b = Math.floor(Math.random() * 41) - 20;
+          operator = '+';
+          expression = `${a < 0 ? `(${a})` : a} + ${b < 0 ? `(${b})` : b}`;
+          correct = a + b;
+          break;
+        case 'subtract':
+          a = Math.floor(Math.random() * 41) - 20; // -20 to 20
+          b = Math.floor(Math.random() * 41) - 20;
+          operator = '−';
+          expression = `${a < 0 ? `(${a})` : a} - ${b < 0 ? `(${b})` : b}`;
+          correct = a - b;
+          break;
+        case 'multiply':
+          a = Math.floor(Math.random() * 25) - 12; // -12 to 12
+          b = Math.floor(Math.random() * 25) - 12;
+          operator = '·';
+          expression = `${a < 0 ? `(${a})` : a} · ${b < 0 ? `(${b})` : b}`;
+          correct = a * b;
+          break;
+        case 'divide':
+          b = Math.floor(Math.random() * 25) - 12;
+          if (b === 0) b = 1;
+          const res = Math.floor(Math.random() * 25) - 12;
+          a = b * res;
+          operator = '∶';
+          expression = `${a < 0 ? `(${a})` : a} ∶ ${b < 0 ? `(${b})` : b}`;
+          correct = res;
+          break;
+      }
+      // Retry if no negative numbers are involved (operands positive and result positive)
+      // We allow it occasionally (15% chance) to keep some variety
+    } while (a >= 0 && b >= 0 && correct >= 0 && Math.random() > 0.15 && attempts < 10);
+
     problems.push({ id: i + 1, expression, a, b, operator, correct, type: 'negative' });
   }
   return problems;
