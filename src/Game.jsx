@@ -21,8 +21,17 @@ export default function Game({ isSinglePlayer }) {
   const location = useLocation();
   // Only use multiplayer hooks when NOT in single player mode
   const multiplayerContext = isSinglePlayer ? null : useMultiplayer();
-  const { roomState, updateProgress, finishGame, username } = multiplayerContext || {};
+  const { roomState, updateProgress, finishGame, username, getRoomState, isConnected } = multiplayerContext || {};
   
+  // Fetch room state if missing (e.g. on refresh)
+  useEffect(() => {
+    if (!isSinglePlayer && roomId && isConnected) {
+      // We request state even if we have it, to ensure it's fresh, 
+      // but critically when we don't have it (refresh)
+      getRoomState(roomId)
+    }
+  }, [isSinglePlayer, roomId, isConnected])
+
   // Category selection (only for training mode)
   const category = isSinglePlayer && location.state && location.state.category
     ? location.state.category
@@ -355,7 +364,9 @@ export default function Game({ isSinglePlayer }) {
 
       {!started && (
         <main className="center">
-          {countdown === null ? (
+          {!isSinglePlayer && !roomState ? (
+            <div className="loading">Lade Raumdaten...</div>
+          ) : countdown === null ? (
             <>
               {isSinglePlayer ? (
                 <>
