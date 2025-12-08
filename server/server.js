@@ -111,11 +111,11 @@ io.on('connection', (socket) => {
     const category = settings && typeof settings.category === 'string'
       ? settings.category
       : (room.settings?.category || 'einmaleins');
-    const enableSquares = category === 'einmaleins';
+    
+    // Use provided settings but ensure category is correct
     room.settings = {
-      category,
-      includeSquares11_20: enableSquares && !!settings?.includeSquares11_20,
-      includeSquares21_25: enableSquares && !!settings?.includeSquares21_25
+      ...settings,
+      category
     };
     
     room.status = 'playing';

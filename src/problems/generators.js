@@ -280,7 +280,7 @@ export function generateNegativeProblems(count = 20, settings = {}) {
           a = Math.floor(Math.random() * 41) - 20; // -20 to 20
           b = Math.floor(Math.random() * 41) - 20;
           operator = '−';
-          expression = `${a < 0 ? `(${a})` : a} - ${b < 0 ? `(${b})` : b}`;
+          expression = `${a < 0 ? `(${a})` : a} − ${b < 0 ? `(${b})` : b}`;
           correct = a - b;
           break;
         case 'multiply':
