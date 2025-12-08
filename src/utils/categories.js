@@ -59,7 +59,7 @@ export const CATEGORIES = {
       { key: 'negativeExplicitPlus', label: 'Vorzeichen bei positiven Zahlen anzeigen (z.B. (+2))', defaultValue: false }
     ],
     performance: {
-      default: [4.0, 9.0]
+      default: [9.0, 18.0]
     }
   },
   binomische: {
