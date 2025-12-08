@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react'
 import Logo from './Logo'
-import { useParams, useLocation } from 'react-router-dom'
+import { useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
 // Refactored imports
@@ -17,7 +17,7 @@ import Binomische from './Binomische'
 import ReviewList from './ReviewList'
 
 export default function Game({ isSinglePlayer }) {
-  const { roomId } = useParams()
+  const { roomId, category: urlCategory } = useParams()
   const location = useLocation();
   // Only use multiplayer hooks when NOT in single player mode
   const multiplayerContext = isSinglePlayer ? null : useMultiplayer();
@@ -33,16 +33,47 @@ export default function Game({ isSinglePlayer }) {
   }, [isSinglePlayer, roomId, isConnected])
 
   // Category selection (only for training mode)
-  const category = isSinglePlayer && location.state && location.state.category
-    ? location.state.category
+  const category = isSinglePlayer 
+    ? (urlCategory || (location.state && location.state.category) || 'einmaleins')
     : 'einmaleins'; // 'einmaleins' | 'schriftlich' | 'primfaktorisierung'
   const multiplayerSettings = roomState?.settings || {};
   const multiplayerCategory = multiplayerSettings.category || 'einmaleins';
   const activeCategory = isSinglePlayer ? category : multiplayerCategory;
   const activeCategoryLabel = getCategoryLabel(activeCategory);
   
+  const [searchParams, setSearchParams] = useSearchParams();
+  
   // Settings for problem generation (only for training mode)
-  const [settings, setSettings] = useState(() => getDefaultSettings('einmaleins'));
+  const [settings, setSettings] = useState(() => {
+    const defaults = getDefaultSettings('einmaleins');
+    if (!isSinglePlayer) return defaults;
+    
+    const initial = { ...defaults };
+    searchParams.forEach((value, key) => {
+      if (key in initial) {
+        if (value === 'true') initial[key] = true;
+        else if (value === 'false') initial[key] = false;
+        else initial[key] = value;
+      }
+    });
+    return initial;
+  });
+
+  // Sync settings to URL
+  useEffect(() => {
+    if (!isSinglePlayer) return;
+    
+    const defaults = getDefaultSettings('einmaleins');
+    const params = {};
+    
+    Object.keys(settings).forEach(key => {
+      if (settings[key] !== defaults[key]) {
+        params[key] = settings[key];
+      }
+    });
+    
+    setSearchParams(params, { replace: true });
+  }, [settings, isSinglePlayer, setSearchParams]);
   
   // Problems will be generated when game starts, not before
   const [problems, setProblems] = useState([])

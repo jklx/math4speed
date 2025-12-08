@@ -92,7 +92,7 @@ export default function MultiplayerLobby() {
               </div>
             </div>
             <div className="tile-actions">
-              <button className="big" onClick={() => navigate('/training', { state: { category } })}>Jetzt trainieren</button>
+              <button className="big" onClick={() => navigate(`/training/${category}`)}>Jetzt trainieren</button>
             </div>
           </div>
         </div>

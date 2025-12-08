@@ -16,6 +16,7 @@ export default function App() {
           
           {/* Training (single player) */}
           <Route path="/training" element={<Game isSinglePlayer={true} />} />
+          <Route path="/training/:category" element={<Game isSinglePlayer={true} />} />
           
           {/* Join room with username */}
           <Route path="/room/:roomId" element={<UsernamePage />} />
