@@ -8,7 +8,7 @@ import { CATEGORIES, getDefaultSettings } from './utils/categories'
 
 export default function AdminView() {
   const { roomId } = useParams()
-  const { roomState, startGame, attemptAdminRejoin, getRoomState, isConnected } = useMultiplayer()
+  const { roomState, startGame, attemptAdminRejoin, getRoomState, isConnected, updateSettings } = useMultiplayer()
   const problemRefs = useRef({})
   const [toast, setToast] = useState(null)
   
@@ -17,6 +17,12 @@ export default function AdminView() {
     category: 'einmaleins',
     ...getDefaultSettings('einmaleins')
   }));
+
+  // Helper to update settings locally AND on server
+  const handleSettingsChange = (newSettings) => {
+    setSettings(newSettings);
+    updateSettings(roomId, newSettings);
+  };
 
   useEffect(() => {
     if (!toast) return
@@ -307,7 +313,7 @@ export default function AdminView() {
                         key={key}
                         type="button"
                         className={`category-btn ${settings.category === key ? 'active' : ''}`}
-                        onClick={() => setSettings(prev => ({ ...prev, category: key }))}
+                        onClick={() => handleSettingsChange({ ...settings, category: key })}
                       >
                         {config.label}
                       </button>
@@ -328,7 +334,7 @@ export default function AdminView() {
                           className="app-input"
                           checked={settings[setting.key] ?? setting.defaultValue}
                           disabled={setting.disabled}
-                          onChange={(e) => setSettings({ ...settings, [setting.key]: e.target.checked })}
+                          onChange={(e) => handleSettingsChange({ ...settings, [setting.key]: e.target.checked })}
                         />
                         <span>{setting.label}</span>
                       </label>

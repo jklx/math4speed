@@ -142,6 +142,11 @@ export function MultiplayerProvider({ children }) {
     socket?.emit('startGame', { roomId, settings });
   };
 
+  const updateSettings = (roomId, settings) => {
+    if (!roomId) return;
+    socket?.emit('updateSettings', { roomId, settings });
+  };
+
   const checkRoom = (roomIdToCheck) => {
     if (!socket) return;
     // normalize to lowercase before sending to server
@@ -183,6 +188,7 @@ export function MultiplayerProvider({ children }) {
       createRoom,
       joinRoom,
       startGame,
+      updateSettings,
       updateProgress,
       finishGame,
       attemptAdminRejoin,

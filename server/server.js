@@ -98,6 +98,21 @@ io.on('connection', (socket) => {
     updateRoomState(rid);
   });
 
+  socket.on('updateSettings', ({ roomId, settings }) => {
+    const rid = String(roomId).toLowerCase();
+    const room = rooms.get(rid);
+    if (!room || room.admin !== socket.id) return;
+
+    // Merge new settings
+    room.settings = {
+      ...room.settings,
+      ...settings
+    };
+    
+    // Broadcast update to all (so admin gets confirmation, and potential other views update)
+    updateRoomState(rid);
+  });
+
   socket.on('startGame', (data) => {
     // Handle both old format (just roomId) and new format ({ roomId, settings })
     const roomId = typeof data === 'string' ? data : data.roomId;
