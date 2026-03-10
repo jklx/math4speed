@@ -1,6 +1,7 @@
 export const CATEGORIES = {
   einmaleins: {
     label: 'Einmaleins',
+    problemCount: 50,
     settings: [
       {
         key: 'einmaleins_base',
@@ -25,6 +26,7 @@ export const CATEGORIES = {
   },
   schriftlich: {
     label: 'Schriftlich rechnen',
+    problemCount: 3,
     settings: [
       { key: 'schriftlichAdd', label: 'Addition', defaultValue: true },
       { key: 'schriftlichSubtract', label: 'Subtraktion', defaultValue: true },
@@ -39,6 +41,7 @@ export const CATEGORIES = {
   },
   primfaktorisierung: {
     label: 'Primfaktorisierung',
+    problemCount: 10,
     settings: [
       { key: 'primfaktorisierung_easy', label: 'Zahlen bis 100', defaultValue: true },
       { key: 'primfaktorisierung_hard', label: 'Zahlen über 100', defaultValue: true }
@@ -51,6 +54,7 @@ export const CATEGORIES = {
   },
   negative: {
     label: 'Rechnen mit negativen Zahlen',
+    problemCount: 20,
     settings: [
       { key: 'negativeAdd', label: 'Addition', defaultValue: true },
       { key: 'negativeSubtract', label: 'Subtraktion', defaultValue: true },
@@ -64,6 +68,7 @@ export const CATEGORIES = {
   },
   binomische: {
     label: 'Binomische Formeln',
+    problemCount: 20,
     settings: [
       { key: 'binomische_simple', label: 'Einfach (Ganzzahlen)', defaultValue: true },
       { key: 'binomische_hard', label: 'Schwer (Dezimalzahlen)', defaultValue: true }
@@ -75,6 +80,8 @@ export const CATEGORIES = {
 }
 
 export const getCategoryLabel = (category) => CATEGORIES[category]?.label || 'Einmaleins'
+
+export const getCategoryProblemCount = (category) => CATEGORIES[category]?.problemCount || CATEGORIES.einmaleins.problemCount || 50
 
 export const getDefaultSettings = (category) => {
   const settings = {}

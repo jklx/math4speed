@@ -8,7 +8,7 @@ import { generateProblems } from './problems/generators'
 import { validateSchriftlich, validatePrimfaktorisierung, validatePolynomial } from './problems/validate'
 import { getPerformanceComment, getPerformanceMarkerPosition } from './utils/performanceFeedback'
 import { computePenaltySeconds } from './utils/penalty'
-import { getCategoryLabel, CATEGORIES, getDefaultSettings, getProblemRange } from './utils/categories'
+import { getCategoryLabel, getCategoryProblemCount, CATEGORIES, getDefaultSettings, getProblemRange } from './utils/categories'
 import Schriftlich from './Schriftlich'
 import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
@@ -189,8 +189,7 @@ export default function Game({ isSinglePlayer }) {
       }
     }
 
-    // Determine count based on category: schriftlich=15, primfaktorisierung=20, einmaleins=50
-    const problemCount = gameCategory === 'schriftlich' ? 15 : (gameCategory === 'primfaktorisierung' || gameCategory === 'negative' || gameCategory === 'binomische') ? 20 : 50;
+    const problemCount = getCategoryProblemCount(gameCategory);
     const newProblems = generateProblems(problemCount, gameCategory, finalSettings);
     setProblems(newProblems);
     
