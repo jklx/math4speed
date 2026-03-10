@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Logo from './Logo'
 import { useMultiplayer } from './MultiplayerContext';
 import { useNavigate } from 'react-router-dom';
-import { getCategoryLabel, CATEGORIES } from './utils/categories';
+import { getCategoryLabel, CATEGORIES, CATEGORY_GRADE_ORDER } from './utils/categories';
 
 function JoinRoomStatus({ roomCode }) {
   const { roomCheck } = useMultiplayer();
@@ -51,8 +51,22 @@ export default function MultiplayerLobby() {
   // Landing tile states
   const [joinTileRoom, setJoinTileRoom] = useState('');
   const [createTileName, setCreateTileName] = useState('');
-  // Category selection for training
-  const [category, setCategory] = useState('einmaleins');
+
+  const categoryGroups = useMemo(() => {
+    const grouped = Object.entries(CATEGORIES).reduce((result, [key, config]) => {
+      const grade = config.grade || 'Weitere Kategorien';
+      if (!result[grade]) result[grade] = [];
+      result[grade].push({ key, ...config });
+      return result;
+    }, {});
+
+    return [...CATEGORY_GRADE_ORDER, ...Object.keys(grouped).filter(grade => !CATEGORY_GRADE_ORDER.includes(grade))]
+      .filter(grade => grouped[grade]?.length)
+      .map(grade => ({
+        grade,
+        categories: grouped[grade]
+      }));
+  }, []);
 
   // If we got into a room, redirect to game/admin
   // navigation is handled centrally in MultiplayerContext
@@ -75,24 +89,27 @@ export default function MultiplayerLobby() {
         <div className="tile big">
           <div className="tile-body">
             <div className="title">Trainieren</div>
-            <div className="subtitle">Einzelspieler: Übe so oft du möchtest und verbessere deine Zeit.</div>
-            <div className="category-selection">
-              <h3>Wähle eine Kategorie:</h3>
-              <div className="category-buttons">
-                {Object.entries(CATEGORIES).map(([key, config]) => (
-                  <button 
-                    key={key}
-                    className={`category-btn ${category === key ? 'active' : ''}`}
-                    onClick={() => setCategory(key)}
-                    type="button"
-                  >
-                    {config.label}
-                  </button>
+            <div className="subtitle">Einzelspieler</div>
+            <div className="category-selection category-selection-wide category-selection-minimal">
+              <div className="category-grade-groups">
+                {categoryGroups.map(({ grade, categories }) => (
+                  <section key={grade} className="category-grade-group">
+                    <div className="category-grade-header">{grade}</div>
+                    <div className="category-buttons category-buttons-grid">
+                      {categories.map((config) => (
+                        <button 
+                          key={config.key}
+                          className="category-btn category-card"
+                          onClick={() => navigate(`/training/${config.key}`)}
+                          type="button"
+                        >
+                          <span>{config.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
-            </div>
-            <div className="tile-actions">
-              <button className="big" onClick={() => navigate(`/training/${category}`)}>Jetzt trainieren</button>
             </div>
           </div>
         </div>
