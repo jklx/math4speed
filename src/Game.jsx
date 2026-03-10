@@ -95,9 +95,22 @@ export default function Game({ isSinglePlayer }) {
   const [finished, setFinished] = useState(false)
   const [startTime, setStartTime] = useState(null)
   const [endTime, setEndTime] = useState(null)
+  const [toast, setToast] = useState(null)
 
   const inputRef = useRef(null)
   const countdownTimerRef = useRef(null)
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 2000)
+    return () => clearTimeout(t)
+  }, [toast])
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(window.location.href)
+      .then(() => setToast('Link kopiert!'))
+      .catch(() => setToast('Fehler beim Kopieren'))
+  }
 
   const renderCategoryDescription = (cat) => {
     if (cat === 'einmaleins') {
@@ -391,7 +404,9 @@ export default function Game({ isSinglePlayer }) {
   return (
     <div className="app">
       <Logo />
-
+      {toast && (
+        <div className="copy-toast" role="status">{toast}</div>
+      )}
 
       {!started && (
         <main className="center">
@@ -422,7 +437,16 @@ export default function Game({ isSinglePlayer }) {
                     </div>
                   )}
                   
-                  <button onClick={handleStart} className="big">Starten</button>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'center' }}>
+                    <button onClick={handleStart} className="big">Starten</button>
+                    <button onClick={copyLink} className="big secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      Link kopieren
+                      <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <rect x="9" y="7" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                        <rect x="4" y="4" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                      </svg>
+                    </button>
+                  </div>
                 </>
               ) : (
                 // multiplayer player waiting state
