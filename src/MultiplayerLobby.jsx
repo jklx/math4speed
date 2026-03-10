@@ -77,6 +77,12 @@ export default function MultiplayerLobby() {
       checkRoom(joinTileRoom);
     }
   }, [joinTileRoom]);
+
+  const navigateToTraining = (categoryKey, subcategorySettings) => {
+    const params = new URLSearchParams(subcategorySettings || {});
+    const query = params.toString();
+    navigate(query ? `/training/${categoryKey}?${query}` : `/training/${categoryKey}`);
+  }
   
 
   return (
@@ -97,14 +103,33 @@ export default function MultiplayerLobby() {
                     <div className="category-grade-header">{grade}</div>
                     <div className="category-buttons category-buttons-grid">
                       {categories.map((config) => (
-                        <button 
-                          key={config.key}
-                          className="category-btn category-card"
-                          onClick={() => navigate(`/training/${config.key}`)}
-                          type="button"
-                        >
-                          <span>{config.label}</span>
-                        </button>
+                        config.subcategories?.length ? (
+                          <div key={config.key} className="category-btn category-card category-card-static" role="group" aria-label={config.label}>
+                            <span className="category-card-title">{config.label}</span>
+                            <div className="category-subactions">
+                              {config.subcategories.map((subcategory) => (
+                                <button
+                                  key={subcategory.key}
+                                  type="button"
+                                  className="category-subbtn"
+                                  onClick={() => navigateToTraining(config.key, subcategory.settings)}
+                                  aria-label={`${config.label} ${subcategory.label}`}
+                                >
+                                  {subcategory.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <button 
+                            key={config.key}
+                            className="category-btn category-card"
+                            onClick={() => navigateToTraining(config.key)}
+                            type="button"
+                          >
+                            <span>{config.label}</span>
+                          </button>
+                        )
                       ))}
                     </div>
                   </section>

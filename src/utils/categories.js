@@ -29,6 +29,35 @@ export const CATEGORIES = {
     label: 'Schriftlich rechnen',
     grade: '5. Klasse',
     problemCount: 3,
+    subcategories: [
+      {
+        key: 'schriftlich-add',
+        label: '+',
+        settings: {
+          schriftlichAdd: true,
+          schriftlichSubtract: false,
+          schriftlichMultiply: false
+        }
+      },
+      {
+        key: 'schriftlich-subtract',
+        label: '-',
+        settings: {
+          schriftlichAdd: false,
+          schriftlichSubtract: true,
+          schriftlichMultiply: false
+        }
+      },
+      {
+        key: 'schriftlich-multiply',
+        label: '·',
+        settings: {
+          schriftlichAdd: false,
+          schriftlichSubtract: false,
+          schriftlichMultiply: true
+        }
+      }
+    ],
     settings: [
       { key: 'schriftlichAdd', label: 'Addition', defaultValue: true },
       { key: 'schriftlichSubtract', label: 'Subtraktion', defaultValue: true },

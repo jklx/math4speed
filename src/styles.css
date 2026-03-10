@@ -261,9 +261,54 @@ input[type=number], .math-input{padding:0.6rem 0.8rem;font-size:1.5rem;width:120
   min-height: 88px;
   padding: 1rem 1.25rem;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+.category-card-title {
+  display: block;
+}
+
+.category-card-static {
+  cursor: default;
+  color: #444;
+  background: white;
+}
+
+.category-card-static:hover {
+  border-color: #ddd;
+  color: #444;
+  background: white;
+}
+
+.category-subactions {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.category-subbtn {
+  width: 3rem;
+  height: 2.1rem;
+  padding: 0 0.7rem;
+  border-radius: 8px;
+  border: 2px solid rgba(43,108,176,0.14);
+  background: white;
+  color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.category-subbtn:hover {
+  border-color: var(--accent);
+  background: #f0f6ff;
 }
 
 .category-grade-groups {
