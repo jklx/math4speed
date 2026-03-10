@@ -108,6 +108,8 @@ export const CATEGORIES = {
       { key: 'binomische_hard', label: 'Schwer (Dezimalzahlen)', defaultValue: true }
     ],
     performance: {
+      simple: [12.0, 24.0],
+      hard: [20.0, 40.0],
       default: [20.0, 40.0]
     }
   }
@@ -145,6 +147,15 @@ export const getProblemRange = (problem) => {
       return catConfig.performance.easy
     }
     if (problem.number > 100 && catConfig.performance.hard) {
+      return catConfig.performance.hard
+    }
+  }
+
+  if (problem.type === 'binomische') {
+    if (problem.variant === 'simple' && catConfig.performance.simple) {
+      return catConfig.performance.simple
+    }
+    if (problem.variant === 'hard' && catConfig.performance.hard) {
       return catConfig.performance.hard
     }
   }

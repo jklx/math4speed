@@ -428,6 +428,7 @@ export function generateBinomischeProblems(count = 20, settings = {}) {
       expression, 
       correct: expanded, 
       type: 'binomische',
+      variant: isHard ? 'hard' : 'simple',
       variable 
     });
   }
