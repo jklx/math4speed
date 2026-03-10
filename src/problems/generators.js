@@ -339,13 +339,22 @@ export function generateBinomischeProblems(count = 20, settings = {}) {
     let val1, val2;
     
     if (isHard) {
-      // One decimal, one integer
-      const decimalBase = Math.floor(Math.random() * 9) + 11; // 11-19
-      val1 = decimalBase / 10; // 1.1 - 1.9
-      val2 = Math.floor(Math.random() * 10) + 1; // 1-10
-      
-      // Randomly swap or make both decimal? Requirement says "one of the coefficient"
-      if (Math.random() < 0.5) [val1, val2] = [val2, val1];
+      const lowDecimal = (Math.floor(Math.random() * 9) + 1) / 10;
+      const highDecimal = (Math.floor(Math.random() * 9) + 11) / 10;
+      const smallInteger = Math.floor(Math.random() * 4) + 1;
+      const easyPartners = [0.5, 1, 5];
+
+      if (Math.random() < 0.5) {
+        val1 = lowDecimal;
+        val2 = smallInteger;
+      } else {
+        val1 = highDecimal;
+        val2 = easyPartners[Math.floor(Math.random() * easyPartners.length)];
+      }
+
+      if (Math.random() < 0.5) {
+        [val1, val2] = [val2, val1];
+      }
     } else {
       val1 = Math.floor(Math.random() * 12) + 1;
       val2 = Math.floor(Math.random() * 12) + 1;
