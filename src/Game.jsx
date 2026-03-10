@@ -141,7 +141,7 @@ export default function Game({ isSinglePlayer }) {
     if (cat === 'negative') {
       return (
         <>
-          <p>Du bekommst 20 Aufgaben mit negativen Zahlen (+, -, ·, ∶).</p>
+          <p>Du bekommst 20 Aufgaben mit negativen Zahlen (+, −, ·, ∶).</p>
           <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende eine Zeitstrafe.</p>
         </>
       )

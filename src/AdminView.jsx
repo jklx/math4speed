@@ -91,7 +91,7 @@ export default function AdminView() {
     if (cat === 'negative') {
       return (
         <>
-          <p>20 Aufgaben mit negativen Zahlen (+, -, ·, ∶).</p>
+          <p>20 Aufgaben mit negativen Zahlen (+, −, ·, ∶).</p>
           <p>Die Schüler:innen müssen das Ergebnis berechnen.</p>
         </>
       )

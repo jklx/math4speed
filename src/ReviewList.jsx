@@ -13,6 +13,12 @@ import { formatFactors } from './utils/formatFactors'
 export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) {
   const filtered = answers.filter(a => a.isCorrect === isCorrect)
   const className = isCorrect ? 'ok' : 'bad'
+  const formatGermanDecimalString = (value) => {
+    if (value == null) return '—'
+    const s = String(value).trim()
+    if (!s.length) return '—'
+    return s.replace(/\./g, ',').replace(/-/g, '−')
+  }
   const normalizeNumberString = (val) => {
     if (val == null) return '—'
     const s = String(val).trim()
@@ -85,22 +91,23 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
           )
         }
         if (q.type === 'binomische') {
-          const displayValue = isCorrect ? q.correct : (q.user || '—')
+          const displayValue = isCorrect ? formatGermanDecimalString(q.correct) : formatGermanDecimalString(q.user)
           return (
             <li key={q.id} onClick={handleClick}>
               {q.expression} = {displayValue}
-              {renderCorrection(q.correct)}
+              {renderCorrection(formatGermanDecimalString(q.correct))}
             </li>
           )
         }
         const op = getOperator(q)
+        const displayOperator = op === '-' ? '−' : op
         // For schriftlich, normalize padded zero strings to a compact number
         if (q.type === 'schriftlich') {
           const shown = normalizeNumberString(q.user)
           const displayValue = isCorrect ? q.correct : shown
           return (
             <li key={q.id} onClick={handleClick}>
-              {q.a} {op} {q.b} = {displayValue}
+              {q.a} {displayOperator} {q.b} = {displayValue}
               {renderCorrection(q.correct)}
             </li>
           )
@@ -109,7 +116,7 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
         const displayValue = isCorrect ? q.correct : (isNaN(q.user) ? '—' : normalizeNumberString(q.user))
         return (
           <li key={q.id} onClick={handleClick}>
-            {q.a} {op} {q.b} = {displayValue}
+            {q.a} {displayOperator} {q.b} = {displayValue}
             {renderCorrection(q.correct)}
           </li>
         )

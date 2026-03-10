@@ -170,7 +170,7 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
     }
     if (node.type === 'mo') return <mo key={node.key}>{node.val}</mo>
     if (node.type === 'mn') return <mn key={node.key}>{node.val}</mn>
-    if (node.type === 'mi') return <mi key={node.key}>{node.val}</mi>
+    if (node.type === 'mi') return <mtext key={node.key}>{node.val}</mtext>
     return null
   }
 

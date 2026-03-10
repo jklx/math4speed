@@ -366,11 +366,18 @@ export function generateBinomischeProblems(count = 20, settings = {}) {
       if (n === 1) return '';
       return String(n);
     };
+
+    const formatDisplayNumber = (n) => String(n).replace('.', ',');
+
+    const formatDisplayCoefficient = (n) => {
+      if (n === 1) return '';
+      return formatDisplayNumber(n);
+    };
     
     // Term 1 has variable
-    const t1Str = `${fmt(coeff1)}${variable}`;
+    const t1Str = `${formatDisplayCoefficient(coeff1)}${variable}`;
     // Term 2 is constant number
-    const t2Str = String(coeff2);
+    const t2Str = formatDisplayNumber(coeff2);
 
     // Calculate expanded form
     // (c1*x + c2)^2 = (c1^2)x^2 + (2*c1*c2)x + c2^2
@@ -394,11 +401,11 @@ export function generateBinomischeProblems(count = 20, settings = {}) {
       expanded = `${fmt(sq1)}${variable}^2 + ${prod}${variable} + ${sq2}`;
     } else if (type === 2) {
       // (a-b)^2
-      expression = `(${t1Str} - ${t2Str})²`;
+      expression = `(${t1Str} − ${t2Str})²`;
       expanded = `${fmt(sq1)}${variable}^2 - ${prod}${variable} + ${sq2}`;
     } else {
       // (a+b)(a-b)
-      expression = `(${t1Str} + ${t2Str})(${t1Str} - ${t2Str})`;
+      expression = `(${t1Str} + ${t2Str})(${t1Str} − ${t2Str})`;
       expanded = `${fmt(sq1)}${variable}^2 - ${sq2}`;
     }
     

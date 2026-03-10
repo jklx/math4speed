@@ -41,7 +41,7 @@ export const CATEGORIES = {
       },
       {
         key: 'schriftlich-subtract',
-        label: '-',
+        label: '−',
         settings: {
           schriftlichAdd: false,
           schriftlichSubtract: true,
@@ -102,7 +102,7 @@ export const CATEGORIES = {
   binomische: {
     label: 'Binomische Formeln',
     grade: '7. Klasse',
-    problemCount: 20,
+    problemCount: 10,
     settings: [
       { key: 'binomische_simple', label: 'Einfach (Ganzzahlen)', defaultValue: true },
       { key: 'binomische_hard', label: 'Schwer (Dezimalzahlen)', defaultValue: true }
