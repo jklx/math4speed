@@ -546,9 +546,17 @@ export default function Game({ isSinglePlayer }) {
             <div className="performance">
               <ProgressBar finalTime={finalTime} range={totalRange} getMarkerPosition={getPerformanceMarkerPosition} />
               <div className="performance-labels">
-                <span>Hervorragend</span>
-                <span>Gut</span>
-                <span>Üben</span>
+                <span className="performance-label performance-label-left">
+                  <span>Hervorragend</span>
+                  <span>{formatTime(totalRange[0])}</span>
+                </span>
+                <span className="performance-label performance-label-center">
+                  <span>Gut</span>
+                </span>
+                <span className="performance-label performance-label-right">
+                  <span>Üben</span>
+                  <span>{formatTime(totalRange[1])}</span>
+                </span>
               </div>
               <div className="performance-comment">
                 {getPerformanceComment(finalTime, totalRange)}

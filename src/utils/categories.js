@@ -108,7 +108,7 @@ export const CATEGORIES = {
       { key: 'binomische_hard', label: 'Schwer (Dezimalzahlen)', defaultValue: true }
     ],
     performance: {
-      simple: [12.0, 24.0],
+      simple: [15.0, 30.0],
       hard: [20.0, 40.0],
       default: [20.0, 40.0]
     }
