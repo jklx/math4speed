@@ -225,7 +225,9 @@ export function generatePrimfaktorisierungProblems(count = 20, settings = {}) {
     }
     return factors;
   };
-  for (let i = 0; i < count; i++) {
+  const seen = new Set();
+  let id = 1;
+  while (problems.length < count) {
     let num;
     if (useEasy && useHard) {
       // 12 to 200
@@ -237,8 +239,10 @@ export function generatePrimfaktorisierungProblems(count = 20, settings = {}) {
       // 101 to 200
       num = Math.floor(Math.random() * 100) + 101;
     }
+    if (seen.has(num)) continue;
+    seen.add(num);
     const factors = getPrimeFactors(num);
-    problems.push({ id: i + 1, number: num, correct: factors.join(' '), factors, type: 'primfaktorisierung' });
+    problems.push({ id: id++, number: num, correct: factors.join(' '), factors, type: 'primfaktorisierung' });
   }
   return problems;
 }
