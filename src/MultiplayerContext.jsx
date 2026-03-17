@@ -58,6 +58,7 @@ export function MultiplayerProvider({ children }) {
 
     socket.on('roomJoined', ({ roomId, isAdmin }) => {
       setError(null);
+      setRoomState(null); // clear stale state from any previous room
 
       // navigate immediately when joining (embed roomId into path)
       try {
