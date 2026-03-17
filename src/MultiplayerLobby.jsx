@@ -95,7 +95,6 @@ export default function MultiplayerLobby() {
         <div className="tile big">
           <div className="tile-body">
             <div className="title">Trainieren</div>
-            <div className="subtitle">Einzelspieler</div>
             <div className="category-selection category-selection-wide category-selection-minimal">
               <div className="category-grade-groups">
                 {categoryGroups.map(({ grade, categories }) => (
