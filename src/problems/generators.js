@@ -1,6 +1,6 @@
 // Problem generators extracted from Game.jsx
 
-export function generateEinmaleinsProblems(count = 100, settings = {}) {
+export function generateEinmaleinsProblems(count, settings) {
   const { includeSquares11_20 = false, includeSquares21_25 = false } = settings;
   const pool = [];
   for (let a = 1; a <= 10; a++) {
@@ -47,7 +47,7 @@ export function generateEinmaleinsProblems(count = 100, settings = {}) {
   return problems;
 }
 
-export function generateSchriftlichProblems(count = 15, settings = {}) {
+export function generateSchriftlichProblems(count, settings) {
   // Default to all true if settings are missing or properties are undefined
   const {
     schriftlichAdd = true,
@@ -201,7 +201,7 @@ export function generateSchriftlichProblems(count = 15, settings = {}) {
   return combined.map((problem, index) => ({ ...problem, id: index + 1 }));
 }
 
-export function generatePrimfaktorisierungProblems(count = 20, settings = {}) {
+export function generatePrimfaktorisierungProblems(count, settings) {
   const { primfaktorisierung_easy = true, primfaktorisierung_hard = true } = settings;
   
   // Fallback: if both false, enable both
@@ -247,7 +247,7 @@ export function generatePrimfaktorisierungProblems(count = 20, settings = {}) {
   return problems;
 }
 
-export function generateNegativeProblems(count = 20, settings = {}) {
+export function generateNegativeProblems(count, settings) {
   const {
     negativeAdd = true,
     negativeSubtract = true,
@@ -319,7 +319,7 @@ export function generateNegativeProblems(count = 20, settings = {}) {
   return problems;
 }
 
-export function generateBinomischeProblems(count = 20, settings = {}) {
+export function generateBinomischeProblems(count, settings) {
   const { binomische_simple = true, binomische_hard = true } = settings;
   const useSimple = binomische_simple || (!binomische_simple && !binomische_hard);
   const useHard = binomische_hard || (!binomische_simple && !binomische_hard);
