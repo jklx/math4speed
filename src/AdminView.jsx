@@ -65,10 +65,11 @@ export default function AdminView() {
   }, [roomState?.settings])
 
   const renderCategoryInfo = (cat) => {
+    const mins = CATEGORIES[cat]?.durationMinutes ?? 5
     if (cat === 'einmaleins') {
       return (
         <>
-          <p>50 gemischte Einmaleins-Aufgaben. Aufgaben mit ·1 und ·10 kommen seltener vor.</p>
+          <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele Einmaleins-Aufgaben wie möglich zu lösen.</p>
           <p>Optional können zusätzliche Quadratzahlen zugeschaltet werden.</p>
         </>
       )
@@ -76,7 +77,7 @@ export default function AdminView() {
     if (cat === 'schriftlich') {
       return (
         <>
-          <p>15 schriftliche Aufgaben: 5× Addition, 5× Subtraktion, 5× Multiplikation.</p>
+          <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele schriftliche Aufgaben wie möglich zu lösen.</p>
           <p>Schüler:innen geben Zwischenergebnisse direkt in den Stellenwerttabellen ein.</p>
         </>
       )
@@ -84,23 +85,21 @@ export default function AdminView() {
     if (cat === 'primfaktorisierung') {
       return (
         <>
-          <p>20 Zahlen werden in Primfaktoren zerlegt. Antworten bitte mit Leerzeichen trennen (z. B. „2 2 3“).</p>
+          <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele Zahlen wie möglich in Primfaktoren zu zerlegen. Erst 10 Einmaleins-Zahlen, dann 5 Zahlen bis 100, danach bis 200. Antworten bitte mit Leerzeichen trennen (z.&nbsp;B. „2 2 3").</p>
         </>
       )
     }
     if (cat === 'negative') {
       return (
         <>
-          <p>20 Aufgaben mit negativen Zahlen (+, −, ·, ∶).</p>
-          <p>Die Schüler:innen müssen das Ergebnis berechnen.</p>
+          <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele Aufgaben mit negativen Zahlen (+, −, ·, ∶) wie möglich zu lösen.</p>
         </>
       )
     }
     if (cat === 'binomische') {
       return (
         <>
-          <p>20 Aufgaben zu den binomischen Formeln.</p>
-          <p>Die Schüler:innen müssen die Terme ausmultiplizieren und vereinfachen.</p>
+          <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele binomische Formeln wie möglich auszumultiplizieren.</p>
         </>
       )
     }
@@ -202,13 +201,13 @@ export default function AdminView() {
 
   // Calculate statistics for finished players
   const stats = finishedPlayerList.length > 0 ? {
-    avgTime: (finishedPlayerList.reduce((sum, p) => sum + p.score.time, 0) / finishedPlayerList.length).toFixed(1),
+    avgScore: (finishedPlayerList.reduce((sum, p) => sum + p.score.time, 0) / finishedPlayerList.length).toFixed(1),
     avgErrors: (finishedPlayerList.reduce((sum, p) => sum + p.score.wrongCount, 0) / finishedPlayerList.length).toFixed(1),
     totalPlayers: finishedPlayerList.length
   } : null
 
-  // Leaderboard: sorted by time (ascending)
-  const leaderboard = finishedPlayerList.sort((a, b) => a.score.time - b.score.time)
+  // Leaderboard: sorted by correct count (descending - higher is better)
+  const leaderboard = [...finishedPlayerList].sort((a, b) => b.score.time - a.score.time)
 
   return (
     <div className="admin-view">
@@ -355,8 +354,8 @@ export default function AdminView() {
                       <div className="stat-value blue">{stats.totalPlayers}</div>
                     </div>
                     <div className="stat-card">
-                      <div className="stat-label">Ø Lösungszeit</div>
-                      <div className="stat-value green">{stats.avgTime}<span className="stat-suffix">s</span></div>
+                      <div className="stat-label">Ø Richtig</div>
+                      <div className="stat-value green">{stats.avgScore}</div>
                     </div>
                     <div className="stat-card">
                       <div className="stat-label">Ø Fehleranzahl</div>
@@ -379,7 +378,7 @@ export default function AdminView() {
                       <tr>
                         <th>#</th>
                         <th>Name</th>
-                        <th>Zeit</th>
+                        <th>Richtig</th>
                         <th>Fehler</th>
                       </tr>
                     </thead>
@@ -388,7 +387,7 @@ export default function AdminView() {
                         <tr key={p.id}>
                           <td>{i + 1}.</td>
                           <td className="truncate" title={p.username}>{p.username}</td>
-                          <td>{p.score.time}s</td>
+                          <td>{p.score.time}</td>
                           <td>{p.score.wrongCount}</td>
                         </tr>
                       ))}
@@ -435,11 +434,8 @@ export default function AdminView() {
                 {player.score && (
                   <div className="player-score">
                     <div className="score-title">✓ Fertig!</div>
-                    <div className="score-detail">Zeit: <strong>{player.score.time}s</strong></div>
+                    <div className="score-detail">Richtig: <strong>{player.score.time}</strong></div>
                     <div className="score-detail">Fehler: <strong>{player.score.wrongCount}</strong></div>
-                    <div className="score-progress">
-                      <ProgressBar finalTime={player.score.time} />
-                    </div>
                   </div>
                 )}
               </div>

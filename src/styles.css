@@ -33,15 +33,39 @@ header{margin-bottom:1rem}
 .big{background:var(--accent);color:white;border:none;padding:0.6rem 1rem;border-radius:6px;cursor:pointer}
 /* Secondary variant for less-prominent big buttons (e.g., Undo) */
 .big.secondary{background:transparent;color:var(--accent);border:2px solid rgba(43,108,176,0.12);box-shadow:none}
-.top-row{display:flex;justify-content:space-between;margin-bottom:1rem}
+.top-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.score-counter{display:flex;flex-direction:column;align-items:center;line-height:1}
+.score-counter__label{font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted,#64748b)}
+.score-counter__value{font-size:3rem;font-weight:800;color:var(--ok)}
+.score-counter__value--bump{animation:score-bump 0.35s ease-out}
+.score-timer{font-size:1.1rem;font-weight:600;color:var(--text,#1e293b)}
+.lives{display:flex;gap:0.35rem;align-items:center}
+.life-icon{font-size:1.3rem;font-weight:900;line-height:1;transition:color 0.2s}
+.life-icon--remaining{color:var(--muted,#94a3b8)}
+.life-icon--used{color:#ef4444}
+.mistake-panel{display:flex;flex-direction:column;align-items:center;gap:1.5rem;padding:2rem 1.5rem;background:var(--card,#fff);border-radius:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.12);max-width:400px;margin:1rem auto;text-align:center}
+.mistake-header{display:flex;align-items:center;gap:0.5rem;font-size:1.5rem;font-weight:800;color:#ef4444}
+.mistake-answers{display:flex;flex-direction:column;gap:0.75rem;width:100%}
+.mistake-answer{display:flex;flex-direction:column;align-items:center;padding:0.75rem 1rem;border-radius:0.6rem;gap:0.2rem}
+.mistake-answer--wrong{background:#fef2f2;border:2px solid #fca5a5}
+.mistake-answer--correct{background:#f0fdf4;border:2px solid #86efac}
+.mistake-answer__label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted,#64748b)}
+.mistake-answer__value{font-size:1.8rem;font-weight:800;word-break:break-all}
+.mistake-answer--wrong .mistake-answer__value{color:#ef4444}
+.mistake-answer--correct .mistake-answer__value{color:#16a34a}
+@keyframes score-bump{
+  0%{transform:scale(1)}
+  40%{transform:scale(1.45)}
+  70%{transform:scale(0.95)}
+  100%{transform:scale(1)}
+}
 .question{
-  /* Default to block so instructions can be placed above the main content
-     (previously used flex which forced horizontal centering). */
   display: block;
   background: var(--card);
   padding: 2rem;
   border-radius: 8px;
   text-align: left;
+  position: relative;
 }
 
 .question-centered {
@@ -64,11 +88,17 @@ input[type=number], .math-input{padding:0.6rem 0.8rem;font-size:1.5rem;width:120
   50%{transform:scale(1.2)}
   100%{transform:scale(1)}
 }
+.tick-inline{position:absolute;right:1.25rem;top:50%;transform:translateY(-50%);pointer-events:none}
+.tick-svg{width:52px;height:52px}
+.tick-svg--small{width:1.6em;height:1.1em;flex-shrink:0}
+.tick-circle{fill:none;stroke:#22c55e;stroke-width:3}
+.tick-check{fill:none;stroke:#22c55e;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
 .controls{display:flex;align-items:center;gap:1rem;margin-top:1rem}
 .summary{background:var(--card);padding:1.5rem;border-radius:8px;margin-bottom:1rem}
 .final{font-weight:700;margin-top:0.5rem}
 .performance{margin:1.5rem 0}
 .performance-bar{height:24px;background:linear-gradient(to right,var(--ok),#ffd700,var(--bad));border-radius:12px;position:relative;overflow:hidden}
+.performance-bar--score{background:linear-gradient(to right,var(--bad),#ffd700,var(--ok))}
 .performance-marker {
   position: absolute;
   width: 4px;

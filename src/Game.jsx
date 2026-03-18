@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import Logo from './Logo'
 import { useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
@@ -6,15 +6,18 @@ import ProgressBar from './ProgressBar'
 // Refactored imports
 import { generateProblems } from './problems/generators'
 import { validateSchriftlich, validatePrimfaktorisierung, validatePolynomial } from './problems/validate'
-import { getPerformanceComment, getPerformanceMarkerPosition } from './utils/performanceFeedback'
+import { getScoreComment, getScoreMarkerPosition } from './utils/performanceFeedback'
 import { computePenaltySeconds } from './utils/penalty'
-import { getCategoryLabel, getCategoryProblemCount, CATEGORIES, getDefaultSettings, getProblemRange } from './utils/categories'
+import { getCategoryLabel, CATEGORIES, getDefaultSettings, getCategoryPerformanceScore, getCategoryDuration } from './utils/categories'
 import Schriftlich from './Schriftlich'
 import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
 import Negative from './Negative'
 import Binomische from './Binomische'
 import ReviewList from './ReviewList'
+
+const BATCH_SIZE = 100
+const MAX_LIVES = 3
 
 export default function Game({ isSinglePlayer }) {
   const { roomId, category: urlCategory } = useParams()
@@ -96,9 +99,17 @@ export default function Game({ isSinglePlayer }) {
   const [startTime, setStartTime] = useState(null)
   const [endTime, setEndTime] = useState(null)
   const [toast, setToast] = useState(null)
+  const [flashResult, setFlashResult] = useState(null) // 'correct' | null
+  const [mistakeState, setMistakeState] = useState(null) // null | { userAnswerDisplay, correctAnswerDisplay }
+  const [gameEndReason, setGameEndReason] = useState('time') // 'time' | 'lives'
 
   const inputRef = useRef(null)
   const countdownTimerRef = useRef(null)
+  const gameTimerRef = useRef(null)
+  const gameSettingsRef = useRef({})
+  const pauseTimerRef = useRef(false)
+  const gameDurationRef = useRef(300)
+  const weiterButtonRef = useRef(null)
 
   useEffect(() => {
     if (!toast) return
@@ -116,40 +127,38 @@ export default function Game({ isSinglePlayer }) {
     if (cat === 'einmaleins') {
       return (
         <>
-          <p>Du bekommst 50 Einmaleinsaufgaben. Aufgaben mit ·1 und ·10 kommen seltener vor.</p>
-          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende eine Zeitstrafe.</p>
+          <p>Du hast 5 Minuten Zeit, so viele Einmaleins-Aufgaben wie möglich richtig zu lösen.</p>
+          <p>Aufgaben mit ·1 und ·10 kommen seltener vor.</p>
         </>
       )
     }
     if (cat === 'schriftlich') {
       return (
         <>
-          <p>Du bekommst 15 schriftliche Rechenaufgaben (5 Addition, 5 Subtraktion, 5 Multiplikation).</p>
-          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende eine Zeitstrafe.</p>
+          <p>Du hast 5 Minuten Zeit, so viele schriftliche Rechenaufgaben wie möglich zu lösen.</p>
         </>
       )
     }
     if (cat === 'primfaktorisierung') {
       return (
         <>
-          <p>Du bekommst 20 Zahlen, die du in ihre Primfaktoren zerlegen musst.</p>
-  <p>Gib die Primfaktoren durch Leerzeichen getrennt ein (z. B. „2 2 3“ für 12).</p>
-          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende eine Zeitstrafe.</p>
+          <p>Du hast 5 Minuten Zeit, so viele Zahlen wie möglich in ihre Primfaktoren zu zerlegen.</p>
+          <p>Erst 10 Einmaleins-Zahlen, dann 5 Zahlen bis 100, danach bis 200.</p>
+          <p>Gib die Primfaktoren durch Leerzeichen getrennt ein (z.&nbsp;B. „2 2 3" für 12).</p>
         </>
       )
     }
     if (cat === 'negative') {
       return (
         <>
-          <p>Du bekommst 20 Aufgaben mit negativen Zahlen (+, −, ·, ∶).</p>
-          <p>Die Uhr läuft während du antwortest. Für jede falsche Antwort gibt es am Ende eine Zeitstrafe.</p>
+          <p>Du hast 5 Minuten Zeit, so viele Aufgaben mit negativen Zahlen (+, −, ·, ∶) wie möglich zu lösen.</p>
         </>
       )
     }
     if (cat === 'binomische') {
       return (
         <>
-          <p>Du bekommst 20 Aufgaben zu den binomischen Formeln.</p>
+          <p>Du hast 5 Minuten Zeit, so viele binomische Formeln wie möglich auszumultiplizieren.</p>
           <p>Multipliziere die Terme aus und vereinfache das Ergebnis vollständig.</p>
         </>
       )
@@ -189,23 +198,30 @@ export default function Game({ isSinglePlayer }) {
       }
     }
 
-    const problemCount = getCategoryProblemCount(gameCategory);
-    const newProblems = generateProblems(problemCount, gameCategory, finalSettings);
+    gameSettingsRef.current = finalSettings
+    gameDurationRef.current = getCategoryDuration(gameCategory)
+    const newProblems = generateProblems(BATCH_SIZE, gameCategory, finalSettings);
     setProblems(newProblems);
-    
+
     setStarted(false)
     setCountdown(3)
     setCurrent(0)
     setAnswers([])
     setInputValue('')
     setFinished(false)
-    setStartTime(null)
-    setEndTime(null)
+    setTimeLeft(gameDurationRef.current)
     setSnapshots({})
-    // clear any existing countdown timer before starting a new one
+    setMistakeState(null)
+    setGameEndReason('time')
+    pauseTimerRef.current = false
+    // clear any existing countdown and game timers before starting a new one
     if (countdownTimerRef.current) {
       clearInterval(countdownTimerRef.current)
       countdownTimerRef.current = null
+    }
+    if (gameTimerRef.current) {
+      clearInterval(gameTimerRef.current)
+      gameTimerRef.current = null
     }
     countdownTimerRef.current = setInterval(() => {
       setCountdown(prev => {
@@ -229,25 +245,53 @@ export default function Game({ isSinglePlayer }) {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  // Live seconds state for UI updates
-  const [liveSecondsState, setLiveSecondsState] = useState(0)
+  // countdown while game is running
+  const [timeLeft, setTimeLeft] = useState(gameDurationRef.current)
   useEffect(() => {
     if (!started || finished) return
-    setLiveSecondsState(Math.floor(((Date.now()) - (startTime || Date.now())) / 1000))
-    const interval = setInterval(() => {
-      setLiveSecondsState(Math.floor(((Date.now()) - (startTime || Date.now())) / 1000))
+    if (gameTimerRef.current) clearInterval(gameTimerRef.current)
+    gameTimerRef.current = setInterval(() => {
+      if (pauseTimerRef.current) return
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(gameTimerRef.current)
+          gameTimerRef.current = null
+          return 0
+        }
+        return prev - 1
+      })
     }, 1000)
-    return () => clearInterval(interval)
-  }, [started, finished, startTime])
+    return () => {
+      if (gameTimerRef.current) {
+        clearInterval(gameTimerRef.current)
+        gameTimerRef.current = null
+      }
+    }
+  }, [started, finished])
 
-  const liveSeconds = () => {
-    if (!started) return 0
-    if (finished) return Math.floor(((endTime || Date.now()) - (startTime || Date.now())) / 1000)
-    return liveSecondsState
+  // Finish game when timer reaches zero
+  useEffect(() => {
+    if (timeLeft === 0 && started && !finished) {
+      const correct = answers.filter(a => a.isCorrect).length
+      const wrong = answers.filter(a => !a.isCorrect).length
+      if (roomId && !isSinglePlayer) {
+        finishGame(roomId, correct, wrong)
+        updateProgress(roomId, 100, answers)
+      }
+      setGameEndReason('time')
+      setFinished(true)
+    }
+  }, [timeLeft, started, finished])
+
+  const formatCorrectAnswer = (prob) => {
+    if (prob.type === 'primfaktorisierung') return prob.factors.join(' · ')
+    if (prob.type === 'binomische') return prob.correct.replace(/\^2/g, '²')
+    return String(prob.correct)
   }
 
   const submitAnswer = (overrideValueOrEvent) => {
     const overrideValue = typeof overrideValueOrEvent === 'string' ? overrideValueOrEvent : undefined
+    if (flashResult === 'correct') return // block resubmission during tick display
     const prob = problems[current]
     let parsed = ''
     let isCorrect = false
@@ -294,48 +338,96 @@ export default function Game({ isSinglePlayer }) {
     // Store/overwrite snapshot for this index so we can undo and forward-restore later
     setSnapshots(prev => ({ ...prev, [current]: { index: current, problem: prob, schriftlichInput, inputValue } }))
 
+    if (isCorrect) {
+      // Show tick on current problem for 250ms, then advance
+      setFlashResult('correct')
+      const nextIndex = current + 1
+      const needsMore = nextIndex + 20 >= problems.length
+      const additionalProblems = needsMore
+        ? generateProblems(BATCH_SIZE, activeCategory, gameSettingsRef.current)
+        : null
+      const nextSnap = snapshots[nextIndex]
+      const progressAtSubmit = (roomId && !isSinglePlayer)
+        ? Math.min(99, ((gameDurationRef.current - timeLeft) / gameDurationRef.current) * 100)
+        : 0
+      setTimeout(() => {
+        setFlashResult(null)
+        setInputValue('')
+        setSchriftlichInput({ digits: [], parsed: '', valid: false })
+        if (additionalProblems) {
+          setProblems(prev => {
+            const offset = prev.length
+            return [...prev, ...additionalProblems.map(p => ({ ...p, id: p.id + offset }))]
+          })
+        }
+        setCurrent(nextIndex)
+        if (nextSnap) {
+          setInputValue(nextSnap.inputValue || '')
+          if (nextSnap.schriftlichInput) setSchriftlichInput(nextSnap.schriftlichInput)
+          setTimeout(() => setRestoreSnapshot(nextSnap), 0)
+        }
+        if (roomId && !isSinglePlayer) {
+          updateProgress(roomId, progressAtSubmit, newAnswers)
+        }
+      }, 250)
+    } else {
+      // Wrong answer: show mistake panel and pause timer
+      const rawUserAnswer = prob.type === 'schriftlich'
+        ? String(schriftlichInput?.parsed ?? '?')
+        : String(overrideValue ?? inputValue ?? '').trim() || String(parsed ?? '?')
+      const userAnswerDisplay = prob.type === 'primfaktorisierung'
+        ? rawUserAnswer.trim().split(/\s+/).filter(Boolean).join(' · ')
+        : prob.type === 'binomische'
+          ? rawUserAnswer.replace(/\^2/g, '²').replace(/\^3/g, '³')
+          : rawUserAnswer
+      setMistakeState({
+        userAnswerDisplay,
+        correctAnswerDisplay: formatCorrectAnswer(prob)
+      })
+      pauseTimerRef.current = true
+    }
+  }
+
+  const dismissMistake = () => {
+    const newWrongCount = answers.filter(a => !a.isCorrect).length
+    setMistakeState(null)
+    pauseTimerRef.current = false
+    if (newWrongCount >= MAX_LIVES) {
+      const correct = answers.filter(a => a.isCorrect).length
+      if (roomId && !isSinglePlayer) {
+        finishGame(roomId, correct, newWrongCount)
+        updateProgress(roomId, 100, answers)
+      }
+      setGameEndReason('lives')
+      setFinished(true)
+      return
+    }
     setInputValue('')
     setSchriftlichInput({ digits: [], parsed: '', valid: false })
-    if (current + 1 >= problems.length) {
-      // finalize and report
-      const now = Date.now()
-      setEndTime(now)
-      // compute final elapsed seconds (raw)
-      const rawSeconds = startTime ? Math.floor((now - startTime) / 1000) : 0
-      // compute wrongs and penalty
-      const wrongs = newAnswers.filter(a => !a.isCorrect).length
-      const penaltySeconds = newAnswers.reduce((sum, a) => sum + computePenaltySeconds(a), 0)
-      const finalTimeWithPenalty = rawSeconds + penaltySeconds
-      // send solved problems to server and finish (include penalty in reported time)
-      if (roomId && !isSinglePlayer) {
-        finishGame(roomId, finalTimeWithPenalty, wrongs)
-        // Send final progress with all solved problems
-        updateProgress(roomId, 100, newAnswers)
-      }
-      setFinished(true)
-    } else {
-      setCurrent(c => c + 1)
-      // If moving forward after undos, auto-restore the next problem from existing snapshot history
-      const nextIndex = current + 1
-      const nextSnap = snapshots[nextIndex]
-      if (nextSnap) {
-        setInputValue(nextSnap.inputValue || '')
-        if (nextSnap.schriftlichInput) setSchriftlichInput(nextSnap.schriftlichInput)
-        // Defer setting restoreSnapshot until after current updates
-        setTimeout(() => setRestoreSnapshot(nextSnap), 0)
-      }
-
-      if (roomId && !isSinglePlayer) {
-        const progress = ((current + 1) / problems.length) * 100
-        // Send current progress with all solved problems so far
-        updateProgress(roomId, progress, newAnswers)
-      }
+    const nextIndex = current + 1
+    if (nextIndex + 20 >= problems.length) {
+      const moreProblems = generateProblems(BATCH_SIZE, activeCategory, gameSettingsRef.current)
+      setProblems(prev => {
+        const offset = prev.length
+        return [...prev, ...moreProblems.map(p => ({ ...p, id: p.id + offset }))]
+      })
+    }
+    setCurrent(nextIndex)
+    const nextSnap = snapshots[nextIndex]
+    if (nextSnap) {
+      setInputValue(nextSnap.inputValue || '')
+      if (nextSnap.schriftlichInput) setSchriftlichInput(nextSnap.schriftlichInput)
+      setTimeout(() => setRestoreSnapshot(nextSnap), 0)
+    }
+    if (roomId && !isSinglePlayer) {
+      const progress = Math.min(99, ((gameDurationRef.current - timeLeft) / gameDurationRef.current) * 100)
+      updateProgress(roomId, progress, answers)
     }
   }
 
   const undoLast = () => {
     // Undo last submission if any
-    if (!answers.length) return
+    if (!answers.length || finished || mistakeState) return
     const targetIndex = answers.length - 1
     const snap = snapshots[targetIndex]
     // Remove the last answer and prepare to restore the snapshot into the next mount
@@ -346,12 +438,9 @@ export default function Game({ isSinglePlayer }) {
     setInputValue(snap?.inputValue || '')
     if (snap?.schriftlichInput) setSchriftlichInput(snap.schriftlichInput)
     setCurrent(targetIndex)
-    // Clear finished state if we were finished
-    setFinished(false)
-    setEndTime(null)
 
     if (roomId && !isSinglePlayer) {
-      const progress = (targetIndex / problems.length) * 100
+      const progress = Math.min(99, ((gameDurationRef.current - timeLeft) / gameDurationRef.current) * 100)
       updateProgress(roomId, progress, newAnswers)
     }
 
@@ -363,33 +452,37 @@ export default function Game({ isSinglePlayer }) {
   }
 
 
+  const correctCount = answers.filter(a => a.isCorrect).length
   const wrongCount = answers.filter(a => !a.isCorrect).length
-  const elapsed = finished ? Math.floor((endTime - startTime) / 1000) : liveSeconds()
-  const penalty = answers.reduce((sum, a) => sum + computePenaltySeconds(a), 0)
-  const finalTime = finished ? elapsed + penalty : null
-
-  const totalRange = useMemo(() => {
-    return problems.reduce((acc, p) => {
-      const [min, max] = getProblemRange(p)
-      return [acc[0] + min, acc[1] + max]
-    }, [0, 0])
-  }, [problems])
+  const scoreRange = getCategoryPerformanceScore(activeCategory)
+  // bump key changes every time a correct answer is added, triggering re-animation
+  const scoreBumpKey = correctCount
 
   const schriftlichAnswers = answers.filter(a => a.type === 'schriftlich')
   const selectedSchriftlich = selectedSchriftlichId == null
     ? null
     : schriftlichAnswers.find(a => a.id === selectedSchriftlichId) || null
 
-  // Remove legacy focus/reset for schriftlich; handled by array-based effect above
-  // Cleanup countdown timer on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current)
         countdownTimerRef.current = null
       }
+      if (gameTimerRef.current) {
+        clearInterval(gameTimerRef.current)
+        gameTimerRef.current = null
+      }
     }
   }, [])
+
+  // Auto-focus Weiter button when mistake panel appears so Enter dismisses it
+  useEffect(() => {
+    if (mistakeState) {
+      requestAnimationFrame(() => weiterButtonRef.current?.focus())
+    }
+  }, [mistakeState])
 
   // After restoring snapshot into a mounted problem, clear the restoreSnapshot so
   // it doesn't apply repeatedly. We wait a tick so the child can read the prop on mount.
@@ -469,69 +562,115 @@ export default function Game({ isSinglePlayer }) {
       {started && !finished && (
         <main>
           <div className="top-row">
-            <div>Aufgabe {current + 1} / {problems.length}</div>
-            <div>Zeit: {formatTime(liveSeconds())}</div>
+            <div className="score-counter">
+              <span className="score-counter__label">Richtig</span>
+              <span key={scoreBumpKey} className={`score-counter__value${correctCount > 0 ? ' score-counter__value--bump' : ''}`}>{correctCount}</span>
+            </div>
+            <div className="lives" aria-label="Leben">
+              {Array.from({ length: MAX_LIVES }, (_, i) => (
+                <span key={i} className={`life-icon${i < wrongCount ? ' life-icon--used' : ' life-icon--remaining'}`} aria-hidden>✕</span>
+              ))}
+            </div>
+            <div className="score-timer">Zeit: {formatTime(timeLeft)}</div>
           </div>
 
-          <div className="question">
-            {problems[current].type === 'primfaktorisierung' ? (
-              <Primfaktorisierung
-                key={problems[current].id}
-                number={problems[current].number}
-                value={inputValue}
-                onChange={setInputValue}
-                onEnter={submitAnswer}
-              />
-            ) : problems[current].type === 'schriftlich' ? (
-              <Schriftlich
-                key={problems[current].id}
-                aDigits={problems[current].aDigits}
-                bDigits={problems[current].bDigits}
-                summandsDigits={problems[current].summandsDigits}
-                correctDigits={problems[current].correctDigits}
-                partialProducts={problems[current].partialProducts}
-                operation={problems[current].operation}
-                onChange={setSchriftlichInput}
-                onEnter={submitAnswer}
-                initialState={restoreSnapshot && restoreSnapshot.index === current ? restoreSnapshot.schriftlichInput : undefined}
-              />
-            ) : problems[current].type === 'multiplication' ? (
-              <Einmaleins
-                key={problems[current].id}
-                a={problems[current].a}
-                b={problems[current].b}
-                value={inputValue}
-                onChange={setInputValue}
-                onEnter={submitAnswer}
-              />
-            ) : problems[current].type === 'negative' ? (
-              <Negative
-                key={problems[current].id}
-                a={problems[current].a}
-                b={problems[current].b}
-                operator={problems[current].operator}
-                value={inputValue}
-                onChange={setInputValue}
-                onEnter={submitAnswer}
-                explicitPlus={problems[current].explicitPlus}
-              />
-            ) : problems[current].type === 'binomische' ? (
-              <Binomische
-                key={problems[current].id}
-                expression={problems[current].expression}
-                value={inputValue}
-                onChange={setInputValue}
-                onEnter={submitAnswer}
-              />
-            ) : null}
-          </div>
+          {mistakeState ? (
+            <div className="mistake-panel">
+              <div className="mistake-header">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="15" y1="9" x2="9" y2="15"/>
+                  <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+                Falsch!
+              </div>
+              <div className="mistake-answers">
+                <div className="mistake-answer mistake-answer--wrong">
+                  <span className="mistake-answer__label">Deine Antwort</span>
+                  <span className="mistake-answer__value">{mistakeState.userAnswerDisplay}</span>
+                </div>
+                <div className="mistake-answer mistake-answer--correct">
+                  <span className="mistake-answer__label">Richtige Antwort</span>
+                  <span className="mistake-answer__value">{mistakeState.correctAnswerDisplay}</span>
+                </div>
+              </div>
+              <button ref={weiterButtonRef} onClick={dismissMistake} className="big">Weiter</button>
+            </div>
+          ) : (
+            <>
+              <div className="question">
+                {flashResult === 'correct' && problems[current].type === 'schriftlich' && (
+                  <div className="tick-inline" aria-hidden>
+                    <svg viewBox="0 0 52 52" className="tick-svg">
+                      <circle cx="26" cy="26" r="24" className="tick-circle" />
+                      <path d="M14 27 l9 9 l16 -16" className="tick-check" />
+                    </svg>
+                  </div>
+                )}
+                {problems[current].type === 'primfaktorisierung' ? (
+                  <Primfaktorisierung
+                    key={problems[current].id}
+                    number={problems[current].number}
+                    value={inputValue}
+                    onChange={setInputValue}
+                    onEnter={submitAnswer}
+                    showTick={flashResult === 'correct'}
+                  />
+                ) : problems[current].type === 'schriftlich' ? (
+                  <Schriftlich
+                    key={problems[current].id}
+                    aDigits={problems[current].aDigits}
+                    bDigits={problems[current].bDigits}
+                    summandsDigits={problems[current].summandsDigits}
+                    correctDigits={problems[current].correctDigits}
+                    partialProducts={problems[current].partialProducts}
+                    operation={problems[current].operation}
+                    onChange={setSchriftlichInput}
+                    onEnter={submitAnswer}
+                    initialState={restoreSnapshot && restoreSnapshot.index === current ? restoreSnapshot.schriftlichInput : undefined}
+                  />
+                ) : problems[current].type === 'multiplication' ? (
+                  <Einmaleins
+                    key={problems[current].id}
+                    a={problems[current].a}
+                    b={problems[current].b}
+                    value={inputValue}
+                    onChange={setInputValue}
+                    onEnter={submitAnswer}
+                    showTick={flashResult === 'correct'}
+                  />
+                ) : problems[current].type === 'negative' ? (
+                  <Negative
+                    key={problems[current].id}
+                    a={problems[current].a}
+                    b={problems[current].b}
+                    operator={problems[current].operator}
+                    value={inputValue}
+                    onChange={setInputValue}
+                    onEnter={submitAnswer}
+                    explicitPlus={problems[current].explicitPlus}
+                    showTick={flashResult === 'correct'}
+                  />
+                ) : problems[current].type === 'binomische' ? (
+                  <Binomische
+                    key={problems[current].id}
+                    expression={problems[current].expression}
+                    value={inputValue}
+                    onChange={setInputValue}
+                    onEnter={submitAnswer}
+                    showTick={flashResult === 'correct'}
+                  />
+                ) : null}
+              </div>
 
-          <div className="controls">
-            {answers.length > 0 ? (
-              <button onClick={undoLast} className="big secondary">Zurück</button>
-            ) : null}
-            <button onClick={submitAnswer} className="big">Nächste</button>
-          </div>
+              <div className="controls">
+                {answers.length > 0 ? (
+                  <button onClick={undoLast} className="big secondary">Zurück</button>
+                ) : null}
+                <button onClick={submitAnswer} className="big">Nächste</button>
+              </div>
+            </>
+          )}
         </main>
       )}
 
@@ -539,27 +678,27 @@ export default function Game({ isSinglePlayer }) {
         <main>
           <h2>Ergebnis</h2>
           <div className="summary">
-            <div>Rohzeit: {formatTime(elapsed)}</div>
-            <div>Falsche Antworten: {wrongCount} (Strafe: {formatTime(penalty)})</div>
-            <div className="final">Endzeit (mit Strafe): {formatTime(finalTime)}</div>
+            <div className="final">Richtig gelöst: {correctCount}</div>
+            <div>Falsch beantwortet: {wrongCount}</div>
+            <div>Insgesamt bearbeitet: {answers.length}</div>
 
             <div className="performance">
-              <ProgressBar finalTime={finalTime} range={totalRange} getMarkerPosition={getPerformanceMarkerPosition} />
+              <ProgressBar finalTime={correctCount} range={scoreRange} getMarkerPosition={getScoreMarkerPosition} scoreMode />
               <div className="performance-labels">
                 <span className="performance-label performance-label-left">
-                  <span>Hervorragend</span>
-                  <span>{formatTime(totalRange[0])}</span>
+                  <span>Üben</span>
+                  <span>{scoreRange[0]}</span>
                 </span>
                 <span className="performance-label performance-label-center">
                   <span>Gut</span>
                 </span>
                 <span className="performance-label performance-label-right">
-                  <span>Üben</span>
-                  <span>{formatTime(totalRange[1])}</span>
+                  <span>Hervorragend</span>
+                  <span>{scoreRange[1]}</span>
                 </span>
               </div>
               <div className="performance-comment">
-                {getPerformanceComment(finalTime, totalRange)}
+                {getScoreComment(correctCount, scoreRange)}
               </div>
             </div>
           </div>

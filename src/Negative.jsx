@@ -1,6 +1,12 @@
 import React from 'react'
 
-export default function Negative({ a, b, operator, value = '', onChange, onEnter, explicitPlus }) {
+const TickMark = ({ visible }) => (
+  <svg viewBox="8 14 36 26" className="tick-svg tick-svg--small" aria-hidden style={{ visibility: visible ? 'visible' : 'hidden' }}>
+    <path d="M14 27 l9 9 l16 -16" className="tick-check" />
+  </svg>
+)
+
+export default function Negative({ a, b, operator, value = '', onChange, onEnter, explicitPlus, showTick = false }) {
   const handleKey = (e) => {
     if (e.key === 'Enter') {
       onEnter && onEnter()
@@ -50,6 +56,7 @@ export default function Negative({ a, b, operator, value = '', onChange, onEnter
         onChange={e => onChange && onChange(e.target.value.replace('-', '−'))}
         onKeyDown={handleKey}
       />
+      <TickMark visible={showTick} />
     </div>
   )
 }

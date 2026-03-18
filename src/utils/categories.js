@@ -3,6 +3,8 @@ export const CATEGORIES = {
     label: 'Einmaleins',
     grade: '5. Klasse',
     problemCount: 50,
+    durationMinutes: 3,
+    performanceScore: [20, 40],
     settings: [
       {
         key: 'einmaleins_base',
@@ -29,6 +31,7 @@ export const CATEGORIES = {
     label: 'Schriftlich rechnen',
     grade: '5. Klasse',
     problemCount: 3,
+    durationMinutes: 5,
     subcategories: [
       {
         key: 'schriftlich-add',
@@ -63,6 +66,7 @@ export const CATEGORIES = {
       { key: 'schriftlichSubtract', label: 'Subtraktion', defaultValue: true },
       { key: 'schriftlichMultiply', label: 'Multiplikation', defaultValue: true }
     ],
+    performanceScore: [3, 8],
     performance: {
       add: [20, 55],
       subtract: [20, 55],
@@ -74,6 +78,7 @@ export const CATEGORIES = {
     label: 'Rechnen mit negativen Zahlen',
     grade: '5. Klasse',
     problemCount: 20,
+    durationMinutes: 5,
     settings: [
       { key: 'negativeAdd', label: 'Addition', defaultValue: true },
       { key: 'negativeSubtract', label: 'Subtraktion', defaultValue: true },
@@ -81,6 +86,7 @@ export const CATEGORIES = {
       { key: 'negativeDivide', label: 'Division', defaultValue: false },
       { key: 'negativeExplicitPlus', label: 'Vorzeichen bei positiven Zahlen anzeigen (z.B. (+2))', defaultValue: true }
     ],
+    performanceScore: [10, 25],
     performance: {
       default: [8.0, 18.0]
     }
@@ -89,10 +95,9 @@ export const CATEGORIES = {
     label: 'Primfaktorisierung',
     grade: '5. Klasse',
     problemCount: 10,
-    settings: [
-      { key: 'primfaktorisierung_easy', label: 'Zahlen bis 100', defaultValue: true },
-      { key: 'primfaktorisierung_hard', label: 'Zahlen über 100', defaultValue: true }
-    ],
+    durationMinutes: 5,
+    settings: [],
+    performanceScore: [4, 12],
     performance: {
       easy: [10, 30],
       hard: [20, 60],
@@ -103,10 +108,12 @@ export const CATEGORIES = {
     label: 'Binomische Formeln',
     grade: '7. Klasse',
     problemCount: 10,
+    durationMinutes: 5,
     settings: [
       { key: 'binomische_simple', label: 'Einfach (Ganzzahlen)', defaultValue: true },
       { key: 'binomische_hard', label: 'Schwer (Dezimalzahlen)', defaultValue: true }
     ],
+    performanceScore: [3, 8],
     performance: {
       simple: [15.0, 30.0],
       hard: [20.0, 40.0],
@@ -116,6 +123,10 @@ export const CATEGORIES = {
 }
 
 export const getCategoryLabel = (category) => CATEGORIES[category]?.label || 'Einmaleins'
+
+export const getCategoryDuration = (category) => (CATEGORIES[category]?.durationMinutes ?? 5) * 60
+
+export const getCategoryPerformanceScore = (category) => CATEGORIES[category]?.performanceScore || [10, 30]
 
 export const getCategoryProblemCount = (category) => CATEGORIES[category]?.problemCount || CATEGORIES.einmaleins.problemCount || 50
 

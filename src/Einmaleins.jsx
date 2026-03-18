@@ -1,17 +1,12 @@
 import React from 'react'
 
-/**
- * Einmaleins component renders a simple multiplication expression with an input.
- * Controlled by parent via value/onChange; handles Enter via onEnter.
- *
- * Props:
- * - a: number
- * - b: number
- * - value: string | number
- * - onChange: (value: string) => void
- * - onEnter?: () => void
- */
-export default function Einmaleins({ a, b, value = '', onChange, onEnter }) {
+const TickMark = ({ visible }) => (
+  <svg viewBox="8 14 36 26" className="tick-svg tick-svg--small" aria-hidden style={{ visibility: visible ? 'visible' : 'hidden' }}>
+    <path d="M14 27 l9 9 l16 -16" className="tick-check" />
+  </svg>
+)
+
+export default function Einmaleins({ a, b, value = '', onChange, onEnter, showTick = false }) {
   const handleKey = (e) => {
     if (e.key === 'Enter') {
       onEnter && onEnter()
@@ -30,6 +25,7 @@ export default function Einmaleins({ a, b, value = '', onChange, onEnter }) {
         onChange={e => onChange && onChange(e.target.value)}
         onKeyDown={handleKey}
       />
+      <TickMark visible={showTick} />
     </div>
   )
 }

@@ -201,50 +201,56 @@ export function generateSchriftlichProblems(count, settings) {
   return combined.map((problem, index) => ({ ...problem, id: index + 1 }));
 }
 
-export function generatePrimfaktorisierungProblems(count, settings) {
-  const { primfaktorisierung_easy = true, primfaktorisierung_hard = true } = settings;
-  
-  // Fallback: if both false, enable both
-  const useEasy = primfaktorisierung_easy || (!primfaktorisierung_easy && !primfaktorisierung_hard);
-  const useHard = primfaktorisierung_hard || (!primfaktorisierung_easy && !primfaktorisierung_hard);
-
-  const problems = [];
+export function generatePrimfaktorisierungProblems(count) {
   const getPrimeFactors = (n) => {
     const factors = [];
     let d = 2;
     while (n > 1) {
-      while (n % d === 0) {
-        factors.push(d);
-        n /= d;
-      }
+      while (n % d === 0) { factors.push(d); n /= d; }
       d++;
-      if (d * d > n && n > 1) {
-        factors.push(n);
-        break;
-      }
+      if (d * d > n && n > 1) { factors.push(n); break; }
     }
     return factors;
   };
-  const seen = new Set();
-  let id = 1;
-  while (problems.length < count) {
-    let num;
-    if (useEasy && useHard) {
-      // 12 to 200
-      num = Math.floor(Math.random() * 189) + 12;
-    } else if (useEasy) {
-      // 12 to 100
-      num = Math.floor(Math.random() * 89) + 12;
-    } else {
-      // 101 to 200
-      num = Math.floor(Math.random() * 100) + 101;
+  const shuffle = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
     }
-    if (seen.has(num)) continue;
-    seen.add(num);
+    return a;
+  };
+
+  // Tier 1: products from the 2-10 times table (all composite by construction)
+  const tier1Set = new Set();
+  for (let a = 2; a <= 10; a++)
+    for (let b = a; b <= 10; b++)
+      tier1Set.add(a * b);
+  const tier1Pool = Array.from(tier1Set);
+
+  // Tier 2: all numbers 12-100 NOT appearing in the times table (composites + primes like 13, 17, 23…)
+  const tier2Pool = [];
+  for (let n = 12; n <= 100; n++)
+    if (!tier1Set.has(n)) tier2Pool.push(n);
+
+  // Tier 3: all numbers 101-200 (composites + primes like 101, 103, 107…)
+  const tier3Pool = [];
+  for (let n = 101; n <= 200; n++) tier3Pool.push(n);
+
+  const t1Count = Math.min(10, count);
+  const t2Count = Math.min(5, Math.max(0, count - t1Count));
+  const t3Count = Math.max(0, count - t1Count - t2Count);
+
+  const t1 = shuffle(tier1Pool).slice(0, t1Count);
+  const t2 = shuffle(tier2Pool).slice(0, t2Count);
+  const shuffled3 = shuffle(tier3Pool);
+  const t3 = Array.from({ length: t3Count }, (_, i) => shuffled3[i % shuffled3.length]);
+
+  let id = 1;
+  return [...t1, ...t2, ...t3].map(num => {
     const factors = getPrimeFactors(num);
-    problems.push({ id: id++, number: num, correct: factors.join(' '), factors, type: 'primfaktorisierung' });
-  }
-  return problems;
+    return { id: id++, number: num, correct: factors.join(' '), factors, type: 'primfaktorisierung' };
+  });
 }
 
 export function generateNegativeProblems(count, settings) {

@@ -1,7 +1,13 @@
 import React from 'react'
 import AlgebraicInput from './AlgebraicInput'
 
-export default function Binomische({ expression, value = '', onChange, onEnter }) {
+const TickMark = ({ visible }) => (
+  <svg viewBox="8 14 36 26" className="tick-svg tick-svg--small" aria-hidden style={{ visibility: visible ? 'visible' : 'hidden' }}>
+    <path d="M14 27 l9 9 l16 -16" className="tick-check" />
+  </svg>
+)
+
+export default function Binomische({ expression, value = '', onChange, onEnter, showTick = false }) {
   
   return (
     <div className="question-centered einmaleins-row" style={{ alignItems: 'flex-start' }}>
@@ -24,6 +30,7 @@ export default function Binomische({ expression, value = '', onChange, onEnter }
           style={{ width: '300px', textAlign: 'left' }}
         />
       </div>
+      <TickMark visible={showTick} />
     </div>
   )
 }

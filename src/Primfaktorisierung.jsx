@@ -10,7 +10,13 @@ import React, { useMemo, useRef, useState } from 'react'
  * - onChange: (value: string) => void
  * - onEnter?: () => void
  */
-export default function Primfaktorisierung({ number, value = '', onChange, onEnter }) {
+const TickMark = ({ visible }) => (
+  <svg viewBox="8 14 36 26" className="tick-svg tick-svg--small" aria-hidden style={{ visibility: visible ? 'visible' : 'hidden' }}>
+    <path d="M14 27 l9 9 l16 -16" className="tick-check" />
+  </svg>
+)
+
+export default function Primfaktorisierung({ number, value = '', onChange, onEnter, showTick = false }) {
   const inputRef = useRef(null)
   const [draft, setDraft] = useState('')
 
@@ -122,6 +128,7 @@ export default function Primfaktorisierung({ number, value = '', onChange, onEnt
           }}
           autoFocus
         />
+        <TickMark visible={showTick} />
         </div>
       </div>
     </>
