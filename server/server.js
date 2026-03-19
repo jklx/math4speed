@@ -12,7 +12,7 @@ app.use(express.json());
 const httpServer = createServer(app);
 
 // ── Leaderboard persistence ──────────────────────────────────────────────────
-const LEADERBOARD_FILE = path.join(__dirname, 'leaderboard.json');
+const LEADERBOARD_FILE = process.env.LEADERBOARD_FILE || path.join(__dirname, 'leaderboard.json');
 const VALID_CATEGORIES = ['einmaleins', 'schriftlich', 'primfaktorisierung', 'negative', 'binomische'];
 
 function loadLeaderboard() {
