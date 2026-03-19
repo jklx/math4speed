@@ -95,9 +95,9 @@ export const CATEGORIES = {
     label: 'Primfaktorisierung',
     grade: '5. Klasse',
     problemCount: 10,
-    durationMinutes: 5,
+    durationMinutes: 3,
     settings: [],
-    performanceScore: [4, 12],
+    performanceScore: [10, 22],
     performance: {
       easy: [10, 30],
       hard: [20, 60],
