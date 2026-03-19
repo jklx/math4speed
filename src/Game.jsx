@@ -1,4 +1,77 @@
 import React, { useEffect, useState, useRef } from 'react'
+
+// Animated demo for Primfaktorisierung input explanation
+// Shows: type "2", press SPACE → token appears, type "2", SPACE, type "3", ENTER
+const DEMO_STEPS = [
+  { type: 'type',  char: '2' },
+  { type: 'key',   char: 'SPACE' },
+  { type: 'type',  char: '2' },
+  { type: 'key',   char: 'SPACE' },
+  { type: 'type',  char: '3' },
+  { type: 'key',   char: 'ENTER' },
+  { type: 'pause' },
+]
+
+function PrimfaktorDemo() {
+  const [step, setStep] = useState(0)
+  const [tokens, setTokens] = useState([])
+  const [draft, setDraft] = useState('')
+  const [activeKey, setActiveKey] = useState(null)
+
+  useEffect(() => {
+    const s = DEMO_STEPS[step]
+    const delay = s.type === 'pause' ? 1200 : 480
+
+    const t = setTimeout(() => {
+      if (s.type === 'type') {
+        setDraft(prev => prev + s.char)
+        setActiveKey(s.char)
+        setTimeout(() => setActiveKey(null), 180)
+      } else if (s.type === 'key') {
+        setActiveKey(s.char)
+        setTimeout(() => setActiveKey(null), 180)
+        if (s.char === 'SPACE') {
+          setTokens(prev => draft ? [...prev, draft] : prev)
+          setDraft('')
+        } else if (s.char === 'ENTER') {
+          setTokens(prev => draft ? [...prev, draft] : prev)
+          setDraft('')
+        }
+      } else if (s.type === 'pause') {
+        setTokens([])
+        setDraft('')
+      }
+      setStep(prev => (prev + 1) % DEMO_STEPS.length)
+    }, delay)
+    return () => clearTimeout(t)
+  }, [step])
+
+  const keys = ['2', '3', 'SPACE', 'ENTER']
+
+  return (
+    <div className="primfaktor-demo">
+      <div className="primfaktor-demo__display">
+        <span className="expression" style={{ whiteSpace: 'nowrap' }}>12 =</span>
+        <div className="factor-input" style={{ pointerEvents: 'none', minWidth: 120 }}>
+          {tokens.map((tok, i) => (
+            <React.Fragment key={i}>
+              <span className="factor-token">{tok}</span>
+              <span className="factor-sep" aria-hidden>⋅</span>
+            </React.Fragment>
+          ))}
+          <span className="primfaktor-demo__draft">{draft}<span className="primfaktor-demo__cursor" /></span>
+        </div>
+      </div>
+      <div className="primfaktor-demo__keys">
+        {keys.map(k => (
+          <span key={k} className={`primfaktor-demo__key${activeKey === k ? ' primfaktor-demo__key--active' : ''}`}>
+            {k === 'SPACE' ? '␣ Leertaste' : k === 'ENTER' ? '↵ Enter' : k}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
 import Logo from './Logo'
 import { useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
@@ -169,6 +242,7 @@ export default function Game({ isSinglePlayer }) {
           <p>Du hast {mins} Minuten Zeit, so viele Zahlen wie möglich in ihre Primfaktoren zu zerlegen.</p>
           <p>Erst 10 Einmaleins-Zahlen, dann 5 Zahlen bis 100, danach bis 200.</p>
           <p>Gib die Primfaktoren durch Leerzeichen getrennt ein (z.&nbsp;B. „2 2 3" für 12).</p>
+          <PrimfaktorDemo />
         </>
       )
     }

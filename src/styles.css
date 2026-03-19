@@ -207,6 +207,16 @@ input[type=number], .math-input{padding:0.6rem 0.8rem;font-size:1.5rem;width:120
 .inline-leaderboard{margin-top:1.5rem}
 .inline-leaderboard h3{margin-bottom:0.75rem}
 
+/* Primfaktorisierung animated demo */
+.primfaktor-demo{margin:1rem auto;max-width:420px;background:var(--card);border:1px solid #e6e9ef;border-radius:10px;padding:1rem 1.25rem;display:flex;flex-direction:column;gap:0.85rem}
+.primfaktor-demo__display{display:flex;align-items:center;gap:0.75rem}
+.primfaktor-demo__draft{display:inline-flex;align-items:center;font-size:1rem;padding:0.15rem 0.2rem;color:#222;min-width:1ch}
+.primfaktor-demo__cursor{display:inline-block;width:2px;height:1.1em;background:var(--accent);margin-left:1px;vertical-align:text-bottom;animation:cursor-blink 1s step-end infinite}
+@keyframes cursor-blink{0%,100%{opacity:1}50%{opacity:0}}
+.primfaktor-demo__keys{display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap}
+.primfaktor-demo__key{display:inline-flex;align-items:center;justify-content:center;padding:0.3rem 0.7rem;border-radius:6px;border:1.5px solid #d1d5db;background:#f9fafb;font-size:0.9rem;font-weight:600;color:#374151;min-width:2.5rem;transition:background 0.1s,border-color 0.1s,color 0.1s,transform 0.08s;user-select:none}
+.primfaktor-demo__key--active{background:var(--accent);border-color:var(--accent);color:#fff;transform:scale(0.93)}
+
 /* Settings box */
 .settings-box {
   background: var(--card);
