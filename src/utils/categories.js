@@ -3,7 +3,7 @@ export const CATEGORIES = {
     label: 'Einmaleins',
     grade: '5. Klasse',
     problemCount: 50,
-    durationMinutes: 3,
+    durationMinutes: 2,
     performanceScore: [20, 40],
     settings: [
       {
