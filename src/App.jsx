@@ -5,6 +5,7 @@ import MultiplayerLobby from './MultiplayerLobby'
 import Game from './Game'
 import AdminView from './AdminView'
 import UsernamePage from './UsernamePage'
+import Leaderboard from './Leaderboard'
 
 export default function App() {
   return (
@@ -24,6 +25,10 @@ export default function App() {
           {/* Active game/admin (separate routes for admin and players) */}
           <Route path="/play/:roomId" element={<Game isSinglePlayer={false} />} />
           <Route path="/admin/:roomId" element={<AdminView />} />
+
+          {/* Leaderboard */}
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/leaderboard/:category" element={<Leaderboard />} />
           </Routes>
       </MultiplayerProvider>
     </BrowserRouter>

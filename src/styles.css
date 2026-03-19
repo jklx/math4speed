@@ -95,6 +95,10 @@ input[type=number], .math-input{padding:0.6rem 0.8rem;font-size:1.5rem;width:120
 .tick-check{fill:none;stroke:#22c55e;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
 .controls{display:flex;align-items:center;gap:1rem;margin-top:1rem}
 .summary{background:var(--card);padding:1.5rem;border-radius:8px;margin-bottom:1rem}
+.result-score-hero{display:flex;flex-direction:column;align-items:center;margin-bottom:0.75rem}
+.result-score-number{font-size:5rem;font-weight:900;line-height:1;color:var(--ok);font-family:'Noto Sans',sans-serif}
+.result-score-label{font-size:1rem;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:0.06em;margin-top:0.15rem}
+.result-meta{display:flex;gap:2rem;justify-content:center;font-size:0.95rem;color:#555;margin-bottom:0.5rem}
 .final{font-weight:700;margin-top:0.5rem}
 .performance{margin:1.5rem 0}
 .performance-bar{height:24px;background:linear-gradient(to right,var(--ok),#ffd700,var(--bad));border-radius:12px;position:relative;overflow:hidden}
@@ -179,7 +183,29 @@ input[type=number], .math-input{padding:0.6rem 0.8rem;font-size:1.5rem;width:120
 .progress-bar{flex:1;height:8px;background:#eee;border-radius:4px;overflow:hidden}
 .progress-bar .progress{height:100%;background:var(--accent);transition:width 0.3s ease}
 .error{color:var(--bad);margin:1rem 0}
-.actions{display:flex;gap:1rem;margin-top:1rem}
+.actions{display:flex;gap:1rem;margin-top:1rem;flex-wrap:wrap}
+
+/* Leaderboard qualify prompt */
+.leaderboard-qualify-box{background:var(--card);border:2px solid #ffd700;border-radius:8px;padding:1.5rem;margin:1rem 0;text-align:center}
+.leaderboard-qualify-box--submitted{border-color:var(--ok)}
+.leaderboard-qualify-title{font-size:1.5rem;font-weight:800;margin-bottom:0.5rem}
+
+/* Leaderboard page */
+.leaderboard-category-tabs{display:flex;flex-wrap:wrap;gap:0.35rem;background:#edf2f7;border-radius:8px;padding:4px;margin-bottom:1.5rem;width:fit-content}
+.leaderboard-table-wrap{background:var(--card);border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.07)}
+.leaderboard-table{width:100%;border-collapse:collapse;font-size:1rem}
+.leaderboard-table th{background:var(--accent);color:white;padding:0.75rem 1rem;text-align:left;font-weight:600;white-space:nowrap}
+.leaderboard-table td{padding:0.65rem 1rem;border-bottom:1px solid rgba(0,0,0,0.05)}
+.leaderboard-table tbody tr:last-child td{border-bottom:none}
+.leaderboard-table tbody tr:hover td{background:rgba(43,108,176,0.04)}
+.leaderboard-podium td{font-weight:600}
+.leaderboard-rank{width:3rem;font-size:1.1rem}
+.leaderboard-score{color:var(--ok);font-weight:700}
+.leaderboard-wrong{color:var(--bad)}
+.leaderboard-date{color:#888;font-size:0.85rem;white-space:nowrap}
+.leaderboard-new-entry td{background:rgba(255,215,0,0.18)!important;font-weight:700}
+.inline-leaderboard{margin-top:1.5rem}
+.inline-leaderboard h3{margin-bottom:0.75rem}
 
 /* Settings box */
 .settings-box {

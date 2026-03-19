@@ -2,12 +2,57 @@ const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 const { generateReport } = require('./pdfReport');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 const httpServer = createServer(app);
+
+// ── Leaderboard persistence ──────────────────────────────────────────────────
+const LEADERBOARD_FILE = path.join(__dirname, 'leaderboard.json');
+const VALID_CATEGORIES = ['einmaleins', 'schriftlich', 'primfaktorisierung', 'negative', 'binomische'];
+
+function loadLeaderboard() {
+  try {
+    return JSON.parse(fs.readFileSync(LEADERBOARD_FILE, 'utf8'));
+  } catch {
+    return [];
+  }
+}
+
+function saveLeaderboard(data) {
+  fs.writeFileSync(LEADERBOARD_FILE, JSON.stringify(data, null, 2));
+}
+
+app.get('/api/leaderboard', (req, res) => {
+  const category = String(req.query.category || '').trim();
+  if (category && !VALID_CATEGORIES.includes(category)) {
+    return res.status(400).json({ error: 'invalid category' });
+  }
+  let board = loadLeaderboard();
+  if (category) board = board.filter(e => e.category === category);
+  board.sort((a, b) => b.score - a.score || a.wrongCount - b.wrongCount);
+  res.json(board.slice(0, 20));
+});
+
+app.post('/api/leaderboard', (req, res) => {
+  const { username, category, score, wrongCount } = req.body;
+  if (typeof username !== 'string' || !VALID_CATEGORIES.includes(category) ||
+      !Number.isInteger(score) || score < 0 ||
+      !Number.isInteger(wrongCount) || wrongCount < 0) {
+    return res.status(400).json({ error: 'invalid data' });
+  }
+  const sanitized = username.trim().slice(0, 30).replace(/[<>"']/g, '');
+  if (!sanitized) return res.status(400).json({ error: 'invalid username' });
+  const board = loadLeaderboard();
+  board.push({ username: sanitized, category, score, wrongCount, date: new Date().toISOString() });
+  saveLeaderboard(board);
+  res.json({ ok: true });
+});
+// ─────────────────────────────────────────────────────────────────────────────
 const ORIGIN = process.env.ORIGIN || '*';
 const io = new Server(httpServer, {
   cors: {

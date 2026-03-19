@@ -19,6 +19,25 @@ import ReviewList from './ReviewList'
 const BATCH_SIZE = 100
 const MAX_LIVES = 3
 
+function playPling() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(1046, ctx.currentTime)        // C6
+    osc.frequency.setValueAtTime(1318, ctx.currentTime + 0.06) // E6
+    gain.gain.setValueAtTime(0.001, ctx.currentTime)
+    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.03)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.22)
+    osc.onended = () => ctx.close()
+  } catch {}
+}
+
 export default function Game({ isSinglePlayer }) {
   const { roomId, category: urlCategory } = useParams()
   const location = useLocation();
@@ -102,6 +121,10 @@ export default function Game({ isSinglePlayer }) {
   const [flashResult, setFlashResult] = useState(null) // 'correct' | null
   const [mistakeState, setMistakeState] = useState(null) // null | { userAnswerDisplay, correctAnswerDisplay }
   const [gameEndReason, setGameEndReason] = useState('time') // 'time' | 'lives'
+  const [leaderboardQualifies, setLeaderboardQualifies] = useState(null) // null | true | false
+  const [leaderboardName, setLeaderboardName] = useState('')
+  const [leaderboardSubmitted, setLeaderboardSubmitted] = useState(false)
+  const [leaderboardData, setLeaderboardData] = useState(null) // null = not loaded yet
 
   const inputRef = useRef(null)
   const countdownTimerRef = useRef(null)
@@ -213,6 +236,10 @@ export default function Game({ isSinglePlayer }) {
     setSnapshots({})
     setMistakeState(null)
     setGameEndReason('time')
+    setLeaderboardQualifies(null)
+    setLeaderboardName('')
+    setLeaderboardSubmitted(false)
+    setLeaderboardData(null)
     pauseTimerRef.current = false
     // clear any existing countdown and game timers before starting a new one
     if (countdownTimerRef.current) {
@@ -339,6 +366,7 @@ export default function Game({ isSinglePlayer }) {
     setSnapshots(prev => ({ ...prev, [current]: { index: current, problem: prob, schriftlichInput, inputValue } }))
 
     if (isCorrect) {
+      playPling()
       // Show tick on current problem for 250ms, then advance
       setFlashResult('correct')
       const nextIndex = current + 1
@@ -476,6 +504,46 @@ export default function Game({ isSinglePlayer }) {
       }
     }
   }, [])
+
+  // Check whether the just-finished single-player score qualifies for the top 10
+  useEffect(() => {
+    if (!finished || !isSinglePlayer) return
+    const cc = answers.filter(a => a.isCorrect).length
+    const wc = answers.filter(a => !a.isCorrect).length
+    fetch(`/api/leaderboard?category=${activeCategory}`)
+      .then(r => r.json())
+      .then(board => {
+        setLeaderboardData(board)
+        const qualifies = board.length < 10 ||
+          cc > board[9].score ||
+          (cc === board[9].score && wc < board[9].wrongCount)
+        setLeaderboardQualifies(qualifies)
+      })
+      .catch(() => setLeaderboardQualifies(false))
+  }, [finished])
+
+  const submitLeaderboard = () => {
+    const name = leaderboardName.trim()
+    if (!name) return
+    fetch('/api/leaderboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: name,
+        category: activeCategory,
+        score: correctCount,
+        wrongCount
+      })
+    })
+    .then(() =>
+      fetch(`/api/leaderboard?category=${activeCategory}`).then(r => r.json())
+    )
+    .then(board => {
+      setLeaderboardData(board)
+      setLeaderboardSubmitted(true)
+    })
+    .catch(() => setLeaderboardSubmitted(true))
+  }
 
   // Auto-focus Weiter button when mistake panel appears so Enter dismisses it
   useEffect(() => {
@@ -678,9 +746,14 @@ export default function Game({ isSinglePlayer }) {
         <main>
           <h2>Ergebnis</h2>
           <div className="summary">
-            <div className="final">Richtig gelöst: {correctCount}</div>
-            <div>Falsch beantwortet: {wrongCount}</div>
-            <div>Insgesamt bearbeitet: {answers.length}</div>
+            <div className="result-score-hero">
+              <span className="result-score-number">{correctCount}</span>
+              <span className="result-score-label">richtig gelöst</span>
+            </div>
+            <div className="result-meta">
+              <span>Falsch: <strong>{wrongCount}</strong></span>
+              <span>Gesamt: <strong>{answers.length}</strong></span>
+            </div>
 
             <div className="performance">
               <ProgressBar finalTime={correctCount} range={scoreRange} getMarkerPosition={getScoreMarkerPosition} scoreMode />
@@ -702,6 +775,79 @@ export default function Game({ isSinglePlayer }) {
               </div>
             </div>
           </div>
+
+          {isSinglePlayer && leaderboardQualifies === true && !leaderboardSubmitted && (
+            <div className="leaderboard-qualify-box">
+              <div className="leaderboard-qualify-title">&#127942; Top 10!</div>
+              <p>Du hast dich für die Rangliste qualifiziert. Gib deinen Namen ein:</p>
+              <form
+                onSubmit={e => { e.preventDefault(); submitLeaderboard(); }}
+                style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}
+              >
+                <input
+                  className="app-input"
+                  type="text"
+                  placeholder="Dein Name"
+                  value={leaderboardName}
+                  onChange={e => setLeaderboardName(e.target.value)}
+                  maxLength={30}
+                  autoFocus
+                />
+                <button type="submit" className="big" disabled={!leaderboardName.trim()}>Eintragen</button>
+              </form>
+            </div>
+          )}
+          {isSinglePlayer && leaderboardSubmitted && (
+            <div className="leaderboard-qualify-box leaderboard-qualify-box--submitted">
+              <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--ok)', marginBottom: '0.5rem' }}>✓ Eingetragen!</div>
+            </div>
+          )}
+
+          {isSinglePlayer && leaderboardData !== null && (
+            <div className="inline-leaderboard">
+              <h3>Rangliste &ndash; {activeCategoryLabel}</h3>
+              {leaderboardData.length === 0 ? (
+                <p style={{ color: '#888', margin: 0 }}>Noch keine Einträge.</p>
+              ) : (
+                <div className="leaderboard-table-wrap">
+                  <table className="leaderboard-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Richtig</th>
+                        <th>Fehler</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaderboardData.map((entry, i) => {
+                        const isNew = leaderboardSubmitted &&
+                          entry.username === leaderboardName.trim() &&
+                          entry.score === correctCount &&
+                          entry.wrongCount === wrongCount
+                        return (
+                          <tr key={i} className={`${i < 3 ? 'leaderboard-podium' : ''}${isNew ? ' leaderboard-new-entry' : ''}`}>
+                            <td className="leaderboard-rank">
+                              {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                            </td>
+                            <td className="leaderboard-name">{entry.username}</td>
+                            <td className="leaderboard-score">{entry.score}</td>
+                            <td className="leaderboard-wrong">{entry.wrongCount}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isSinglePlayer && (
+            <div className="actions">
+              <button onClick={handleStart} className="big">Nochmal versuchen</button>
+            </div>
+          )}
 
           <h3>Aufgabenübersicht</h3>
           <div className="review-container">
@@ -768,12 +914,6 @@ export default function Game({ isSinglePlayer }) {
                   />
                 </div>
               </div>
-            </div>
-          )}
-
-          {isSinglePlayer && (
-            <div className="actions">
-              <button onClick={handleStart} className="big">Nochmal versuchen</button>
             </div>
           )}
         </main>
