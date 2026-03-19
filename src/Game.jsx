@@ -147,10 +147,11 @@ export default function Game({ isSinglePlayer }) {
   }
 
   const renderCategoryDescription = (cat) => {
+    const mins = CATEGORIES[cat]?.durationMinutes ?? 5
     if (cat === 'einmaleins') {
       return (
         <>
-          <p>Du hast 5 Minuten Zeit, so viele Einmaleins-Aufgaben wie möglich richtig zu lösen.</p>
+          <p>Du hast {mins} Minuten Zeit, so viele Einmaleins-Aufgaben wie möglich richtig zu lösen.</p>
           <p>Aufgaben mit ·1 und ·10 kommen seltener vor.</p>
         </>
       )
@@ -158,14 +159,14 @@ export default function Game({ isSinglePlayer }) {
     if (cat === 'schriftlich') {
       return (
         <>
-          <p>Du hast 5 Minuten Zeit, so viele schriftliche Rechenaufgaben wie möglich zu lösen.</p>
+          <p>Du hast {mins} Minuten Zeit, so viele schriftliche Rechenaufgaben wie möglich zu lösen.</p>
         </>
       )
     }
     if (cat === 'primfaktorisierung') {
       return (
         <>
-          <p>Du hast 5 Minuten Zeit, so viele Zahlen wie möglich in ihre Primfaktoren zu zerlegen.</p>
+          <p>Du hast {mins} Minuten Zeit, so viele Zahlen wie möglich in ihre Primfaktoren zu zerlegen.</p>
           <p>Erst 10 Einmaleins-Zahlen, dann 5 Zahlen bis 100, danach bis 200.</p>
           <p>Gib die Primfaktoren durch Leerzeichen getrennt ein (z.&nbsp;B. „2 2 3" für 12).</p>
         </>
@@ -174,14 +175,14 @@ export default function Game({ isSinglePlayer }) {
     if (cat === 'negative') {
       return (
         <>
-          <p>Du hast 5 Minuten Zeit, so viele Aufgaben mit negativen Zahlen (+, −, ·, ∶) wie möglich zu lösen.</p>
+          <p>Du hast {mins} Minuten Zeit, so viele Aufgaben mit negativen Zahlen (+, −, ·, ∶) wie möglich zu lösen.</p>
         </>
       )
     }
     if (cat === 'binomische') {
       return (
         <>
-          <p>Du hast 5 Minuten Zeit, so viele binomische Formeln wie möglich auszumultiplizieren.</p>
+          <p>Du hast {mins} Minuten Zeit, so viele binomische Formeln wie möglich auszumultiplizieren.</p>
           <p>Multipliziere die Terme aus und vereinfache das Ergebnis vollständig.</p>
         </>
       )
