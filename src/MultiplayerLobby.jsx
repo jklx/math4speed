@@ -94,7 +94,10 @@ export default function MultiplayerLobby() {
       <div className="menu-grid">
         <div className="tile big">
           <div className="tile-body">
-            <div className="title">Trainieren</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
+              <div className="title" style={{ marginBottom: 0 }}>Trainieren</div>
+              <a href="/leaderboard" style={{ fontSize: '0.85rem', color: 'var(--accent)', textDecoration: 'none', whiteSpace: 'nowrap' }}>🏆 Rangliste</a>
+            </div>
             <div className="category-selection category-selection-wide category-selection-minimal">
               <div className="category-grade-groups">
                 {categoryGroups.map(({ grade, categories }) => (
