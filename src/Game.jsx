@@ -540,6 +540,11 @@ export default function Game({ isSinglePlayer }) {
     if (!finished || !isSinglePlayer) return
     const cc = answers.filter(a => a.isCorrect).length
     const wc = answers.filter(a => !a.isCorrect).length
+    const [minScore] = getCategoryPerformanceScore(activeCategory)
+    if (cc < minScore) {
+      setLeaderboardQualifies(false)
+      return
+    }
     fetch(`/api/leaderboard?category=${activeCategory}`)
       .then(r => r.json())
       .then(board => {
