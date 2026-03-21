@@ -78,7 +78,7 @@ export const CATEGORIES = {
     label: 'Rechnen mit negativen Zahlen',
     grade: '5. Klasse',
     problemCount: 20,
-    durationMinutes: 5,
+    durationMinutes: 3,
     settings: [
       { key: 'negativeAdd', label: 'Addition', defaultValue: true },
       { key: 'negativeSubtract', label: 'Subtraktion', defaultValue: true },
