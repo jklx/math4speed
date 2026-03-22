@@ -27,51 +27,46 @@ export const CATEGORIES = {
       default: [2.2, 5]
     }
   },
-  schriftlich: {
-    label: 'Schriftlich rechnen',
+  'schriftlich-add': {
+    label: 'Schriftl. Addition',
+    homepageLabel: '+',
+    homepageGroup: 'schriftlich',
+    homepageGroupLabel: 'Schriftlich rechnen',
     grade: '5. Klasse',
     problemCount: 3,
     durationMinutes: 5,
-    subcategories: [
-      {
-        key: 'schriftlich-add',
-        label: '+',
-        settings: {
-          schriftlichAdd: true,
-          schriftlichSubtract: false,
-          schriftlichMultiply: false
-        }
-      },
-      {
-        key: 'schriftlich-subtract',
-        label: '−',
-        settings: {
-          schriftlichAdd: false,
-          schriftlichSubtract: true,
-          schriftlichMultiply: false
-        }
-      },
-      {
-        key: 'schriftlich-multiply',
-        label: '·',
-        settings: {
-          schriftlichAdd: false,
-          schriftlichSubtract: false,
-          schriftlichMultiply: true
-        }
-      }
-    ],
-    settings: [
-      { key: 'schriftlichAdd', label: 'Addition', defaultValue: true },
-      { key: 'schriftlichSubtract', label: 'Subtraktion', defaultValue: true },
-      { key: 'schriftlichMultiply', label: 'Multiplikation', defaultValue: true }
-    ],
+    settings: [],
     performanceScore: [3, 8],
     performance: {
-      add: [20, 55],
-      subtract: [20, 55],
-      multiply: [60, 200],
-      default: [6.0, 12.0]
+      default: [20, 55]
+    }
+  },
+  'schriftlich-subtract': {
+    label: 'Schriftl. Subtraktion',
+    homepageLabel: '−',
+    homepageGroup: 'schriftlich',
+    homepageGroupLabel: 'Schriftlich rechnen',
+    grade: '5. Klasse',
+    problemCount: 3,
+    durationMinutes: 5,
+    settings: [],
+    performanceScore: [3, 8],
+    performance: {
+      default: [20, 55]
+    }
+  },
+  'schriftlich-multiply': {
+    label: 'Schriftl. Multiplikation',
+    homepageLabel: '·',
+    homepageGroup: 'schriftlich',
+    homepageGroupLabel: 'Schriftlich rechnen',
+    grade: '5. Klasse',
+    problemCount: 3,
+    durationMinutes: 5,
+    settings: [],
+    performanceScore: [3, 8],
+    performance: {
+      default: [60, 200]
     }
   },
   negative: {
@@ -132,11 +127,10 @@ export const getCategoryProblemCount = (category) => CATEGORIES[category]?.probl
 
 export const CATEGORY_GRADE_ORDER = ['5. Klasse', '7. Klasse']
 
-export const getDefaultSettings = (category) => {
+export const getDefaultSettings = () => {
   const settings = {}
-  // Initialize all possible keys across all categories to avoid undefined issues when switching
   Object.values(CATEGORIES).forEach(cat => {
-    cat.settings.forEach(setting => {
+    (cat.settings || []).forEach(setting => {
       settings[setting.key] = setting.defaultValue
     })
   })
@@ -146,13 +140,6 @@ export const getDefaultSettings = (category) => {
 export const getProblemRange = (problem) => {
   const catConfig = CATEGORIES[problem.type]
   if (!catConfig) return CATEGORIES.einmaleins.performance.default
-
-  if (problem.type === 'schriftlich' && problem.operation) {
-    if (catConfig.performance[problem.operation]) {
-      return catConfig.performance[problem.operation]
-    }
-  }
-
   if (problem.type === 'primfaktorisierung') {
     if (problem.number <= 100 && catConfig.performance.easy) {
       return catConfig.performance.easy

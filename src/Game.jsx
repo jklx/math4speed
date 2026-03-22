@@ -122,7 +122,7 @@ export default function Game({ isSinglePlayer }) {
   
   // Settings for problem generation (only for training mode)
   const [settings, setSettings] = useState(() => {
-    const defaults = getDefaultSettings('einmaleins');
+    const defaults = getDefaultSettings();
     if (!isSinglePlayer) return defaults;
     
     const initial = { ...defaults };
@@ -140,7 +140,7 @@ export default function Game({ isSinglePlayer }) {
   useEffect(() => {
     if (!isSinglePlayer) return;
     
-    const defaults = getDefaultSettings('einmaleins');
+    const defaults = getDefaultSettings();
     const params = {};
     
     Object.keys(settings).forEach(key => {
@@ -208,10 +208,11 @@ export default function Game({ isSinglePlayer }) {
         </>
       )
     }
-    if (cat === 'schriftlich') {
+    if (cat === 'schriftlich' || cat === 'schriftlich-add' || cat === 'schriftlich-subtract' || cat === 'schriftlich-multiply') {
+      const opLabel = cat === 'schriftlich-add' ? 'Additions' : cat === 'schriftlich-subtract' ? 'Subtraktions' : cat === 'schriftlich-multiply' ? 'Multiplikations' : ''
       return (
         <>
-          <p>Du hast {mins} Minuten Zeit, so viele schriftliche Rechenaufgaben wie möglich zu lösen.</p>
+          <p>Du hast {mins} Minuten Zeit, so viele schriftliche {opLabel}aufgaben wie möglich zu lösen.</p>
         </>
       )
     }
@@ -266,8 +267,8 @@ export default function Game({ isSinglePlayer }) {
     const gameSettings = isSinglePlayer ? settings : multiplayerSettings;
     const gameCategory = isSinglePlayer ? category : multiplayerCategory;
     
-    // Sanitize settings for single player schriftlich to ensure at least one type is selected
-    // (The generator handles this fallback too, but good to be explicit)
+    // The new schriftlich-* category keys pass directly to generateProblems;
+    // no settings sanitisation needed since the generator ignores settings for them.
     let finalSettings = gameSettings;
     if (isSinglePlayer && gameCategory === 'schriftlich') {
       if (!settings.schriftlichAdd && !settings.schriftlichSubtract && !settings.schriftlichMultiply) {

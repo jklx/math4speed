@@ -74,10 +74,11 @@ export default function AdminView() {
         </>
       )
     }
-    if (cat === 'schriftlich') {
+    if (cat === 'schriftlich' || cat === 'schriftlich-add' || cat === 'schriftlich-subtract' || cat === 'schriftlich-multiply') {
+      const opLabel = cat === 'schriftlich-add' ? 'Additions' : cat === 'schriftlich-subtract' ? 'Subtraktions' : cat === 'schriftlich-multiply' ? 'Multiplikations' : ''
       return (
         <>
-          <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele schriftliche Aufgaben wie möglich zu lösen.</p>
+          <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele schriftliche {opLabel}aufgaben wie möglich zu lösen.</p>
           <p>Schüler:innen geben Zwischenergebnisse direkt in den Stellenwerttabellen ein.</p>
         </>
       )
@@ -108,12 +109,7 @@ export default function AdminView() {
 
   const handleStartClick = () => {
     if (!roomId) return
-    const sanitized = settings.category === 'einmaleins'
-      ? { ...settings, schriftlichAdd: false, schriftlichSubtract: false, schriftlichMultiply: false }
-      : settings.category === 'schriftlich'
-        ? { ...settings, includeSquares11_20: false, includeSquares21_25: false }
-        : { ...settings, includeSquares11_20: false, includeSquares21_25: false, schriftlichAdd: false, schriftlichSubtract: false, schriftlichMultiply: false }
-    startGame(roomId, sanitized)
+    startGame(roomId, settings)
   }
 
   const formatProblemPrompt = (problem) => {

@@ -53,19 +53,35 @@ export default function MultiplayerLobby() {
   const [createTileName, setCreateTileName] = useState('');
 
   const categoryGroups = useMemo(() => {
-    const grouped = Object.entries(CATEGORIES).reduce((result, [key, config]) => {
-      const grade = config.grade || 'Weitere Kategorien';
-      if (!result[grade]) result[grade] = [];
-      result[grade].push({ key, ...config });
-      return result;
-    }, {});
+    // First, merge entries that share the same homepageGroup into a single grouped card.
+    const mergedByGrade = {};
+    const seenGroups = {};
 
-    return [...CATEGORY_GRADE_ORDER, ...Object.keys(grouped).filter(grade => !CATEGORY_GRADE_ORDER.includes(grade))]
-      .filter(grade => grouped[grade]?.length)
-      .map(grade => ({
-        grade,
-        categories: grouped[grade]
-      }));
+    Object.entries(CATEGORIES).forEach(([key, config]) => {
+      const grade = config.grade || 'Weitere Kategorien';
+      if (!mergedByGrade[grade]) mergedByGrade[grade] = [];
+
+      if (config.homepageGroup) {
+        const groupId = `${grade}::${config.homepageGroup}`;
+        if (!seenGroups[groupId]) {
+          seenGroups[groupId] = {
+            key: config.homepageGroup,
+            label: config.homepageGroupLabel || config.homepageGroup,
+            grade,
+            isGroup: true,
+            members: [],
+          };
+          mergedByGrade[grade].push(seenGroups[groupId]);
+        }
+        seenGroups[groupId].members.push({ key, label: config.homepageLabel || config.label });
+      } else {
+        mergedByGrade[grade].push({ key, label: config.label, isGroup: false });
+      }
+    });
+
+    return [...CATEGORY_GRADE_ORDER, ...Object.keys(mergedByGrade).filter(g => !CATEGORY_GRADE_ORDER.includes(g))]
+      .filter(grade => mergedByGrade[grade]?.length)
+      .map(grade => ({ grade, categories: mergedByGrade[grade] }));
   }, []);
 
   // If we got into a room, redirect to game/admin
@@ -78,10 +94,8 @@ export default function MultiplayerLobby() {
     }
   }, [joinTileRoom]);
 
-  const navigateToTraining = (categoryKey, subcategorySettings) => {
-    const params = new URLSearchParams(subcategorySettings || {});
-    const query = params.toString();
-    navigate(query ? `/training/${categoryKey}?${query}` : `/training/${categoryKey}`);
+  const navigateToTraining = (categoryKey) => {
+    navigate(`/training/${categoryKey}`);
   }
   
 
@@ -105,25 +119,25 @@ export default function MultiplayerLobby() {
                     <div className="category-grade-header">{grade}</div>
                     <div className="category-buttons category-buttons-grid">
                       {categories.map((config) => (
-                        config.subcategories?.length ? (
+                        config.isGroup ? (
                           <div key={config.key} className="category-btn category-card category-card-static" role="group" aria-label={config.label}>
                             <span className="category-card-title">{config.label}</span>
                             <div className="category-subactions">
-                              {config.subcategories.map((subcategory) => (
+                              {config.members.map((member) => (
                                 <button
-                                  key={subcategory.key}
+                                  key={member.key}
                                   type="button"
                                   className="category-subbtn"
-                                  onClick={() => navigateToTraining(config.key, subcategory.settings)}
-                                  aria-label={`${config.label} ${subcategory.label}`}
+                                  onClick={() => navigateToTraining(member.key)}
+                                  aria-label={`${config.label} ${member.label}`}
                                 >
-                                  {subcategory.label}
+                                  {member.label}
                                 </button>
                               ))}
                             </div>
                           </div>
                         ) : (
-                          <button 
+                          <button
                             key={config.key}
                             className="category-btn category-card"
                             onClick={() => navigateToTraining(config.key)}

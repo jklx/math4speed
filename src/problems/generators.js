@@ -448,6 +448,9 @@ export function generateBinomischeProblems(count, settings) {
 export function generateProblems(count, category, settings = {}) {
   if (category === 'einmaleins') return generateEinmaleinsProblems(count, settings);
   if (category === 'schriftlich') return generateSchriftlichProblems(count, settings);
+  if (category === 'schriftlich-add') return generateSchriftlichProblems(count, { schriftlichAdd: true, schriftlichSubtract: false, schriftlichMultiply: false });
+  if (category === 'schriftlich-subtract') return generateSchriftlichProblems(count, { schriftlichAdd: false, schriftlichSubtract: true, schriftlichMultiply: false });
+  if (category === 'schriftlich-multiply') return generateSchriftlichProblems(count, { schriftlichAdd: false, schriftlichSubtract: false, schriftlichMultiply: true });
   if (category === 'primfaktorisierung') return generatePrimfaktorisierungProblems(count, settings);
   if (category === 'negative') return generateNegativeProblems(count, settings);
   if (category === 'binomische') return generateBinomischeProblems(count, settings);

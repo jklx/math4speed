@@ -13,7 +13,7 @@ const httpServer = createServer(app);
 
 // ── Leaderboard persistence ──────────────────────────────────────────────────
 const LEADERBOARD_FILE = process.env.LEADERBOARD_FILE || path.join(__dirname, 'leaderboard.json');
-const VALID_CATEGORIES = ['einmaleins', 'schriftlich', 'primfaktorisierung', 'negative', 'binomische'];
+const VALID_CATEGORIES = ['einmaleins', 'schriftlich', 'schriftlich-add', 'schriftlich-subtract', 'schriftlich-multiply', 'primfaktorisierung', 'negative', 'binomische'];
 
 function loadLeaderboard() {
   try {
