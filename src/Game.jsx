@@ -72,6 +72,92 @@ function PrimfaktorDemo() {
     </div>
   )
 }
+
+// Animated demo for Binomische input explanation
+// Shows: type "x^2+6x+9" for the expression (x+3)², then Enter
+const BINOM_DEMO_STEPS = [
+  { type: 'type', char: 'x' },
+  { type: 'type', char: '^' },
+  { type: 'type', char: '2' },
+  { type: 'type', char: '+' },
+  { type: 'type', char: '6' },
+  { type: 'type', char: 'x' },
+  { type: 'type', char: '+' },
+  { type: 'type', char: '9' },
+  { type: 'key',  char: 'ENTER' },
+  { type: 'pause' },
+]
+
+function BinomischeDemo() {
+  const [step, setStep] = useState(0)
+  const [text, setText] = useState('')
+  const [activeKey, setActiveKey] = useState(null)
+
+  useEffect(() => {
+    const s = BINOM_DEMO_STEPS[step]
+    const delay = s.type === 'pause' ? 1200 : 460
+
+    const t = setTimeout(() => {
+      if (s.type === 'type') {
+        setText(prev => prev + s.char)
+        setActiveKey(s.char)
+        setTimeout(() => setActiveKey(null), 180)
+      } else if (s.type === 'key') {
+        setActiveKey(s.char)
+        setTimeout(() => setActiveKey(null), 180)
+        if (s.char === 'ENTER') setText('')
+      } else if (s.type === 'pause') {
+        setText('')
+      }
+      setStep(prev => (prev + 1) % BINOM_DEMO_STEPS.length)
+    }, delay)
+    return () => clearTimeout(t)
+  }, [step])
+
+  // Render text: ^X becomes a superscript; lone ^ shown in accent colour
+  const renderText = (str) => {
+    const parts = []
+    let i = 0
+    while (i < str.length) {
+      if (str[i] === '^') {
+        if (i + 1 < str.length) {
+          parts.push(<sup key={i}>{str[i + 1]}</sup>)
+          i += 2
+        } else {
+          parts.push(<span key={i} style={{ color: 'var(--accent)' }}>^</span>)
+          i++
+        }
+      } else {
+        parts.push(str[i])
+        i++
+      }
+    }
+    return parts
+  }
+
+  const keys = ['x', '^', '2', '+', '6', '9', 'ENTER']
+
+  return (
+    <div className="primfaktor-demo">
+      <div className="primfaktor-demo__display">
+        <span className="expression" style={{ whiteSpace: 'nowrap' }}>
+          (x+3)² =
+        </span>
+        <span className="primfaktor-demo__draft">
+          {renderText(text)}<span className="primfaktor-demo__cursor" />
+        </span>
+      </div>
+      <div className="primfaktor-demo__keys">
+        {keys.map(k => (
+          <span key={k} className={`primfaktor-demo__key${activeKey === k ? ' primfaktor-demo__key--active' : ''}`}>
+            {k === 'ENTER' ? '↵ Enter' : k}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 import Logo from './Logo'
 import VirtualKeyboard from './VirtualKeyboard'
 import { useParams, useLocation, useSearchParams } from 'react-router-dom'
@@ -237,7 +323,8 @@ export default function Game({ isSinglePlayer }) {
       return (
         <>
           <p>Du hast {mins} Minuten Zeit, so viele binomische Formeln wie möglich auszumultiplizieren.</p>
-          <p>Multipliziere die Terme aus und vereinfache das Ergebnis vollständig.</p>
+          <p>Multipliziere die Terme aus und vereinfache das Ergebnis vollständig. Hochzahlen mit <kbd>^</kbd> eingeben (z.&nbsp;B. <kbd>x^2</kbd> für x²).</p>
+          <BinomischeDemo />
         </>
       )
     }
