@@ -664,6 +664,16 @@ button:disabled {
   font-size: 1rem;
   padding: 0.3rem 0.2rem;
 }
+.factor-draft:focus::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1.2em;
+  background: var(--accent);
+  margin-left: 1px;
+  vertical-align: middle;
+  animation: cursor-blink 1s step-end infinite;
+}
 
 .factor-sep {
   color: #6b7280;
@@ -1185,6 +1195,15 @@ footer{margin-top:1.5rem;text-align:center;color:#666}
 .digit-input:focus {
   outline: 2px solid #336699;
   outline-offset: -2px;
+}
+.digit-input:focus::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 0.8em;
+  background: #336699;
+  margin-left: 1px;
+  animation: cursor-blink 1s step-end infinite;
 }
 
 .digit-input.blue {
