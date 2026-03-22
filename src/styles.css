@@ -1128,6 +1128,15 @@ footer{margin-top:1.5rem;text-align:center;color:#666}
   margin: 0 auto 1.5rem;
 }
 
+.schriftlich-correction-hint {
+  margin: 0.6rem auto 0;
+  max-width: 360px;
+  text-align: center;
+  font-size: 0.92rem;
+  color: #c22;
+  font-weight: 500;
+}
+
 .schriftlich-grid {
   display: grid;
   /* Border-collapse: only draw right+bottom borders on cells, then add top+left on container */

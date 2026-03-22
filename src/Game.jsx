@@ -249,6 +249,7 @@ export default function Game({ isSinglePlayer }) {
   // removed legacy single carryValue, we now exclusively use carryDigits for carries/borrows
   // schriftlich input state lifted from component via onChange
   const [schriftlichInput, setSchriftlichInput] = useState({ digits: [], parsed: '', valid: false })
+  const [schriftlichCheckMode, setSchriftlichCheckMode] = useState(false)
   const [selectedSchriftlichId, setSelectedSchriftlichId] = useState(null)
   const [reviewShowCorrect, setReviewShowCorrect] = useState(false)
   const [finished, setFinished] = useState(false)
@@ -376,6 +377,7 @@ export default function Game({ isSinglePlayer }) {
     setFinished(false)
     setTimeLeft(gameDurationRef.current)
     setMistakeState(null)
+    setSchriftlichCheckMode(false)
     setGameEndReason('time')
     setLeaderboardQualifies(null)
     setLeaderboardName('')
@@ -502,9 +504,9 @@ export default function Game({ isSinglePlayer }) {
 
     const newEntry = { ...prob, user: parsed, isCorrect, schriftlichSnapshot: prob.type === 'schriftlich' ? schriftlichInput : undefined }
     const newAnswers = [...answers, newEntry]
-    setAnswers(newAnswers)
 
     if (isCorrect) {
+      setAnswers(newAnswers)
       // Show tick on current problem for 250ms, then advance
       setFlashResult('correct')
       const nextIndex = current + 1
@@ -519,6 +521,7 @@ export default function Game({ isSinglePlayer }) {
         setFlashResult(null)
         setInputValue('')
         setSchriftlichInput({ digits: [], parsed: '', valid: false })
+        setSchriftlichCheckMode(false)
         if (additionalProblems) {
           setProblems(prev => {
             const offset = prev.length
@@ -530,11 +533,26 @@ export default function Game({ isSinglePlayer }) {
           updateProgress(roomId, progressAtSubmit, newAnswers)
         }
       }, 250)
+    } else if (prob.type === 'schriftlich') {
+      // For schriftlich: record the strike, mark wrong cells in-place
+      setAnswers(newAnswers)
+      pauseTimerRef.current = true
+      const newWrongCount = newAnswers.filter(a => !a.isCorrect).length
+      if (newWrongCount >= MAX_LIVES) {
+        const correct = newAnswers.filter(a => a.isCorrect).length
+        if (roomId && !isSinglePlayer) {
+          finishGame(roomId, correct, newWrongCount)
+          updateProgress(roomId, 100, newAnswers)
+        }
+        setGameEndReason('lives')
+        setFinished(true)
+        return
+      }
+      setSchriftlichCheckMode(true)
     } else {
       // Wrong answer: show mistake panel and pause timer
-      const rawUserAnswer = prob.type === 'schriftlich'
-        ? String(schriftlichInput?.parsed ?? '?')
-        : String(overrideValue ?? inputValue ?? '').trim() || String(parsed ?? '?')
+      setAnswers(newAnswers)
+      const rawUserAnswer = String(overrideValue ?? inputValue ?? '').trim() || String(parsed ?? '?')
       const userAnswerDisplay = prob.type === 'primfaktorisierung'
         ? rawUserAnswer.trim().split(/\s+/).filter(Boolean).join(' · ')
         : prob.type === 'binomische'
@@ -843,17 +861,29 @@ export default function Game({ isSinglePlayer }) {
                     showTick={flashResult === 'correct'}
                   />
                 ) : problems[current].type === 'schriftlich' ? (
-                  <Schriftlich
-                    key={problems[current].id}
-                    aDigits={problems[current].aDigits}
-                    bDigits={problems[current].bDigits}
-                    summandsDigits={problems[current].summandsDigits}
-                    correctDigits={problems[current].correctDigits}
-                    partialProducts={problems[current].partialProducts}
-                    operation={problems[current].operation}
-                    onChange={setSchriftlichInput}
-                    onEnter={submitAnswer}
-                  />
+                  <>
+                    <Schriftlich
+                      key={problems[current].id}
+                      aDigits={problems[current].aDigits}
+                      bDigits={problems[current].bDigits}
+                      summandsDigits={problems[current].summandsDigits}
+                      correctDigits={problems[current].correctDigits}
+                      partialProducts={problems[current].partialProducts}
+                      operation={problems[current].operation}
+                      onChange={setSchriftlichInput}
+                      onEnter={() => {
+                        if (schriftlichCheckMode) {
+                          setSchriftlichCheckMode(false)
+                          pauseTimerRef.current = false
+                        }
+                        submitAnswer()
+                      }}
+                      checkMode={schriftlichCheckMode}
+                    />
+                    {schriftlichCheckMode && (
+                      <p className="schriftlich-correction-hint">Noch nicht ganz richtig — bitte korrigiere die falschen Zahlen.</p>
+                    )}
+                  </>
                 ) : problems[current].type === 'multiplication' ? (
                   <Einmaleins
                     key={problems[current].id}

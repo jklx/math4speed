@@ -3,7 +3,7 @@ import { padLeft } from './utils/padLeft'
 
 const sanitizeDigit = (value) => value.replace(/[^0-9]/g, '').slice(0, 1)
 
-export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits = null, correctDigits = [], partialProducts = [], operation = 'add', onChange, onEnter, initialState, review, showCorrect = false }) {
+export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits = null, correctDigits = [], partialProducts = [], operation = 'add', onChange, onEnter, initialState, review, checkMode = false, showCorrect = false }) {
   const isMultiply = operation === 'multiply'
   const isAdd = operation === 'add'
   const isSubtract = operation === 'subtract'
@@ -307,7 +307,7 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
   }
 
   const isResultWrong = (index) => {
-    if (!review || showCorrect) return false
+    if (!(review || checkMode) || showCorrect) return false
     const user = answerDigits[index] || ''
     const correct = (correctCells[index] ?? '').toString()
     // Allow leading zeros
@@ -316,14 +316,14 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
   }
 
   const isResultMissing = (index) => {
-    if (!review || showCorrect) return false
+    if (!(review || checkMode) || showCorrect) return false
     const correct = (correctCells[index] ?? '').toString()
     const user = answerDigits[index]
     return correct !== '' && user === ''
   }
 
   const isPartialWrong = (rowIndex, globalCol) => {
-    if (!review || showCorrect) return false
+    if (!(review || checkMode) || showCorrect) return false
     const correctRow = partialRows?.[rowIndex]
     if (!correctRow) return false
     const width = cols + bDigits.length
@@ -338,7 +338,7 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
   }
 
   const isPartialMissing = (rowIndex, globalCol) => {
-    if (!review || showCorrect) return false
+    if (!(review || checkMode) || showCorrect) return false
     const correctRow = partialRows?.[rowIndex]
     if (!correctRow) return false
     const width = cols + bDigits.length
