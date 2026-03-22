@@ -93,25 +93,6 @@ import ReviewList from './ReviewList'
 const BATCH_SIZE = 100
 const MAX_LIVES = 3
 
-function playPling() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(1046, ctx.currentTime)        // C6
-    osc.frequency.setValueAtTime(1318, ctx.currentTime + 0.06) // E6
-    gain.gain.setValueAtTime(0.001, ctx.currentTime)
-    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.03)
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22)
-    osc.start(ctx.currentTime)
-    osc.stop(ctx.currentTime + 0.22)
-    osc.onended = () => ctx.close()
-  } catch {}
-}
-
 export default function Game({ isSinglePlayer }) {
   const { roomId, category: urlCategory } = useParams()
   const location = useLocation();
@@ -436,7 +417,6 @@ export default function Game({ isSinglePlayer }) {
     setAnswers(newAnswers)
 
     if (isCorrect) {
-      playPling()
       // Show tick on current problem for 250ms, then advance
       setFlashResult('correct')
       const nextIndex = current + 1
