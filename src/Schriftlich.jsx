@@ -175,6 +175,13 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
     return false
   }
 
+  const focusNextInTabOrder = (el) => {
+    const seq = parseInt(el?.getAttribute('tabindex') ?? '0', 10)
+    if (seq < 1) return
+    const next = document.querySelector(`[tabindex='${seq + 1}']`)
+    if (next) next.focus()
+  }
+
   const focusHorizontal = (rowKey, startColumn, step) => {
     const limit = rowWidth(rowKey)
     let next = startColumn + step
@@ -237,20 +244,14 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
       const localIdx = isMultiply ? column - bDigits.length : column
       if (rowKey === 'result') {
         handleResultChange(localIdx, e.key)
-        focusHorizontal(rowKey, column, -1)
+        focusNextInTabOrder(e.currentTarget)
       } else if (rowKey === 'carry') {
         handleCarryChange(localIdx, e.key)
+        focusNextInTabOrder(e.currentTarget)
       } else if (rowKey.startsWith('partial-')) {
         const rowIdx = parseInt(rowKey.split('-')[1])
         handlePartialChange(rowIdx, column, e.key)
-        const moved = focusHorizontal(rowKey, column, -1)
-        if (!moved) {
-          const currentIndex = rowIndexMap[rowKey]
-          if (currentIndex + 1 < navOrder.length) {
-            const nextRow = navOrder[currentIndex + 1]
-            focusVertical(nextRow, rowWidth(nextRow) - 1)
-          }
-        }
+        focusNextInTabOrder(e.currentTarget)
       }
     } else if (e.key === 'Backspace') {
       if (review) return
