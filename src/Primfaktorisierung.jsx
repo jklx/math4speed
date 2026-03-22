@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 /**
  * Primfaktorisierung component renders the prime factorization prompt with input.
@@ -19,6 +19,8 @@ const TickMark = ({ visible }) => (
 export default function Primfaktorisierung({ number, value = '', onChange, onEnter, showTick = false }) {
   const inputRef = useRef(null)
   const [draft, setDraft] = useState('')
+
+  useEffect(() => { inputRef.current?.focus() }, [])
 
   const tokens = useMemo(() => {
     const t = String(value || '').trim()
@@ -43,27 +45,27 @@ export default function Primfaktorisierung({ number, value = '', onChange, onEnt
       e.preventDefault()
       return
     }
-    // Commit on space or *
-    if (e.key === ' ' || e.key === '*') {
-      if (draft.trim()) {
-        commitDraft()
-        e.preventDefault()
-      }
-      return
-    }
-    // Backspace removes last token when draft is empty
-    if (e.key === 'Backspace' && draft === '' && tokens.length > 0) {
-      const next = tokens.slice(0, -1).join(' ')
-      onChange && onChange(next)
+    // Commit on space, *, or ⋅
+    if (e.key === ' ' || e.key === '*' || e.key === '\u22c5') {
+      if (draft.trim()) commitDraft()
       e.preventDefault()
       return
     }
-  }
-
-  const handleChange = (e) => {
-    // allow only digits in draft
-    const digits = e.target.value.replace(/\D+/g, '')
-    setDraft(digits)
+    // Backspace
+    if (e.key === 'Backspace') {
+      e.preventDefault()
+      if (draft !== '') {
+        setDraft(prev => prev.slice(0, -1))
+      } else if (tokens.length > 0) {
+        onChange && onChange(tokens.slice(0, -1).join(' '))
+      }
+      return
+    }
+    // Digit input
+    if (/^[0-9]$/.test(e.key)) {
+      setDraft(prev => prev + e.key)
+      e.preventDefault()
+    }
   }
 
   const handlePaste = (e) => {
@@ -108,26 +110,21 @@ export default function Primfaktorisierung({ number, value = '', onChange, onEnt
             <span className="factor-sep" aria-hidden="true">⋅</span>
           </React.Fragment>
         ))}
-        <input
+        <div
           ref={inputRef}
+          tabIndex={0}
           className="factor-draft"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          value={draft}
-          onChange={handleChange}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           onBlur={(e) => {
-            // If focus moved to an element inside the factor-input (e.g. a token button),
-            // don't commit — the user is interacting within the control. Otherwise commit
-            // the current draft so external submissions (buttons) include it.
             const related = e.relatedTarget || (e.nativeEvent && e.nativeEvent.relatedTarget);
             const container = inputRef.current?.closest('.factor-input');
             if (related && container && container.contains(related)) return;
             commitDraft();
           }}
-          autoFocus
-        />
+        >
+          {draft}
+        </div>
         <TickMark visible={showTick} />
         </div>
       </div>

@@ -157,7 +157,7 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
     if (review) return
     if (cols <= 0) return
     // Prefer tabindex=1 for deterministic focus
-    const firstTabEl = document.querySelector("input[tabindex='1']")
+    const firstTabEl = document.querySelector("[tabindex='1']")
     if (firstTabEl) {
       firstTabEl.focus()
       return
@@ -229,6 +229,32 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
           arr[targetIndex] = arr[targetIndex] === 'I' ? '' : 'I'
           return arr
         })
+      }
+    } else if (/^[0-9]$/.test(e.key)) {
+      if (review) return
+      e.preventDefault()
+      const localIdx = isMultiply ? column - bDigits.length : column
+      if (rowKey === 'result') {
+        handleResultChange(localIdx, e.key)
+        focusHorizontal(rowKey, column, -1)
+      } else if (rowKey === 'carry') {
+        handleCarryChange(localIdx, e.key)
+      } else if (rowKey.startsWith('partial-')) {
+        const rowIdx = parseInt(rowKey.split('-')[1])
+        handlePartialChange(rowIdx, column, e.key)
+        focusHorizontal(rowKey, column, -1)
+      }
+    } else if (e.key === 'Backspace') {
+      if (review) return
+      e.preventDefault()
+      const localIdx = isMultiply ? column - bDigits.length : column
+      if (rowKey === 'result') {
+        handleResultChange(localIdx, '')
+      } else if (rowKey === 'carry') {
+        handleCarryChange(localIdx, '')
+      } else if (rowKey.startsWith('partial-')) {
+        const rowIdx = parseInt(rowKey.split('-')[1])
+        handlePartialChange(rowIdx, column, '')
       }
     }
   }
@@ -333,19 +359,16 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
         {Array.from({ length: cols }).map((_, i) => (
           <div key={`add-c-${i}`} className="grid-cell">
             {i === cols - 1 ? null : (
-              <input
+              <div
                 id={`carry-${i}`}
                 data-row-key="carry"
                 data-col={i}
                 className="digit-input blue small"
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
                 tabIndex={tabIndexFor('carry', i)}
-                value={carryDigits[i] || ''}
-                onChange={e => handleCarryChange(i, e.target.value)}
                 onKeyDown={e => handleKeyDown(e, 'carry', i)}
-              />
+              >
+                {carryDigits[i] || ''}
+              </div>
             )}
           </div>
         ))}
@@ -355,19 +378,16 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
         <div className="grid-cell result-sep" />
         {Array.from({ length: cols }).map((_, i) => (
           <div key={`add-r-${i}`} className="grid-cell result-sep">
-            <input
+            <div
               id={`res-${i}`}
               data-row-key="result"
               data-col={i}
               className={`digit-input blue${isResultWrong(i) ? ' wrong' : ''}${isResultMissing(i) ? ' missing' : ''}`}
-              type="text"
-              inputMode="numeric"
-              maxLength={1}
               tabIndex={tabIndexFor('result', i)}
-              value={showCorrect ? (correctCells[i] ?? '').toString() : (answerDigits[i] || '')}
-              onChange={e => handleResultChange(i, e.target.value)}
               onKeyDown={e => handleKeyDown(e, 'result', i)}
-            />
+            >
+              {showCorrect ? (correctCells[i] ?? '').toString() : (answerDigits[i] || '')}
+            </div>
           </div>
         ))}
         <div className="grid-cell result-sep" />
@@ -408,19 +428,16 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
         <div className="grid-cell result-sep" />
         {Array.from({ length: cols }).map((_, i) => (
           <div key={`sub-r-${i}`} className="grid-cell result-sep">
-            <input
+            <div
               id={`res-${i}`}
               data-row-key="result"
               data-col={i}
               className={`digit-input blue${isResultWrong(i) ? ' wrong' : ''}${isResultMissing(i) ? ' missing' : ''}`}
-              type="text"
-              inputMode="numeric"
-              maxLength={1}
               tabIndex={tabIndexFor('result', i)}
-              value={showCorrect ? (correctCells[i] ?? '').toString() : (answerDigits[i] || '')}
-              onChange={e => handleResultChange(i, e.target.value)}
               onKeyDown={e => handleKeyDown(e, 'result', i)}
-            />
+            >
+              {showCorrect ? (correctCells[i] ?? '').toString() : (answerDigits[i] || '')}
+            </div>
           </div>
         ))}
         <div className="grid-cell result-sep" />
@@ -459,18 +476,15 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
               return (
                 <div key={`mul-part-${rowIdx}-${globalCol}`} className={`grid-cell ${rowIdx === 0 ? 'result-sep' : ''}`}>
                   {within ? (
-                    <input
+                    <div
                       data-row-key={`partial-${rowIdx}`}
                       data-col={globalCol}
                       className={`digit-input${isPartialWrong(rowIdx, globalCol) ? ' wrong' : ''}${isPartialMissing(rowIdx, globalCol) ? ' missing' : ''}`}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
                       tabIndex={tabIndexFor(`partial-${rowIdx}`, globalCol)}
-                      value={showCorrect ? (templateRow.filter(d => d !== null && d !== undefined)[L - 1 - (rightGlobal - globalCol)] ?? '').toString() : (row[globalCol] || '')}
-                      onChange={e => handlePartialChange(rowIdx, globalCol, e.target.value)}
                       onKeyDown={e => handleKeyDown(e, `partial-${rowIdx}`, globalCol)}
-                    />
+                    >
+                      {showCorrect ? (templateRow.filter(d => d !== null && d !== undefined)[L - 1 - (rightGlobal - globalCol)] ?? '').toString() : (row[globalCol] || '')}
+                    </div>
                   ) : null}
                 </div>
               )
@@ -491,19 +505,16 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
             return (
               <div key={`mul-carry-col-${globalCol}`} className="grid-cell">
                 {within && idx !== cols - 1 ? (
-                  <input
+                  <div
                     id={`carry-${idx}`}
                     data-row-key="carry"
                     data-col={globalCol}
                     className="digit-input blue small"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
                     tabIndex={tabIndexFor('carry', idx)}
-                    value={carryDigits[idx] || ''}
-                    onChange={e => handleCarryChange(idx, e.target.value)}
                     onKeyDown={e => handleKeyDown(e, 'carry', globalCol)}
-                  />
+                  >
+                    {carryDigits[idx] || ''}
+                  </div>
                 ) : null}
               </div>
             )
@@ -523,19 +534,16 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
             return (
               <div key={`mul-res-col-${globalCol}`} className="grid-cell result-sep">
                 {within ? (
-                  <input
+                  <div
                     id={`res-${idx}`}
                     data-row-key="result"
                     data-col={globalCol}
                     className={`digit-input blue${isResultWrong(idx) ? ' wrong' : ''}${isResultMissing(idx) ? ' missing' : ''}`}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
                     tabIndex={tabIndexFor('result', idx)}
-                    value={showCorrect ? (correctCells[idx] ?? '').toString() : (answerDigits[idx] || '')}
-                    onChange={e => handleResultChange(idx, e.target.value)}
                     onKeyDown={e => handleKeyDown(e, 'result', globalCol)}
-                  />
+                  >
+                    {showCorrect ? (correctCells[idx] ?? '').toString() : (answerDigits[idx] || '')}
+                  </div>
                 ) : null}
               </div>
             )

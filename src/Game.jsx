@@ -73,6 +73,7 @@ function PrimfaktorDemo() {
   )
 }
 import Logo from './Logo'
+import VirtualKeyboard from './VirtualKeyboard'
 import { useParams, useLocation, useSearchParams } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
@@ -196,6 +197,7 @@ export default function Game({ isSinglePlayer }) {
   const [leaderboardData, setLeaderboardData] = useState(null) // null = not loaded yet
 
   const inputRef = useRef(null)
+  const lastGameInputRef = useRef(null)
   const countdownTimerRef = useRef(null)
   const gameTimerRef = useRef(null)
   const gameSettingsRef = useRef({})
@@ -587,6 +589,68 @@ export default function Game({ isSinglePlayer }) {
     }
   }, [mistakeState])
 
+  // Virtual keyboard visibility: OS heuristic for default, persisted in a cookie.
+  // Android / iOS → show by default. Windows / macOS → hide by default.
+  const [showVirtualKB, setShowVirtualKB] = useState(() => {
+    if (typeof window === 'undefined') return false
+    // Check cookie first
+    const cookie = document.cookie.split('; ').find(r => r.startsWith('vkb='))
+    if (cookie) return cookie.split('=')[1] === '1'
+    // OS heuristic
+    const ua = navigator.userAgent
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(ua)
+    return isMobile
+  })
+
+  const toggleVirtualKB = () => {
+    setShowVirtualKB(v => {
+      const next = !v
+      document.cookie = `vkb=${next ? '1' : '0'};path=/;max-age=31536000;samesite=strict`
+      return next
+    })
+  }
+
+  // If a real (trusted) keyboard event is detected, auto-hide the virtual keyboard
+  useEffect(() => {
+    const handlePhysicalKey = (e) => {
+      if (e.isTrusted && e.key && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        setShowVirtualKB(prev => {
+          if (!prev) return prev
+          document.cookie = `vkb=0;path=/;max-age=31536000;samesite=strict`
+          return false
+        })
+      }
+    }
+    window.addEventListener('keydown', handlePhysicalKey)
+    return () => window.removeEventListener('keydown', handlePhysicalKey)
+  }, [])
+
+  // Track the last focused game input element so virtual keyboard can restore focus
+  useEffect(() => {
+    if (!started || finished) return
+    const handler = (e) => {
+      const t = e.target
+      if (t && t !== document.body && t.tagName !== 'BUTTON' && t.tagName !== 'A') {
+        lastGameInputRef.current = t
+      }
+    }
+    document.addEventListener('focusin', handler, true)
+    return () => document.removeEventListener('focusin', handler, true)
+  }, [started, finished])
+
+  const handleVirtualKey = (key) => {
+    let el = document.activeElement
+    // Fall back to last known game input if nothing is focused, or if a button/link
+    // has stolen focus (happens on touch devices where mousedown fires after focus)
+    if (!el || el === document.body || el.tagName === 'BUTTON' || el.tagName === 'A') {
+      el = lastGameInputRef.current
+      if (el) el.focus()
+      el = document.activeElement
+    }
+    if (!el || el === document.body) return
+    el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
+  }
+
   return (
     <div className="app">
       <Logo />
@@ -758,7 +822,34 @@ export default function Game({ isSinglePlayer }) {
 
               <div className="controls">
                 <button onClick={submitAnswer} className="big">Nächste</button>
+                <button
+                  className="virtual-kb-toggle"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={toggleVirtualKB}
+                  aria-label={showVirtualKB ? 'Tastatur ausblenden' : 'Tastatur einblenden'}
+                  title={showVirtualKB ? 'Tastatur ausblenden' : 'Tastatur einblenden'}
+                >
+                  <svg aria-hidden width="1.3em" height="1.3em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="2"/>
+                    <line x1="6" y1="9" x2="6" y2="9" strokeWidth="3"/>
+                    <line x1="10" y1="9" x2="10" y2="9" strokeWidth="3"/>
+                    <line x1="14" y1="9" x2="14" y2="9" strokeWidth="3"/>
+                    <line x1="18" y1="9" x2="18" y2="9" strokeWidth="3"/>
+                    <line x1="6" y1="13" x2="6" y2="13" strokeWidth="3"/>
+                    <line x1="10" y1="13" x2="10" y2="13" strokeWidth="3"/>
+                    <line x1="14" y1="13" x2="14" y2="13" strokeWidth="3"/>
+                    <line x1="18" y1="13" x2="18" y2="13" strokeWidth="3"/>
+                    <line x1="8" y1="17" x2="16" y2="17" strokeWidth="3"/>
+                  </svg>
+                </button>
               </div>
+              {showVirtualKB && !mistakeState && (
+                <VirtualKeyboard
+                  category={problems[current]?.type}
+                  variable={problems[current]?.variable}
+                  onKey={handleVirtualKey}
+                />
+              )}
             </>
           )}
         </main>

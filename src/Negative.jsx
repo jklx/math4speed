@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 
 const TickMark = ({ visible }) => (
   <svg viewBox="8 14 36 26" className="tick-svg tick-svg--small" aria-hidden style={{ visibility: visible ? 'visible' : 'hidden' }}>
@@ -7,10 +7,16 @@ const TickMark = ({ visible }) => (
 )
 
 export default function Negative({ a, b, operator, value = '', onChange, onEnter, explicitPlus, showTick = false }) {
+  const ref = useRef(null)
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => { ref.current?.focus() }, [])
+
   const handleKey = (e) => {
-    if (e.key === 'Enter') {
-      onEnter && onEnter()
-    }
+    if (e.key === 'Enter') { onEnter?.(); return }
+    if (e.key === 'Backspace') { onChange?.(value.slice(0, -1)); return }
+    if (/^[0-9]$/.test(e.key)) { onChange?.(value + e.key); return }
+    if ((e.key === '-' || e.key === '\u2212') && value === '') onChange?.('\u2212')
   }
   
   const renderOperand = (val) => {
@@ -47,15 +53,17 @@ export default function Negative({ a, b, operator, value = '', onChange, onEnter
           </mrow>
         </math>
       </div>
-      <input
-        type="text"
-        inputMode="numeric"
-        className="app-input math-input"
-        autoFocus
-        value={value}
-        onChange={e => onChange && onChange(e.target.value.replace('-', '−'))}
+      <div
+        ref={ref}
+        tabIndex={0}
+        className={`math-input fake-input${focused ? ' fake-input--focused' : ''}`}
         onKeyDown={handleKey}
-      />
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+      >
+        {value}
+        {focused && <span className="fake-input__cursor" aria-hidden />}
+      </div>
       <TickMark visible={showTick} />
     </div>
   )

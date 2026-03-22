@@ -4,34 +4,109 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
   const inputRef = useRef(null)
   const [cursorPos, setCursorPos] = useState(value.length)
   const [isFocused, setIsFocused] = useState(false)
+  const cursorPosRef = useRef(cursorPos)
+  cursorPosRef.current = cursorPos
+  // Stores the character for a pending dead key (e.g. '^' on German keyboard)
+  const deadCharRef = useRef(null)
+  // KeyboardLayoutMap for resolving dead key characters (Chrome/Edge only)
+  const layoutMapRef = useRef(null)
+  // Prevents keypress from double-inserting when keydown already handled a char
+  const keydownInsertedRef = useRef(false)
 
-  // Sync cursor position from input events
-  const handleSelect = (e) => {
-    setCursorPos(e.target.selectionStart)
-  }
+  useEffect(() => {
+    if (navigator.keyboard?.getLayoutMap) {
+      navigator.keyboard.getLayoutMap().then(map => {
+        layoutMapRef.current = map
+      }).catch(() => {})
+    }
+  }, [])
 
-  const handleChange = (e) => {
-    const val = e.target.value
-    onChange(val)
-    // selectionStart is updated after change event usually, but we can grab it
-    setCursorPos(e.target.selectionStart)
+  const insertChar = (char) => {
+    const cp = cursorPosRef.current
+    onChange(value.slice(0, cp) + char + value.slice(cp))
+    setCursorPos(cp + char.length)
   }
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      onEnter && onEnter()
+    keydownInsertedRef.current = false
+
+    // If the browser is doing IME composition (e.g. Firefox with dead keys on
+    // contenteditable), let compositionend handle it and clear our manual tracking.
+    if (e.isComposing) {
+      deadCharRef.current = null
+      return
+    }
+
+    // Resolve a pending dead key: the next printable keydown carries the follow-up char.
+    // On plain <div> elements browsers do NOT start composition for dead keys,
+    // so we must stitch the dead char + the next char together here.
+    if (deadCharRef.current !== null && e.key !== 'Dead') {
+      const dead = deadCharRef.current
+      deadCharRef.current = null
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+        insertChar(dead + e.key)
+        keydownInsertedRef.current = true
+        e.preventDefault()
+        return
+      }
+      // Non-printable key after dead key (Enter, Arrow…): insert the dead char alone
+      // then fall through to handle the non-printable key normally.
+      insertChar(dead)
+    }
+
+    // Intercept dead keys (e.g. ^ on German keyboard fires key='Dead').
+    // Use KeyboardLayoutMap if available, otherwise fall back to a code table.
+    if (e.key === 'Dead') {
+      const FALLBACK = { BracketLeft: '^', Backquote: '`', Equal: '´', Slash: '/' }
+      const fromMap = layoutMapRef.current?.get(e.code)
+      const char = (fromMap && fromMap !== 'Dead') ? fromMap : (FALLBACK[e.code] ?? null)
+      deadCharRef.current = char
+      e.preventDefault()
+      return
+    }
+
+    if (e.key === 'Enter') { onEnter?.(); e.preventDefault(); return }
+    if (e.key === 'ArrowLeft') {
+      setCursorPos(p => Math.max(0, p - 1))
+      e.preventDefault(); return
+    }
+    if (e.key === 'ArrowRight') {
+      setCursorPos(p => Math.min(value.length, p + 1))
+      e.preventDefault(); return
+    }
+    if (e.key === 'Backspace') {
+      if (cursorPos > 0) {
+        onChange(value.slice(0, cursorPos - 1) + value.slice(cursorPos))
+        setCursorPos(cursorPos - 1)
+      }
+      e.preventDefault(); return
+    }
+    if (e.key === 'Delete') {
+      if (cursorPos < value.length) {
+        onChange(value.slice(0, cursorPos) + value.slice(cursorPos + 1))
+      }
+      e.preventDefault(); return
+    }
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      insertChar(e.key)
+      e.preventDefault()
+      keydownInsertedRef.current = true
     }
   }
 
-  // Keep input focus if we click the container
-  const handleContainerClick = () => {
-    inputRef.current?.focus()
+  // Safety net for browsers where keydown's preventDefault() doesn't suppress keypress.
+  const handleKeyPress = (e) => {
+    if (e.isComposing) return
+    if (keydownInsertedRef.current) return
+    if (deadCharRef.current !== null) return
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      insertChar(e.key)
+      e.preventDefault()
+    }
   }
 
   useEffect(() => {
-    if (autoFocus) {
-      inputRef.current?.focus()
-    }
+    if (autoFocus) inputRef.current?.focus()
   }, [autoFocus])
 
   // --- Rendering Logic ---
@@ -178,43 +253,24 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
 
   return (
     <div 
+      ref={inputRef}
+      tabIndex={0}
       className={`algebraic-input-container ${className || ''}`}
-      onClick={handleContainerClick}
+      onMouseDown={e => { e.preventDefault(); inputRef.current?.focus() }}
+      onKeyDown={handleKeyDown}
+      onKeyPress={handleKeyPress}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => { setIsFocused(false); deadCharRef.current = null }}
       style={{ 
         position: 'relative', 
         display: 'inline-block',
         cursor: 'text',
+        outline: isFocused ? '2px solid var(--accent)' : 'none',
+        outlineOffset: '2px',
+        borderRadius: '4px',
         ...style
       }}
     >
-      {/* Hidden input for handling typing, focus, caret movement */}
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={handleChange}
-        onSelect={handleSelect}
-        onKeyDown={handleKeyDown}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          opacity: 0,
-          zIndex: 10,
-          cursor: 'text',
-          caretColor: 'transparent', // Hide native caret
-          color: 'transparent'
-        }}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck="false"
-      />
-
       {/* Visual MathML Rendering */}
       <div className="algebraic-display" style={{ pointerEvents: 'none', display: 'flex', alignItems: 'center', height: '100%', minHeight: '2.5rem' }}>
         <math display="inline">
@@ -222,7 +278,7 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
             {value.length === 0 && !isFocused && placeholder ? (
               <mtext style={{ color: '#ccc', fontSize: '1rem' }}>{placeholder}</mtext>
             ) : (
-              renderTokens(value, cursorPos, isFocused || document.activeElement === inputRef.current)
+              renderTokens(value, cursorPos, isFocused)
             )}
           </mrow>
         </math>

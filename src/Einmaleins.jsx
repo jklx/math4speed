@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 
 const TickMark = ({ visible }) => (
   <svg viewBox="8 14 36 26" className="tick-svg tick-svg--small" aria-hidden style={{ visibility: visible ? 'visible' : 'hidden' }}>
@@ -7,24 +7,31 @@ const TickMark = ({ visible }) => (
 )
 
 export default function Einmaleins({ a, b, value = '', onChange, onEnter, showTick = false }) {
+  const ref = useRef(null)
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => { ref.current?.focus() }, [])
+
   const handleKey = (e) => {
-    if (e.key === 'Enter') {
-      onEnter && onEnter()
-    }
+    if (e.key === 'Enter') { onEnter?.(); return }
+    if (e.key === 'Backspace') { onChange?.(value.slice(0, -1)); return }
+    if (/^[0-9]$/.test(e.key)) onChange?.(value + e.key)
   }
+
   return (
     <div className="question-centered einmaleins-row">
       <div className="expression">{a} · {b} =</div>
-      <input
-        type="number"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        className="app-input"
-        autoFocus
-        value={value}
-        onChange={e => onChange && onChange(e.target.value)}
+      <div
+        ref={ref}
+        tabIndex={0}
+        className={`math-input fake-input${focused ? ' fake-input--focused' : ''}`}
         onKeyDown={handleKey}
-      />
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+      >
+        {value}
+        {focused && <span className="fake-input__cursor" aria-hidden />}
+      </div>
       <TickMark visible={showTick} />
     </div>
   )
