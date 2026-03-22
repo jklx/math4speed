@@ -179,9 +179,10 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
     const limit = rowWidth(rowKey)
     let next = startColumn + step
     while (next >= 0 && next < limit) {
-      if (focusCell(rowKey, next)) return
+      if (focusCell(rowKey, next)) return true
       next += step
     }
+    return false
   }
 
   const focusVertical = (targetRow, column) => {
@@ -242,7 +243,14 @@ export default function Schriftlich({ aDigits = [], bDigits = [], summandsDigits
       } else if (rowKey.startsWith('partial-')) {
         const rowIdx = parseInt(rowKey.split('-')[1])
         handlePartialChange(rowIdx, column, e.key)
-        focusHorizontal(rowKey, column, -1)
+        const moved = focusHorizontal(rowKey, column, -1)
+        if (!moved) {
+          const currentIndex = rowIndexMap[rowKey]
+          if (currentIndex + 1 < navOrder.length) {
+            const nextRow = navOrder[currentIndex + 1]
+            focusVertical(nextRow, rowWidth(nextRow) - 1)
+          }
+        }
       }
     } else if (e.key === 'Backspace') {
       if (review) return
