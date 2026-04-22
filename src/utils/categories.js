@@ -114,6 +114,28 @@ export const CATEGORIES = {
       hard: [20.0, 40.0],
       default: [20.0, 40.0]
     }
+  },
+  'prozent-gleichung': {
+    label: 'Prozentrechnung mit Gleichungen',
+    grade: '7. Klasse',
+    problemCount: 15,
+    durationMinutes: 8,
+    settings: [
+      {
+        key: 'prozentEinfach',
+        label: 'Einfache Aufgaben – Grundwert, Prozentwert oder Prozentsatz bestimmen',
+        defaultValue: true
+      },
+      {
+        key: 'prozentVeraenderung',
+        label: 'Prozentuale Veränderung – Zu-/Abnahme (z.B. x − 0,1·x = 180)',
+        defaultValue: false
+      }
+    ],
+    performanceScore: [5, 12],
+    performance: {
+      default: [40.0, 90.0]
+    }
   }
 }
 

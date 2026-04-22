@@ -75,11 +75,27 @@ function getBinomischeLayout(variable) {
   }
 }
 
+function getProzentLayout() {
+  return {
+    cols: 4,
+    keys: [
+      '7', '8', '9', '⌫',
+      '4', '5', '6', { label: '↵', rowSpan: 5 },
+      '1', '2', '3',
+      '0', ',', 'x',
+      '+', '−', '*',
+      '/', '=', '%',
+    ],
+  }
+}
+
 export default function VirtualKeyboard({ category, variable, onKey }) {
   const layout =
     category === 'binomische'
       ? getBinomischeLayout(variable)
-      : KEY_LAYOUTS[category] ?? KEY_LAYOUTS.multiplication
+      : category === 'prozent-gleichung'
+        ? getProzentLayout()
+        : KEY_LAYOUTS[category] ?? KEY_LAYOUTS.multiplication
 
   const getAriaLabel = (label) => {
     if (label === '⌫') return 'Backspace'

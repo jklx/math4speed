@@ -445,6 +445,1180 @@ export function generateBinomischeProblems(count, settings) {
   return problems;
 }
 
+// ─── Prozentrechnung mit Gleichungen ────────────────────────────────────────
+
+function fmtPct(p) {
+  // Format p/100 as German decimal string: 20 → "0,2", 5 → "0,05", 25 → "0,25"
+  return (p / 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',')
+}
+
+const NAMES = ['Anna', 'Ben', 'Clara', 'David', 'Emma', 'Felix', 'Greta', 'Jonas', 'Karla', 'Leon', 'Mia', 'Noah', 'Olivia', 'Paul', 'Rosa', 'Tim', 'Zara']
+
+function rndName() {
+  return NAMES[Math.floor(Math.random() * NAMES.length)]
+}
+
+// Each context supports all three basic question types.
+//   valid(G)                → true when G is realistic for this scenario
+//   findeG({p, P, G})       → {text,unit}  ask for Grundwert    (x = G)
+//   findeP({p, G, P})       → {text,unit}  ask for Prozentwert  (x = P)
+//   findeProzentsatz({G, P}) → {text,unit}  ask for Prozentsatz  (x = p)
+//
+// ── Einfach-Kontexte (Grundtypen) ───────────────────────────────────────────
+const EINFACH_CONTEXTS = [
+  {
+    valid: G => G >= 200 && G <= 1200,
+    findeG: ({ p, P }) => ({
+      text: `${P} Schülerinnen und Schüler einer Schule fahren mit dem Bus. Das sind ${p}% aller Schülerinnen und Schüler. Wie viele Schüler hat die Schule insgesamt?`,
+      unit: 'Schüler'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Eine Schule hat ${G} Schülerinnen und Schüler. ${p}% davon fahren mit dem Bus zur Schule. Wie viele Schüler fahren mit dem Bus?`,
+      unit: 'Schüler'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Eine Schule hat ${G} Schülerinnen und Schüler. ${P} davon fahren mit dem Bus. Wie viel Prozent fahren mit dem Bus?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 100 && G <= 500,
+    findeG: ({ p, P }) => ({
+      text: `Im Zoo leben ${P} Tiere in der Außenanlage. Das entspricht ${p}% aller Tiere. Wie viele Tiere hat der Zoo insgesamt?`,
+      unit: 'Tiere'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Ein Zoo hat ${G} Tiere. ${p}% davon leben in der Außenanlage. Wie viele Tiere leben in der Außenanlage?`,
+      unit: 'Tiere'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Ein Zoo hat ${G} Tiere. ${P} davon leben in der Außenanlage. Wie viel Prozent der Tiere leben in der Außenanlage?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 20 && G <= 100,
+    findeG: ({ p, P }) => {
+      const name = rndName()
+      return {
+        text: `${name} spart ${p}% seines Taschengeldes. Diesen Monat spart ${name} ${P}€. Wie viel Taschengeld bekommt ${name} pro Monat?`,
+        unit: '€'
+      }
+    },
+    findeP: ({ p, G }) => {
+      const name = rndName()
+      return {
+        text: `${name} bekommt ${G}€ Taschengeld im Monat und spart davon ${p}%. Wie viel Euro spart ${name} pro Monat?`,
+        unit: '€'
+      }
+    },
+    findeProzentsatz: ({ G, P }) => {
+      const name = rndName()
+      return {
+        text: `${name} bekommt ${G}€ Taschengeld im Monat und spart davon ${P}€. Wie viel Prozent spart ${name}?`,
+        unit: '%'
+      }
+    },
+  },
+  {
+    valid: G => G >= 200 && G <= 600,
+    findeG: ({ p, P }) => ({
+      text: `Ein Käsestück enthält ${P} g Fett. Der Fettanteil beträgt ${p}% des Gesamtgewichts. Wie schwer ist das Käsestück?`,
+      unit: 'g'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Ein Käsestück wiegt ${G} g. Der Fettanteil beträgt ${p}%. Wie viel Gramm Fett enthält das Käsestück?`,
+      unit: 'g'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Ein Käsestück wiegt ${G} g und enthält ${P} g Fett. Wie hoch ist der Fettanteil in Prozent?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 200 && G <= 2000,
+    findeG: ({ p, P }) => ({
+      text: `In einer Bücherei sind gerade ${P} Bücher ausgeliehen. Das sind ${p}% des Gesamtbestands. Wie viele Bücher hat die Bücherei insgesamt?`,
+      unit: 'Bücher'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Eine Bücherei hat ${G} Bücher. Gerade sind ${p}% ausgeliehen. Wie viele Bücher sind ausgeliehen?`,
+      unit: 'Bücher'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Eine Bücherei hat ${G} Bücher. Gerade sind ${P} davon ausgeliehen. Wie viel Prozent des Bestands sind ausgeliehen?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 100 && G <= 1000,
+    findeG: ({ p, P }) => ({
+      text: `Von einer Obsternte sind ${P} kg Äpfel. Äpfel machen ${p}% der Gesamternte aus. Wie schwer ist die Gesamternte?`,
+      unit: 'kg'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Eine Obsternte wiegt ${G} kg. Davon sind ${p}% Äpfel. Wie viele Kilogramm sind Äpfel?`,
+      unit: 'kg'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Eine Obsternte wiegt ${G} kg, davon sind ${P} kg Äpfel. Wie viel Prozent der Ernte sind Äpfel?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 40 && G <= 80,
+    findeG: ({ p, P }) => ({
+      text: `Ein Auto hat noch ${p}% Tankfüllung, das sind ${P} Liter. Wie viele Liter fasst der Tank insgesamt?`,
+      unit: 'Liter'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Ein Autotank fasst ${G} Liter. Der Tank ist zu ${p}% gefüllt. Wie viele Liter sind im Tank?`,
+      unit: 'Liter'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Ein Autotank fasst ${G} Liter. Gerade sind ${P} Liter im Tank. Zu wie viel Prozent ist der Tank gefüllt?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 100 && G <= 1000,
+    findeG: ({ p, P }) => ({
+      text: `Bei einer Umfrage haben ${P} Personen mit „Ja" gestimmt. Das entspricht ${p}% aller Befragten. Wie viele Personen wurden insgesamt befragt?`,
+      unit: 'Personen'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `An einer Umfrage nehmen ${G} Personen teil. ${p}% stimmen mit „Ja". Wie viele Personen stimmen mit „Ja"?`,
+      unit: 'Personen'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `An einer Umfrage nehmen ${G} Personen teil. ${P} davon stimmen mit „Ja". Wie viel Prozent stimmen mit „Ja"?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 200 && G <= 400,
+    findeG: ({ p, P }) => ({
+      text: `Ein Pullover enthält ${P} g reine Wolle. Der Wollanteil beträgt ${p}% des Gesamtgewichts. Wie schwer ist der Pullover?`,
+      unit: 'g'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Ein Pullover wiegt ${G} g. Der Wollanteil beträgt ${p}%. Wie viel Gramm Wolle enthält der Pullover?`,
+      unit: 'g'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Ein Pullover wiegt ${G} g und enthält ${P} g reine Wolle. Wie hoch ist der Wollanteil in Prozent?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 200 && G <= 1200,
+    findeG: ({ p, P }) => ({
+      text: `${P} Mädchen besuchen eine Gesamtschule. Sie machen ${p}% aller Schülerinnen und Schüler aus. Wie viele Schüler hat die Schule insgesamt?`,
+      unit: 'Schüler'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Eine Gesamtschule hat ${G} Schülerinnen und Schüler. ${p}% davon sind Mädchen. Wie viele Mädchen besuchen die Schule?`,
+      unit: 'Schüler'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Eine Gesamtschule hat ${G} Schülerinnen und Schüler, davon sind ${P} Mädchen. Wie hoch ist der Anteil der Mädchen in Prozent?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 60 && G <= 600,
+    findeG: ({ p, P }) => ({
+      text: `Die Kopfhörer zeigen noch ${p}% Akku, das entspricht ${P} Minuten Restlaufzeit. Wie viele Minuten hält der Akku voll geladen?`,
+      unit: 'Minuten'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Kopfhörer halten voll geladen ${G} Minuten. Aktuell sind noch ${p}% Akku vorhanden. Wie viele Minuten Restlaufzeit sind das?`,
+      unit: 'Minuten'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Kopfhörer halten voll geladen ${G} Minuten. Noch ${P} Minuten sind übrig. Wie viel Prozent Akku ist noch vorhanden?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 500 && G <= 2000,
+    findeG: ({ p, P }) => ({
+      text: `${P} Einwohner eines Dorfes sind unter 18 Jahre alt. Das entspricht ${p}% der Gesamtbevölkerung. Wie viele Einwohner hat das Dorf?`,
+      unit: 'Einwohner'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Ein Dorf hat ${G} Einwohner. ${p}% davon sind unter 18 Jahre alt. Wie viele Einwohner sind unter 18?`,
+      unit: 'Einwohner'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Ein Dorf hat ${G} Einwohner. ${P} davon sind unter 18 Jahre alt. Wie viel Prozent der Einwohner sind unter 18?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 500 && G <= 2000,
+    findeG: ({ p, P }) => ({
+      text: `Eine Bäckerei spendet jeden Monat ${p}% ihres Umsatzes an eine Tafel. Das sind ${P}€. Wie hoch ist der monatliche Umsatz?`,
+      unit: '€'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Eine Bäckerei hat einen monatlichen Umsatz von ${G}€. Sie spendet ${p}% davon an die Tafel. Wie viel Euro spendet sie pro Monat?`,
+      unit: '€'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Eine Bäckerei hat einen monatlichen Umsatz von ${G}€ und spendet ${P}€ davon. Wie viel Prozent des Umsatzes werden gespendet?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 500 && G <= 2000,
+    findeG: ({ p, P }) => ({
+      text: `In einem Stadtwald gibt es ${P} Eichen. Eichen machen ${p}% aller Bäume aus. Wie viele Bäume hat der Wald insgesamt?`,
+      unit: 'Bäume'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Ein Stadtwald hat ${G} Bäume. ${p}% davon sind Eichen. Wie viele Eichen gibt es im Wald?`,
+      unit: 'Bäume'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Ein Stadtwald hat ${G} Bäume, davon sind ${P} Eichen. Wie hoch ist der Anteil der Eichen in Prozent?`,
+      unit: '%'
+    }),
+  },
+  {
+    valid: G => G >= 40 && G <= 100,
+    findeG: ({ p, P }) => ({
+      text: `Bei einer Klassenarbeit hat eine Schülerin ${P} Punkte erreicht. Das entspricht ${p}% der möglichen Gesamtpunktzahl. Wie viele Punkte können insgesamt erreicht werden?`,
+      unit: 'Punkte'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Eine Klassenarbeit hat insgesamt ${G} Punkte. Eine Schülerin erreicht ${p}% der Punkte. Wie viele Punkte hat sie?`,
+      unit: 'Punkte'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Eine Klassenarbeit hat ${G} Punkte. Eine Schülerin erreicht ${P} Punkte. Wie viel Prozent der möglichen Punkte hat sie erreicht?`,
+      unit: '%'
+    }),
+  },
+  // 16: Turm / Gebäudehöhe
+  {
+    valid: G => G >= 20 && G <= 500,
+    findeG: ({ p, P }) => ({
+      text: `Ein Aussichtsturm ist ${P} m hoch. Das entspricht ${p}% der Höhe des benachbarten Kirchturms. Wie hoch ist der Kirchturm?`,
+      unit: 'm'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Ein Kirchturm ist ${G} m hoch. Ein Aussichtsturm daneben erreicht ${p}% dieser Höhe. Wie hoch ist der Aussichtsturm?`,
+      unit: 'm'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Ein Kirchturm ist ${G} m hoch. Ein Wasserturm in der Nähe ist ${P} m hoch. Wie viel Prozent der Kirchturmhöhe beträgt der Wasserturm?`,
+      unit: '%'
+    }),
+  },
+  // 17: Pflanzenhöhe
+  {
+    valid: G => G >= 20 && G <= 200,
+    findeG: ({ p, P }) => ({
+      text: `Eine Sonnenblume ist bereits ${P} cm gewachsen. Das sind ${p}% ihrer späteren Endgröße. Wie groß wird die Sonnenblume?`,
+      unit: 'cm'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Eine Tomatenpflanze erreicht eine Höhe von ${G} cm. Nach drei Wochen hat sie ${p}% dieser Höhe erreicht. Wie groß ist sie jetzt?`,
+      unit: 'cm'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Eine Bohnenpflanze wird ${G} cm hoch. Momentan misst sie ${P} cm. Wie viel Prozent ihrer Endgröße hat die Pflanze bereits erreicht?`,
+      unit: '%'
+    }),
+  },
+  // 18: Backrezept
+  {
+    valid: G => G >= 200 && G <= 1000,
+    findeG: ({ p, P }) => ({
+      text: `Für einen Kuchen werden ${P} g Mehl benötigt. Mehl macht ${p}% des gesamten Teiggewichts aus. Wie schwer ist der Teig insgesamt?`,
+      unit: 'g'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Ein Kuchenteig wiegt ${G} g. ${p}% davon ist Mehl. Wie viel Gramm Mehl wurden verwendet?`,
+      unit: 'g'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Ein Kuchenteig wiegt ${G} g und enthält ${P} g Zucker. Wie hoch ist der Zuckeranteil in Prozent?`,
+      unit: '%'
+    }),
+  },
+  // 19: Radtour
+  {
+    valid: G => G >= 20 && G <= 200,
+    findeG: ({ p, P }) => {
+      const name = rndName()
+      return {
+        text: `${name} hat auf einer Radtour bereits ${P} km zurückgelegt. Das sind ${p}% der Gesamtstrecke. Wie lang ist die Tour insgesamt?`,
+        unit: 'km'
+      }
+    },
+    findeP: ({ p, G }) => {
+      const name = rndName()
+      return {
+        text: `Eine Radtour ist ${G} km lang. ${name} hat ${p}% der Strecke bereits gefahren. Wie viele Kilometer sind das?`,
+        unit: 'km'
+      }
+    },
+    findeProzentsatz: ({ G, P }) => {
+      const name = rndName()
+      return {
+        text: `Eine Radtour ist ${G} km lang. ${name} hat bereits ${P} km zurückgelegt. Wie viel Prozent der Strecke ist das?`,
+        unit: '%'
+      }
+    },
+  },
+  // 20: Berghöhe
+  {
+    valid: G => G >= 100 && G <= 2000,
+    findeG: ({ p, P }) => ({
+      text: `Eine Berghütte liegt auf ${P} m Höhe. Das entspricht ${p}% der Gipfelhöhe. Wie hoch ist der Gipfel?`,
+      unit: 'm'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Ein Berg ist ${G} m hoch. Eine Schutzhütte liegt auf ${p}% dieser Höhe. Auf wie vielen Metern liegt die Hütte?`,
+      unit: 'm'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Ein Berg ist ${G} m hoch. Der erste Wegpunkt liegt auf ${P} m. Wie viel Prozent der Gipfelhöhe entspricht das?`,
+      unit: '%'
+    }),
+  },
+  // 21: Sparziel
+  {
+    valid: G => G >= 100 && G <= 2000,
+    findeG: ({ p, P }) => {
+      const name = rndName()
+      return {
+        text: `${name} hat bereits ${P}€ gespart. Das sind ${p}% ihres Sparziels. Wie hoch ist das Sparziel?`,
+        unit: '€'
+      }
+    },
+    findeP: ({ p, G }) => {
+      const name = rndName()
+      return {
+        text: `${name} möchte ${G}€ sparen und hat bereits ${p}% davon angespart. Wie viel Euro hat ${name} schon?`,
+        unit: '€'
+      }
+    },
+    findeProzentsatz: ({ G, P }) => {
+      const name = rndName()
+      return {
+        text: `${name} hat ein Sparziel von ${G}€ und bereits ${P}€ zurückgelegt. Wie viel Prozent des Ziels hat ${name} erreicht?`,
+        unit: '%'
+      }
+    },
+  },
+  // 22: Fußball
+  {
+    valid: G => G >= 20 && G <= 500,
+    findeG: ({ p, P }) => ({
+      text: `Ein Torwart hat ${P} Schüsse abgewehrt. Das sind ${p}% aller Schüsse auf sein Tor. Wie viele Schüsse gab es insgesamt?`,
+      unit: 'Schüsse'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Auf ein Tor wurden ${G} Schüsse abgegeben. Der Torwart hielt ${p}% davon. Wie viele Schüsse hat er gehalten?`,
+      unit: 'Schüsse'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Auf ein Tor wurden ${G} Schüsse abgegeben. ${P} davon waren Treffer. Wie hoch ist die Trefferquote in Prozent?`,
+      unit: '%'
+    }),
+  },
+  // 23: Theater / Kino
+  {
+    valid: G => G >= 100 && G <= 2000,
+    findeG: ({ p, P }) => ({
+      text: `Für eine Theatervorstellung wurden ${P} Karten verkauft. Das sind ${p}% aller verfügbaren Plätze. Wie viele Plätze hat das Theater?`,
+      unit: 'Plätze'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Ein Theater hat ${G} Sitzplätze. Für die Vorstellung wurden ${p}% aller Plätze gebucht. Wie viele Karten wurden verkauft?`,
+      unit: 'Karten'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Ein Kino hat ${G} Sitzplätze. Bei einer Vorstellung sind ${P} Plätze besetzt. Wie hoch ist die Auslastung in Prozent?`,
+      unit: '%'
+    }),
+  },
+  // 24: Buch lesen
+  {
+    valid: G => G >= 100 && G <= 1000,
+    findeG: ({ p, P }) => {
+      const name = rndName()
+      return {
+        text: `${name} hat bereits ${P} Seiten eines Romans gelesen. Das sind ${p}% des Buches. Wie viele Seiten hat der Roman?`,
+        unit: 'Seiten'
+      }
+    },
+    findeP: ({ p, G }) => {
+      const name = rndName()
+      return {
+        text: `${name} liest einen Roman mit ${G} Seiten und hat ${p}% davon gelesen. Wie viele Seiten sind das?`,
+        unit: 'Seiten'
+      }
+    },
+    findeProzentsatz: ({ G, P }) => {
+      const name = rndName()
+      return {
+        text: `${name} liest ein Buch mit ${G} Seiten und ist auf Seite ${P}. Wie viel Prozent hat ${name} bereits gelesen?`,
+        unit: '%'
+      }
+    },
+  },
+  // 25: Regentonne / Gartenteich
+  {
+    valid: G => G >= 200 && G <= 2000,
+    findeG: ({ p, P }) => ({
+      text: `Eine Regentonne enthält nach einem Schauer ${P} Liter Wasser. Das entspricht ${p}% ihrer Fassungskapazität. Wie viele Liter fasst die Tonne?`,
+      unit: 'Liter'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Eine Regentonne fasst ${G} Liter. Nach einem Schauer sind ${p}% davon befüllt. Wie viele Liter sind drin?`,
+      unit: 'Liter'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Eine Regentonne fasst ${G} Liter. Momentan sind ${P} Liter drin. Zu wie viel Prozent ist sie gefüllt?`,
+      unit: '%'
+    }),
+  },
+  // 26: Tagesschritte
+  {
+    valid: G => G >= 500 && G <= 2000,
+    findeG: ({ p, P }) => {
+      const name = rndName()
+      return {
+        text: `${name} hat heute ${P} Schritte gemacht. Das sind ${p}% seines täglichen Ziels. Wie hoch ist das Tagesziel?`,
+        unit: 'Schritte'
+      }
+    },
+    findeP: ({ p, G }) => {
+      const name = rndName()
+      return {
+        text: `${name} hat ein Tagesziel von ${G} Schritten und hat bis zur Mittagspause ${p}% davon zurückgelegt. Wie viele Schritte sind das?`,
+        unit: 'Schritte'
+      }
+    },
+    findeProzentsatz: ({ G, P }) => {
+      const name = rndName()
+      return {
+        text: `${name} möchte täglich ${G} Schritte gehen und hat heute ${P} Schritte gemacht. Wie viel Prozent des Ziels wurden erreicht?`,
+        unit: '%'
+      }
+    },
+  },
+  // 27: Solaranlage
+  {
+    valid: G => G >= 100 && G <= 2000,
+    findeG: ({ p, P }) => ({
+      text: `Eine Solaranlage hat im Sommer ${P} kWh Strom erzeugt. Das entspricht ${p}% ihrer Jahresproduktion. Wie viel kWh erzeugt sie im ganzen Jahr?`,
+      unit: 'kWh'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Eine Solaranlage produziert im Jahr ${G} kWh. Im Sommer erzeugt sie ${p}% der Jahresleistung. Wie viele kWh sind das?`,
+      unit: 'kWh'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Eine Solaranlage hat eine Jahreskapazität von ${G} kWh und produziert dieses Jahr ${P} kWh. Wie viel Prozent der Kapazität werden genutzt?`,
+      unit: '%'
+    }),
+  },
+  // 28: Recycling / Abfall
+  {
+    valid: G => G >= 100 && G <= 1000,
+    findeG: ({ p, P }) => ({
+      text: `In einer Gemeinde werden ${P} kg Altpapier recycelt. Das entspricht ${p}% des gesamten Altpapieraufkommens. Wie viel Altpapier fällt insgesamt an?`,
+      unit: 'kg'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Eine Gemeinde sammelt ${G} kg Altpapier im Monat. Davon werden ${p}% recycelt. Wie viele Kilogramm sind das?`,
+      unit: 'kg'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Eine Gemeinde sammelt ${G} kg Abfall und davon sind ${P} kg Biomüll. Wie hoch ist der Biomüllanteil in Prozent?`,
+      unit: '%'
+    }),
+  },
+  // 29: Feldernte
+  {
+    valid: G => G >= 100 && G <= 1000,
+    findeG: ({ p, P }) => ({
+      text: `Ein Bauer hat ${P} kg Kartoffeln geerntet. Das sind ${p}% seiner gesamten Ernte. Wie viel Kilogramm hat er insgesamt geerntet?`,
+      unit: 'kg'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Ein Bauer erntet ${G} kg Gemüse. ${p}% davon sind Karotten. Wie viele Kilogramm Karotten hat er geerntet?`,
+      unit: 'kg'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Eine Ernte bringt ${G} kg Gemüse. Davon sind ${P} kg Tomaten. Wie hoch ist der Tomatenanteil in Prozent?`,
+      unit: '%'
+    }),
+  },
+  // 30: Zeitung / Abonnenten
+  {
+    valid: G => G >= 200 && G <= 2000,
+    findeG: ({ p, P }) => ({
+      text: `${P} Abonnenten einer Lokalzeitung lesen die digitale Ausgabe. Das sind ${p}% aller Abonnenten. Wie viele Abonnenten hat die Zeitung insgesamt?`,
+      unit: 'Abonnenten'
+    }),
+    findeP: ({ p, G }) => ({
+      text: `Eine Zeitung hat ${G} Abonnenten. ${p}% davon lesen die digitale Ausgabe. Wie viele lesen sie?`,
+      unit: 'Abonnenten'
+    }),
+    findeProzentsatz: ({ G, P }) => ({
+      text: `Eine Zeitung hat ${G} Abonnenten, davon lesen ${P} die Printausgabe. Wie hoch ist der Anteil der Printleser in Prozent?`,
+      unit: '%'
+    }),
+  },
+]
+
+// Each context supports three question variants for proportional change.
+//   validOriginal(o)            → true when o is realistic for this scenario
+//   findeOriginal({p, newVal})  → {text,unit}  ask for original value   (x + p%·x = newVal)
+//   findeNeu({p, original})     → {text,unit}  ask for resulting value   (original + p%·original = x)
+//   findeFaktor({original, newVal}) → {text,unit}  ask for factor as decimal (original + x·original = newVal)
+//
+// ── Erhöhungs-Kontexte ──────────────────────────────────────────────────────
+const ERHOEHUNG_CONTEXTS = [
+  {
+    validOriginal: o => o >= 20 && o <= 300,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Der Preis eines Artikels ist um ${p}% gestiegen. Er kostet jetzt ${newVal}€. Was hat er vorher gekostet?`,
+      unit: '€'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Artikel kostet ${original}€ und wird um ${p}% teurer. Was kostet er danach?`,
+      unit: '€'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Ein Artikel stieg im Preis von ${original}€ auf ${newVal}€. Um welchen Anteil wurde er teurer? (x als Dezimalzahl, z.B. 0,3 für 30%)`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 600 && o <= 1500,
+    findeOriginal: ({ p, newVal }) => {
+      const name = rndName()
+      return {
+        text: `${name} bekommt eine Lohnerhöhung von ${p}%. Das neue monatliche Nettogehalt beträgt ${newVal}€. Was hat ${name} vorher verdient?`,
+        unit: '€'
+      }
+    },
+    findeNeu: ({ p, original }) => {
+      const name = rndName()
+      return {
+        text: `${name} verdient ${original}€ netto im Monat und bekommt eine Lohnerhöhung von ${p}%. Wie viel verdient ${name} danach?`,
+        unit: '€'
+      }
+    },
+    findeFaktor: ({ original, newVal }) => {
+      const name = rndName()
+      return {
+        text: `${name} verdiente ${original}€ und verdient jetzt ${newVal}€. Um welchen Anteil wurde das Gehalt erhöht?`,
+        unit: ''
+      }
+    },
+  },
+  {
+    validOriginal: o => o >= 500 && o <= 2000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Die Einwohnerzahl eines Dorfes ist um ${p}% gewachsen. Jetzt hat es ${newVal} Einwohner. Wie viele Einwohner hatte es vorher?`,
+      unit: 'Einwohner'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Dorf hat ${original} Einwohner und wächst um ${p}%. Wie viele Einwohner hat es danach?`,
+      unit: 'Einwohner'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Ein Dorf wuchs von ${original} auf ${newVal} Einwohner. Um welchen Anteil ist die Bevölkerung gewachsen?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 500 && o <= 2000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Der Wochenumsatz einer Bäckerei ist um ${p}% gestiegen. Er beträgt jetzt ${newVal}€. Wie hoch war er in der Vorwoche?`,
+      unit: '€'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Eine Bäckerei hatte letzte Woche einen Umsatz von ${original}€. Dieser Woche stieg er um ${p}%. Wie hoch ist er diese Woche?`,
+      unit: '€'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Eine Bäckerei steigerte ihren Wochenumsatz von ${original}€ auf ${newVal}€. Um welchen Anteil ist er gestiegen?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 200 && o <= 1000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Die Schülerzahl einer Schule hat sich um ${p}% erhöht. Jetzt besuchen ${newVal} Schüler die Schule. Wie viele waren es vorher?`,
+      unit: 'Schüler'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Eine Schule hat ${original} Schülerinnen und Schüler. Nach den Ferien steigt die Zahl um ${p}%. Wie viele Schüler sind es danach?`,
+      unit: 'Schüler'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Eine Schule wuchs von ${original} auf ${newVal} Schülerinnen und Schüler. Um welchen Anteil stieg die Zahl?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 60 && o <= 200,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Die Stromrechnung eines Haushalts ist um ${p}% gestiegen. Jetzt zahlt er monatlich ${newVal}€. Was hat er vorher gezahlt?`,
+      unit: '€'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Haushalt zahlt ${original}€ monatlich für Strom. Im nächsten Monat steigt die Rechnung um ${p}%. Wie viel zahlt er dann?`,
+      unit: '€'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Eine Stromrechnung stieg von ${original}€ auf ${newVal}€. Um welchen Anteil ist sie gestiegen?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 100 && o <= 500,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Der tägliche Wasserverbrauch eines Haushalts ist um ${p}% gestiegen. Er beträgt jetzt ${newVal} Liter. Wie viel hat er vorher verbraucht?`,
+      unit: 'Liter'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Haushalt verbraucht täglich ${original} Liter Wasser. Der Verbrauch steigt um ${p}%. Wie viele Liter sind es danach?`,
+      unit: 'Liter'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Der Wasserverbrauch stieg von ${original} auf ${newVal} Liter täglich. Um welchen Anteil stieg er?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 100 && o <= 1000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Ein Sportverein hat ${p}% mehr Mitglieder als im Vorjahr. Jetzt sind es ${newVal} Mitglieder. Wie viele waren es im Vorjahr?`,
+      unit: 'Mitglieder'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Sportverein hatte ${original} Mitglieder. Im nächsten Jahr wächst er um ${p}%. Wie viele Mitglieder hat er dann?`,
+      unit: 'Mitglieder'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Ein Verein wuchs von ${original} auf ${newVal} Mitglieder. Um welchen Anteil ist er gewachsen?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 20 && o <= 120,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Der Eintrittspreis für ein Konzert wurde um ${p}% angehoben. Ein Ticket kostet jetzt ${newVal}€. Was hat es vorher gekostet?`,
+      unit: '€'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Konzertticket kostet ${original}€. Der Preis wird um ${p}% erhöht. Was kostet das Ticket danach?`,
+      unit: '€'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Ein Konzertticket wurde von ${original}€ auf ${newVal}€ teurer. Um welchen Anteil wurde es teurer?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 120 && o <= 180,
+    findeOriginal: ({ p, newVal }) => {
+      const pairs = [['Paul', 'Ben'], ['Anna', 'Clara'], ['Jonas', 'Leon'], ['Emma', 'Mia'], ['Felix', 'Noah'], ['Greta', 'Rosa']]
+      const [n1, n2] = pairs[Math.floor(Math.random() * pairs.length)]
+      return {
+        text: `${n1} ist ${p}% größer als ${n2}. ${n1} ist ${newVal} cm groß. Wie groß ist ${n2}?`,
+        unit: 'cm'
+      }
+    },
+    findeNeu: ({ p, original }) => {
+      const pairs = [['Paul', 'Ben'], ['Anna', 'Clara'], ['Jonas', 'Leon'], ['Emma', 'Mia'], ['Felix', 'Noah'], ['Greta', 'Rosa']]
+      const [n1, n2] = pairs[Math.floor(Math.random() * pairs.length)]
+      return {
+        text: `${n2} ist ${original} cm groß. ${n1} ist ${p}% größer als ${n2}. Wie groß ist ${n1}?`,
+        unit: 'cm'
+      }
+    },
+    findeFaktor: ({ original, newVal }) => {
+      const pairs = [['Paul', 'Ben'], ['Anna', 'Clara'], ['Jonas', 'Leon'], ['Emma', 'Mia'], ['Felix', 'Noah'], ['Greta', 'Rosa']]
+      const [n1, n2] = pairs[Math.floor(Math.random() * pairs.length)]
+      return {
+        text: `${n2} ist ${original} cm groß und ${n1} ist ${newVal} cm groß. Um welchen Anteil ist ${n1} größer als ${n2}?`,
+        unit: ''
+      }
+    },
+  },
+  {
+    validOriginal: o => o >= 20 && o <= 200,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Eine Topfpflanze ist innerhalb einer Woche um ${p}% gewachsen. Jetzt ist sie ${newVal} cm groß. Wie groß war sie vorher?`,
+      unit: 'cm'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Eine Topfpflanze ist ${original} cm groß und wächst in einer Woche um ${p}%. Wie groß ist sie danach?`,
+      unit: 'cm'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Eine Pflanze wuchs von ${original} cm auf ${newVal} cm. Um welchen Anteil ist sie gewachsen?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 20 && o <= 500,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Durch einen Anbau wurde ein Gebäude um ${p}% höher. Es ist jetzt ${newVal} m hoch. Wie hoch war es vorher?`,
+      unit: 'm'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Gebäude ist ${original} m hoch und wird durch einen Anbau um ${p}% erhöht. Wie hoch ist es danach?`,
+      unit: 'm'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Ein Gebäude wurde von ${original} m auf ${newVal} m erhöht. Um welchen Anteil wurde es höher?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 400 && o <= 2000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Die Miete einer Wohnung wurde um ${p}% erhöht. Sie beträgt jetzt ${newVal}€ im Monat. Wie hoch war die Miete davor?`,
+      unit: '€'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Eine Wohnung kostet ${original}€ Miete im Monat. Die Miete wird um ${p}% erhöht. Wie hoch ist die neue Miete?`,
+      unit: '€'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Eine Miete stieg von ${original}€ auf ${newVal}€. Um welchen Anteil ist sie gestiegen?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 100 && o <= 2000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Eine Vogelpopulation in einem Naturschutzgebiet hat sich um ${p}% vergrößert. Jetzt gibt es ${newVal} Vögel. Wie viele gab es vorher?`,
+      unit: 'Vögel'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `In einem Naturschutzgebiet leben ${original} Vögel. Die Population wächst um ${p}%. Wie viele Vögel gibt es danach?`,
+      unit: 'Vögel'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Eine Vogelpopulation wuchs von ${original} auf ${newVal}. Um welchen Anteil ist sie gewachsen?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 100 && o <= 1000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Ein Fahrradverleih hatte im Juli ${p}% mehr Ausleihungen als im Vormonat. Im Juli wurden ${newVal} Fahrräder ausgeliehen. Wie viele waren es im Vormonat?`,
+      unit: 'Ausleihen'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Fahrradverleih hatte im Juni ${original} Ausleihungen. Im Juli stieg die Zahl um ${p}%. Wie viele Fahrräder wurden im Juli ausgeliehen?`,
+      unit: 'Ausleihen'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Ein Fahrradverleih stieg von ${original} auf ${newVal} Ausleihungen. Um welchen Anteil ist die Zahl gestiegen?`,
+      unit: ''
+    }),
+  },
+]
+
+// ── Senkungs-Kontexte ────────────────────────────────────────────────────────
+const SENKUNG_CONTEXTS = [
+  {
+    validOriginal: o => o >= 40 && o <= 500,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Ein Artikel wird im Sale um ${p}% reduziert. Er kostet jetzt noch ${newVal}€. Was hat er vor dem Sale gekostet?`,
+      unit: '€'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Artikel kostet ${original}€ und wird im Sale um ${p}% reduziert. Was kostet er im Sale?`,
+      unit: '€'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Ein Artikel wurde von ${original}€ auf ${newVal}€ reduziert. Um welchen Anteil wurde er günstiger?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 50 && o <= 120,
+    findeOriginal: ({ p, newVal }) => {
+      const name = rndName()
+      return {
+        text: `${name} hat ${p}% seines Körpergewichts abgenommen. ${name} wiegt jetzt ${newVal} kg. Wie viel hat ${name} vorher gewogen?`,
+        unit: 'kg'
+      }
+    },
+    findeNeu: ({ p, original }) => {
+      const name = rndName()
+      return {
+        text: `${name} wiegt ${original} kg und nimmt ${p}% seines Körpergewichts ab. Wie viel wiegt ${name} danach?`,
+        unit: 'kg'
+      }
+    },
+    findeFaktor: ({ original, newVal }) => {
+      const name = rndName()
+      return {
+        text: `${name} wog ${original} kg und wiegt jetzt ${newVal} kg. Um welchen Anteil hat ${name} abgenommen?`,
+        unit: ''
+      }
+    },
+  },
+  {
+    validOriginal: o => o >= 20 && o <= 200,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Beim Schlussverkauf wurde ein Kleid um ${p}% günstiger. Es kostet jetzt noch ${newVal}€. Wie hoch war der ursprüngliche Preis?`,
+      unit: '€'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Kleid kostet ${original}€. Beim Schlussverkauf wird es um ${p}% reduziert. Was kostet es im Schlussverkauf?`,
+      unit: '€'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Ein Kleid sank von ${original}€ auf ${newVal}€. Um welchen Anteil wurde es günstiger?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 100 && o <= 400,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Ein Haushalt hat seinen monatlichen Stromverbrauch um ${p}% reduziert. Er verbraucht jetzt noch ${newVal} kWh. Wie viel hat er vorher verbraucht?`,
+      unit: 'kWh'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Haushalt verbraucht ${original} kWh Strom im Monat und reduziert den Verbrauch um ${p}%. Wie viel kWh sind es danach?`,
+      unit: 'kWh'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Ein Haushalt senkte seinen Stromverbrauch von ${original} auf ${newVal} kWh. Um welchen Anteil sank er?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 200 && o <= 2000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Die Besucherzahl eines Museums ist um ${p}% gesunken. Jetzt kommen monatlich noch ${newVal} Besucher. Wie viele kamen vorher?`,
+      unit: 'Besucher'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Museum hatte ${original} Besucher im Monat. Die Besucherzahl sinkt um ${p}%. Wie viele Besucher kommen danach?`,
+      unit: 'Besucher'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Die Besucherzahl eines Museums sank von ${original} auf ${newVal}. Um welchen Anteil sank sie?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 200 && o <= 2000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Eine Fabrik hat ihre Tagesproduktion um ${p}% gedrosselt. Sie stellt jetzt noch ${newVal} Einheiten pro Tag her. Wie viele waren es vorher?`,
+      unit: 'Einheiten'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Eine Fabrik produziert täglich ${original} Einheiten und drosselt die Produktion um ${p}%. Wie viele Einheiten werden danach produziert?`,
+      unit: 'Einheiten'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Eine Fabrik drosselte die Produktion von ${original} auf ${newVal} Einheiten täglich. Um welchen Anteil sank sie?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 200 && o <= 2000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Dank moderner Bewässerung wurde der Wasserverbrauch eines Bauernhofs um ${p}% gesenkt. Es werden jetzt noch ${newVal} Liter pro Tag verbraucht. Wie viel war es vorher?`,
+      unit: 'Liter'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Bauernhof verbraucht täglich ${original} Liter Wasser. Durch moderne Bewässerung sinkt der Verbrauch um ${p}%. Wie viele Liter sind es danach?`,
+      unit: 'Liter'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Ein Bauernhof senkte den Wasserverbrauch von ${original} auf ${newVal} Liter täglich. Um welchen Anteil sank er?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 100 && o <= 2000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Eine Tierpopulation ist innerhalb eines Jahres um ${p}% zurückgegangen. Jetzt gibt es noch ${newVal} Tiere. Wie viele gab es vorher?`,
+      unit: 'Tiere'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `In einem Gebiet leben ${original} Tiere. Die Population geht um ${p}% zurück. Wie viele Tiere gibt es danach?`,
+      unit: 'Tiere'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Eine Tierpopulation sank von ${original} auf ${newVal} Tiere. Um welchen Anteil ist sie zurückgegangen?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 500 && o <= 2000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Eine Gemeinde hat ihre Schulden um ${p}% abgebaut. Die verbleibenden Schulden betragen ${newVal}€. Wie hoch waren die Schulden vorher?`,
+      unit: '€'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Eine Gemeinde hat ${original}€ Schulden und baut ${p}% davon ab. Wie viele Schulden bleiben übrig?`,
+      unit: '€'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Die Schulden einer Gemeinde sanken von ${original}€ auf ${newVal}€. Um welchen Anteil wurden sie abgebaut?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 20 && o <= 200,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Eine Schneedecke ist um ${p}% geschmolzen. Sie ist jetzt noch ${newVal} cm hoch. Wie hoch war sie vorher?`,
+      unit: 'cm'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Eine Schneedecke ist ${original} cm hoch und schmilzt um ${p}%. Wie hoch ist sie danach?`,
+      unit: 'cm'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Eine Schneedecke schmolz von ${original} cm auf ${newVal} cm. Um welchen Anteil ist sie geschmolzen?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 100 && o <= 1000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Der Wasserstand eines Flusses ist um ${p}% gefallen. Er liegt jetzt bei ${newVal} cm. Wie hoch war er vorher?`,
+      unit: 'cm'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Fluss hat einen Wasserstand von ${original} cm. Nach einer Dürre sinkt er um ${p}%. Wie hoch ist der Wasserstand danach?`,
+      unit: 'cm'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Der Wasserstand eines Flusses sank von ${original} cm auf ${newVal} cm. Um welchen Anteil sank er?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 20 && o <= 500,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Der Kurs einer Aktie ist um ${p}% gefallen. Sie kostet jetzt noch ${newVal}€. Wie viel hat sie vorher gekostet?`,
+      unit: '€'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Eine Aktie kostet ${original}€. Ihr Kurs fällt um ${p}%. Was kostet die Aktie danach?`,
+      unit: '€'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Eine Aktie fiel von ${original}€ auf ${newVal}€. Um welchen Anteil ist sie gefallen?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 500 && o <= 2000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Die Bevölkerung einer Kleinstadt ist um ${p}% zurückgegangen. Jetzt hat sie ${newVal} Einwohner. Wie viele waren es zuvor?`,
+      unit: 'Einwohner'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Eine Stadt hat ${original} Einwohner. Die Bevölkerung geht um ${p}% zurück. Wie viele Einwohner hat die Stadt danach?`,
+      unit: 'Einwohner'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Eine Stadt schrumpfte von ${original} auf ${newVal} Einwohner. Um welchen Anteil sank die Bevölkerung?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 200 && o <= 2000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `In einem Waldgebiet wurden ${p}% der Bäume gefällt. Jetzt stehen noch ${newVal} Bäume. Wie viele standen dort vorher?`,
+      unit: 'Bäume'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `In einem Wald stehen ${original} Bäume. ${p}% davon werden gefällt. Wie viele Bäume stehen danach noch?`,
+      unit: 'Bäume'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `In einem Wald standen ${original} Bäume, danach noch ${newVal}. Welchen Anteil wurden gefällt?`,
+      unit: ''
+    }),
+  },
+  {
+    validOriginal: o => o >= 200 && o <= 2000,
+    findeOriginal: ({ p, newVal }) => ({
+      text: `Durch Verdunstung hat ein Gartenteich ${p}% seines Wassers verloren. Er enthält jetzt noch ${newVal} Liter. Wie viel Wasser hatte er vorher?`,
+      unit: 'Liter'
+    }),
+    findeNeu: ({ p, original }) => ({
+      text: `Ein Gartenteich enthält ${original} Liter. Durch Verdunstung verliert er ${p}% des Wassers. Wie viel Wasser bleibt übrig?`,
+      unit: 'Liter'
+    }),
+    findeFaktor: ({ original, newVal }) => ({
+      text: `Ein Gartenteich verlor Wasser von ${original} auf ${newVal} Liter. Welchen Anteil hat er verloren?`,
+      unit: ''
+    }),
+  },
+]
+
+export function generateProzentGleichungProblems(count, settings) {
+  const {
+    prozentEinfach = true,
+    prozentVeraenderung = false,
+  } = settings
+
+  const QUESTION_TYPES = ['findeG', 'findeP', 'findeProzentsatz']
+
+  const types = []
+  if (prozentEinfach) types.push('einfach')
+  if (prozentVeraenderung) { types.push('erhoehung'); types.push('senkung') }
+  if (types.length === 0) types.push('einfach')
+
+  // Pool of "nice" values where p%·G is guaranteed to be an integer for many p values
+  const NICE_G = [20, 40, 60, 80, 100, 120, 140, 150, 160, 180, 200, 220, 240, 250, 260, 280, 300, 320, 340, 360, 380, 400, 440, 450, 460, 480, 500, 540, 550, 560, 580, 600, 640, 660, 680, 700, 720, 750, 760, 780, 800, 850, 900, 1000, 1200, 1500, 2000]
+  const PERCENTS_BASIC = [5, 10, 15, 20, 25, 30, 40, 50]
+  const PERCENTS_CHANGE = [5, 10, 15, 20, 25, 30]
+
+  const problems = []
+  let id = 1
+  const seen = new Set()
+
+  for (let i = 0; i < count; i++) {
+    const type = types[Math.floor(Math.random() * types.length)]
+    let problem = null
+    let attempts = 0
+
+    while (!problem && attempts < 300) {
+      attempts++
+
+      if (type === 'einfach') {
+        const p = PERCENTS_BASIC[Math.floor(Math.random() * PERCENTS_BASIC.length)]
+        const G = NICE_G[Math.floor(Math.random() * NICE_G.length)]
+        const P = (p / 100) * G
+        if (!Number.isInteger(P) || P < 5 || P >= G) continue
+
+        const questionType = QUESTION_TYPES[Math.floor(Math.random() * QUESTION_TYPES.length)]
+        const key = `ei_${questionType}_${p}_${G}`
+        if (seen.has(key)) continue
+
+        const validCtxs = EINFACH_CONTEXTS.filter(c => c.valid(G))
+        if (!validCtxs.length) continue
+
+        seen.add(key)
+        const ctx = validCtxs[Math.floor(Math.random() * validCtxs.length)]
+        const { text, unit } = ctx[questionType]({ p, G, P })
+        const pStr = fmtPct(p)
+
+        let correct, exampleEquation, problemUnit
+        if (questionType === 'findeG') {
+          correct = G
+          exampleEquation = `${pStr}·x = ${P}`
+          problemUnit = unit
+        } else if (questionType === 'findeP') {
+          correct = P
+          exampleEquation = `x = ${pStr}·${G}`
+          problemUnit = unit
+        } else {
+          correct = p
+          exampleEquation = `x/100·${G} = ${P}`
+          problemUnit = '%'
+        }
+
+        problem = {
+          id: id++, type: 'prozent-gleichung', variant: questionType,
+          text, unit: problemUnit, correct, exampleEquation,
+          p, G, P
+        }
+
+      } else if (type === 'erhoehung') {
+        const p = PERCENTS_CHANGE[Math.floor(Math.random() * PERCENTS_CHANGE.length)]
+        const original = NICE_G[Math.floor(Math.random() * NICE_G.length)]
+        const newVal = original * (1 + p / 100)
+        if (!Number.isInteger(newVal) || newVal < 20) continue
+        const VARIATION_TYPES = ['findeOriginal', 'findeNeu', 'findeFaktor']
+        const questionType = VARIATION_TYPES[Math.floor(Math.random() * VARIATION_TYPES.length)]
+        const key = `e_${questionType}_${p}_${original}`
+        if (seen.has(key)) continue
+
+        const validCtxs = ERHOEHUNG_CONTEXTS.filter(c => c.validOriginal(original))
+        if (!validCtxs.length) continue
+
+        seen.add(key)
+        const ctx = validCtxs[Math.floor(Math.random() * validCtxs.length)]
+        const pStr = fmtPct(p)
+        let { text, unit } = ctx[questionType]({ p, original, newVal })
+        let correct, exampleEquation
+        if (questionType === 'findeOriginal') {
+          correct = original
+          exampleEquation = `x + ${pStr}·x = ${newVal}`
+        } else if (questionType === 'findeNeu') {
+          correct = newVal
+          exampleEquation = `${original} + ${pStr}·${original} = x`
+        } else {
+          correct = p / 100
+          text += ' Du kannst das Ergebnis als Dezimalzahl (z.B. 0,3) oder Prozent (z.B. 30%) angeben.'
+          exampleEquation = `${original} + x·${original} = ${newVal}`
+        }
+        problem = {
+          id: id++, type: 'prozent-gleichung', variant: questionType,
+          text, unit, correct, exampleEquation,
+          p, original, newVal
+        }
+
+      } else if (type === 'senkung') {
+        const p = PERCENTS_CHANGE[Math.floor(Math.random() * PERCENTS_CHANGE.length)]
+        const original = NICE_G[Math.floor(Math.random() * NICE_G.length)]
+        const newVal = original * (1 - p / 100)
+        if (!Number.isInteger(newVal) || newVal < 10) continue
+        const VARIATION_TYPES_S = ['findeOriginal', 'findeNeu', 'findeFaktor']
+        const questionType = VARIATION_TYPES_S[Math.floor(Math.random() * VARIATION_TYPES_S.length)]
+        const key = `s_${questionType}_${p}_${original}`
+        if (seen.has(key)) continue
+
+        const validCtxs = SENKUNG_CONTEXTS.filter(c => c.validOriginal(original))
+        if (!validCtxs.length) continue
+
+        seen.add(key)
+        const ctx = validCtxs[Math.floor(Math.random() * validCtxs.length)]
+        const pStr = fmtPct(p)
+        let { text, unit } = ctx[questionType]({ p, original, newVal })
+        let correct, exampleEquation
+        if (questionType === 'findeOriginal') {
+          correct = original
+          exampleEquation = `x − ${pStr}·x = ${newVal}`
+        } else if (questionType === 'findeNeu') {
+          correct = newVal
+          exampleEquation = `${original} − ${pStr}·${original} = x`
+        } else {
+          correct = p / 100
+          text += ' Du kannst das Ergebnis als Dezimalzahl (z.B. 0,3) oder Prozent (z.B. 30%) angeben.'
+          exampleEquation = `${original} − x·${original} = ${newVal}`
+        }
+        problem = {
+          id: id++, type: 'prozent-gleichung', variant: questionType,
+          text, unit, correct, exampleEquation,
+          p, original, newVal
+        }
+      }
+    }
+
+    if (problem) problems.push(problem)
+  }
+
+  return problems
+}
+
 export function generateProblems(count, category, settings = {}) {
   if (category === 'einmaleins') return generateEinmaleinsProblems(count, settings);
   if (category === 'schriftlich') return generateSchriftlichProblems(count, settings);
@@ -454,5 +1628,6 @@ export function generateProblems(count, category, settings = {}) {
   if (category === 'primfaktorisierung') return generatePrimfaktorisierungProblems(count, settings);
   if (category === 'negative') return generateNegativeProblems(count, settings);
   if (category === 'binomische') return generateBinomischeProblems(count, settings);
+  if (category === 'prozent-gleichung') return generateProzentGleichungProblems(count, settings);
   return [];
 }

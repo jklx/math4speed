@@ -99,6 +99,16 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
             </li>
           )
         }
+        if (q.type === 'prozent-gleichung') {
+          const displayResult = isCorrect ? String(q.correct) : (isNaN(q.user) ? '—' : String(q.user))
+          const shortText = q.text.length > 55 ? q.text.slice(0, 55) + '…' : q.text
+          return (
+            <li key={q.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+              <span style={{ fontSize: '0.8em', color: 'var(--text-secondary, #888)', lineHeight: 1.3 }}>{shortText}</span>
+              <span>x = {displayResult}{q.unit ? ' ' + q.unit : ''}{renderCorrection(`x = ${q.correct}${q.unit ? ' ' + q.unit : ''}`)}</span>
+            </li>
+          )
+        }
         const op = getOperator(q)
         const displayOperator = op === '-' ? '−' : op
         // For schriftlich, normalize padded zero strings to a compact number

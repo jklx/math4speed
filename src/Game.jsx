@@ -174,6 +174,7 @@ import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
 import Negative from './Negative'
 import Binomische from './Binomische'
+import ProzentGleichung from './ProzentGleichung'
 import ReviewList from './ReviewList'
 
 const BATCH_SIZE = 100
@@ -329,6 +330,21 @@ export default function Game({ isSinglePlayer }) {
         </>
       )
     }
+    if (cat === 'prozent-gleichung') {
+      return (
+        <>
+          <p>Du hast {mins} Minuten Zeit, Prozentaufgaben durch Aufstellen und Lösen von Gleichungen zu bearbeiten.</p>
+          <p><strong>Schritt 1:</strong> Lies den Text und stelle eine Gleichung für <strong>x</strong> auf. Je nach Aufgabe kann x der Grundwert, der Prozentwert oder der Prozentsatz sein:</p>
+          <ul style={{textAlign:'left', lineHeight:1.8}}>
+            <li>Grundwert gesucht: <kbd>0,25·x = 75</kbd></li>
+            <li>Prozentwert gesucht: <kbd>x = 0,25·300</kbd></li>
+            <li>Prozentsatz gesucht: <kbd>x/100·300 = 75</kbd></li>
+          </ul>
+          <p><strong>Schritt 2:</strong> Löse die Gleichung und trage den Wert von <strong>x</strong> ein.</p>
+          <p>Kommazahlen mit Komma: <kbd>0,25</kbd>. Multiplikation mit <kbd>*</kbd> oder direkt <kbd>0,25x</kbd>.</p>
+        </>
+      )
+    }
     return null
   }
 
@@ -456,6 +472,13 @@ export default function Game({ isSinglePlayer }) {
   const formatCorrectAnswer = (prob) => {
     if (prob.type === 'primfaktorisierung') return prob.factors.join(' · ')
     if (prob.type === 'binomische') return prob.correct.replace(/\^2/g, '²')
+    if (prob.type === 'prozent-gleichung') {
+      if (prob.variant === 'findeFaktor') {
+        const pct = Math.round(prob.correct * 100)
+        return `x = ${String(prob.correct).replace('.', ',')} (= ${pct}%)`
+      }
+      return `x = ${prob.correct}${prob.unit ? ' ' + prob.unit : ''}`
+    }
     return String(prob.correct)
   }
 
@@ -495,6 +518,26 @@ export default function Game({ isSinglePlayer }) {
       const { isCorrect: ok, parsed: p } = validateSchriftlich(schriftlichInput.digits, prob.correctDigits)
       parsed = p
       isCorrect = ok
+    } else if (prob.type === 'prozent-gleichung') {
+      const candidateValue = String(overrideValue ?? inputValue ?? '').trim()
+      const normalized = candidateValue.replace(/−/g, '-').replace(/,/g, '.')
+      if (prob.variant === 'findeFaktor') {
+        // Accept 0.3, 30%, or 30/100 — all meaning the same factor
+        let decimal
+        if (normalized.endsWith('%')) {
+          decimal = parseFloat(normalized) / 100
+        } else if (normalized.includes('/')) {
+          const parts = normalized.split('/')
+          decimal = parseFloat(parts[0]) / parseFloat(parts[1])
+        } else {
+          decimal = parseFloat(normalized)
+        }
+        parsed = decimal
+        isCorrect = isFinite(decimal) && Math.abs(decimal - prob.correct) < 0.001
+      } else {
+        parsed = Number(normalized)
+        isCorrect = Math.abs(parsed - prob.correct) < 0.001
+      }
     } else {
       const candidateValue = overrideValue ?? inputValue
       const sanitized = String(candidateValue).replace(/−/g, '-')
@@ -557,7 +600,11 @@ export default function Game({ isSinglePlayer }) {
         ? rawUserAnswer.trim().split(/\s+/).filter(Boolean).join(' · ')
         : prob.type === 'binomische'
           ? rawUserAnswer.replace(/\^2/g, '²').replace(/\^3/g, '³')
-          : rawUserAnswer
+          : prob.type === 'prozent-gleichung'
+            ? prob.variant === 'findeFaktor'
+              ? `x = ${rawUserAnswer}`
+              : `x = ${rawUserAnswer}${prob.unit ? ' ' + prob.unit : ''}`
+            : rawUserAnswer
       setMistakeState({
         userAnswerDisplay,
         correctAnswerDisplay: formatCorrectAnswer(prob)
@@ -915,11 +962,20 @@ export default function Game({ isSinglePlayer }) {
                     onEnter={submitAnswer}
                     showTick={flashResult === 'correct'}
                   />
+                ) : problems[current].type === 'prozent-gleichung' ? (
+                  <ProzentGleichung
+                    key={problems[current].id}
+                    problem={problems[current]}
+                    onEnter={submitAnswer}
+                    showTick={flashResult === 'correct'}
+                  />
                 ) : null}
               </div>
 
               <div className="controls">
-                <button onClick={submitAnswer} className="big">Nächste</button>
+                {problems[current].type !== 'prozent-gleichung' && (
+                  <button onClick={submitAnswer} className="big">Nächste</button>
+                )}
                 <button
                   className="virtual-kb-toggle"
                   onMouseDown={e => e.preventDefault()}
