@@ -129,7 +129,7 @@ export const CATEGORIES = {
       {
         key: 'prozentVeraenderung',
         label: 'Prozentuale Veränderung – Zu-/Abnahme (z.B. x − 0,1·x = 180)',
-        defaultValue: false
+        defaultValue: true
       }
     ],
     performanceScore: [5, 12],

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 
-export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, placeholder, className, style }) {
+export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, placeholder, className, style, readOnly }) {
   const inputRef = useRef(null)
   const [cursorPos, setCursorPos] = useState(value.length)
   const [isFocused, setIsFocused] = useState(false)
@@ -22,9 +22,10 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
   }, [])
 
   const insertChar = (char) => {
+    const mapped = char === '*' ? '·' : char
     const cp = cursorPosRef.current
-    onChange(value.slice(0, cp) + char + value.slice(cp))
-    setCursorPos(cp + char.length)
+    onChange(value.slice(0, cp) + mapped + value.slice(cp))
+    setCursorPos(cp + mapped.length)
   }
 
   const handleKeyDown = (e) => {
@@ -146,7 +147,10 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
       if (t === '^') return [{ type: 'caret', key: `op-${i}` }]
       if (t === '²') return [{ type: 'caret', key: `op-sq-${i}` }, { type: 'mn', val: '2', key: `mn-sq-${i}` }]
       if (t === '³') return [{ type: 'caret', key: `op-cb-${i}` }, { type: 'mn', val: '3', key: `mn-cb-${i}` }]
-      
+      if (t === '·' || t === '*') return [{ type: 'mo', val: '·', key: `mo-${i}` }]
+      if (t === '/') return [{ type: 'mo', val: '/', key: `mo-${i}` }]
+      if (t === '%') return [{ type: 'mo', val: '%', key: `mo-${i}` }]
+
       if (['+', '-', '=', '(', ')'].includes(t)) {
         return [{ type: 'mo', val: t.replace('-', '−'), key: `mo-${i}` }]
       }
@@ -254,18 +258,18 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
   return (
     <div 
       ref={inputRef}
-      tabIndex={0}
+      tabIndex={readOnly ? -1 : 0}
       className={`algebraic-input-container ${className || ''}`}
-      onMouseDown={e => { e.preventDefault(); inputRef.current?.focus() }}
-      onKeyDown={handleKeyDown}
-      onKeyPress={handleKeyPress}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => { setIsFocused(false); deadCharRef.current = null }}
+      onMouseDown={readOnly ? undefined : (e => { e.preventDefault(); inputRef.current?.focus() })}
+      onKeyDown={readOnly ? undefined : handleKeyDown}
+      onKeyPress={readOnly ? undefined : handleKeyPress}
+      onFocus={readOnly ? undefined : () => setIsFocused(true)}
+      onBlur={readOnly ? undefined : () => { setIsFocused(false); deadCharRef.current = null }}
       style={{ 
         position: 'relative', 
         display: 'inline-block',
-        cursor: 'text',
-        outline: isFocused ? '2px solid var(--accent)' : 'none',
+        cursor: readOnly ? 'default' : 'text',
+        outline: (!readOnly && isFocused) ? '2px solid var(--accent)' : 'none',
         outlineOffset: '2px',
         borderRadius: '4px',
         ...style

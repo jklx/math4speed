@@ -172,7 +172,14 @@ export default function ProzentGleichung({ problem, onEnter, showTick }) {
       <p className="prozent-problem-text prozent-problem-text--secondary">{problem.text}</p>
 
       <div className="prozent-equation-confirmed">
-        <span className="prozent-equation-text">{equationValue}</span>
+        <AlgebraicInput
+          value={equationValue}
+          onChange={() => {}}
+          onEnter={() => {}}
+          readOnly={true}
+          className=""
+          style={{ flex: 1 }}
+        />
         <TickMark visible={true} />
       </div>
 
@@ -181,8 +188,8 @@ export default function ProzentGleichung({ problem, onEnter, showTick }) {
         {problem.unit ? ` (in ${problem.unit})` : ''}:
       </div>
 
-      <div className="einmaleins-row" style={{ alignItems: 'center' }}>
-        <div className="expression" style={{ marginTop: '0.3rem' }}>
+      <div className="einmaleins-row" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+        <div className="expression">
           <math display="inline" style={{ fontSize: '2rem' }}>
             <mrow>
               <mi>x</mi>

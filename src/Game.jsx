@@ -473,9 +473,8 @@ export default function Game({ isSinglePlayer }) {
     if (prob.type === 'primfaktorisierung') return prob.factors.join(' · ')
     if (prob.type === 'binomische') return prob.correct.replace(/\^2/g, '²')
     if (prob.type === 'prozent-gleichung') {
-      if (prob.variant === 'findeFaktor') {
-        const pct = Math.round(prob.correct * 100)
-        return `x = ${String(prob.correct).replace('.', ',')} (= ${pct}%)`
+      if (prob.variant === 'findeFaktor' || prob.variant === 'findeProzentsatz') {
+        return `x = ${String(prob.correct).replace('.', ',')} (= ${prob.p}%)`
       }
       return `x = ${prob.correct}${prob.unit ? ' ' + prob.unit : ''}`
     }
@@ -521,7 +520,7 @@ export default function Game({ isSinglePlayer }) {
     } else if (prob.type === 'prozent-gleichung') {
       const candidateValue = String(overrideValue ?? inputValue ?? '').trim()
       const normalized = candidateValue.replace(/−/g, '-').replace(/,/g, '.')
-      if (prob.variant === 'findeFaktor') {
+      if (prob.variant === 'findeFaktor' || prob.variant === 'findeProzentsatz') {
         // Accept 0.3, 30%, or 30/100 — all meaning the same factor
         let decimal
         if (normalized.endsWith('%')) {
@@ -601,7 +600,7 @@ export default function Game({ isSinglePlayer }) {
         : prob.type === 'binomische'
           ? rawUserAnswer.replace(/\^2/g, '²').replace(/\^3/g, '³')
           : prob.type === 'prozent-gleichung'
-            ? prob.variant === 'findeFaktor'
+            ? (prob.variant === 'findeFaktor' || prob.variant === 'findeProzentsatz')
               ? `x = ${rawUserAnswer}`
               : `x = ${rawUserAnswer}${prob.unit ? ' ' + prob.unit : ''}`
             : rawUserAnswer

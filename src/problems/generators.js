@@ -448,8 +448,8 @@ export function generateBinomischeProblems(count, settings) {
 // ─── Prozentrechnung mit Gleichungen ────────────────────────────────────────
 
 function fmtPct(p) {
-  // Format p/100 as German decimal string: 20 → "0,2", 5 → "0,05", 25 → "0,25"
-  return (p / 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',')
+  // Format p/100 as German decimal string: 20 → "0,2", 5 → "0,05", 7.5 → "0,075"
+  return (p / 100).toFixed(4).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',')
 }
 
 const NAMES = ['Anna', 'Ben', 'Clara', 'David', 'Emma', 'Felix', 'Greta', 'Jonas', 'Karla', 'Leon', 'Mia', 'Noah', 'Olivia', 'Paul', 'Rosa', 'Tim', 'Zara']
@@ -1487,8 +1487,8 @@ export function generateProzentGleichungProblems(count, settings) {
 
   // Pool of "nice" values where p%·G is guaranteed to be an integer for many p values
   const NICE_G = [20, 40, 60, 80, 100, 120, 140, 150, 160, 180, 200, 220, 240, 250, 260, 280, 300, 320, 340, 360, 380, 400, 440, 450, 460, 480, 500, 540, 550, 560, 580, 600, 640, 660, 680, 700, 720, 750, 760, 780, 800, 850, 900, 1000, 1200, 1500, 2000]
-  const PERCENTS_BASIC = [5, 10, 15, 20, 25, 30, 40, 50]
-  const PERCENTS_CHANGE = [5, 10, 15, 20, 25, 30]
+  const PERCENTS_BASIC = [2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25, 30, 37.5, 40, 50]
+  const PERCENTS_CHANGE = [2.5, 5, 7.5, 10, 12.5, 15, 20, 25, 30]
 
   const problems = []
   let id = 1
@@ -1505,7 +1505,7 @@ export function generateProzentGleichungProblems(count, settings) {
       if (type === 'einfach') {
         const p = PERCENTS_BASIC[Math.floor(Math.random() * PERCENTS_BASIC.length)]
         const G = NICE_G[Math.floor(Math.random() * NICE_G.length)]
-        const P = (p / 100) * G
+        const P = Math.round((p / 100) * G * 1e6) / 1e6
         if (!Number.isInteger(P) || P < 5 || P >= G) continue
 
         const questionType = QUESTION_TYPES[Math.floor(Math.random() * QUESTION_TYPES.length)]
@@ -1517,7 +1517,7 @@ export function generateProzentGleichungProblems(count, settings) {
 
         seen.add(key)
         const ctx = validCtxs[Math.floor(Math.random() * validCtxs.length)]
-        const { text, unit } = ctx[questionType]({ p, G, P })
+        let { text, unit } = ctx[questionType]({ p, G, P })
         const pStr = fmtPct(p)
 
         let correct, exampleEquation, problemUnit
@@ -1530,9 +1530,10 @@ export function generateProzentGleichungProblems(count, settings) {
           exampleEquation = `x = ${pStr}·${G}`
           problemUnit = unit
         } else {
-          correct = p
-          exampleEquation = `x/100·${G} = ${P}`
-          problemUnit = '%'
+          correct = p / 100
+          exampleEquation = `x·${G} = ${P}`
+          problemUnit = ''
+          text += ' Du kannst das Ergebnis als Dezimalzahl (z.B. 0,2) oder Prozent (z.B. 20%) angeben.'
         }
 
         problem = {
@@ -1544,7 +1545,7 @@ export function generateProzentGleichungProblems(count, settings) {
       } else if (type === 'erhoehung') {
         const p = PERCENTS_CHANGE[Math.floor(Math.random() * PERCENTS_CHANGE.length)]
         const original = NICE_G[Math.floor(Math.random() * NICE_G.length)]
-        const newVal = original * (1 + p / 100)
+        const newVal = Math.round(original * (1 + p / 100) * 1e6) / 1e6
         if (!Number.isInteger(newVal) || newVal < 20) continue
         const VARIATION_TYPES = ['findeOriginal', 'findeNeu', 'findeFaktor']
         const questionType = VARIATION_TYPES[Math.floor(Math.random() * VARIATION_TYPES.length)]
@@ -1579,7 +1580,7 @@ export function generateProzentGleichungProblems(count, settings) {
       } else if (type === 'senkung') {
         const p = PERCENTS_CHANGE[Math.floor(Math.random() * PERCENTS_CHANGE.length)]
         const original = NICE_G[Math.floor(Math.random() * NICE_G.length)]
-        const newVal = original * (1 - p / 100)
+        const newVal = Math.round(original * (1 - p / 100) * 1e6) / 1e6
         if (!Number.isInteger(newVal) || newVal < 10) continue
         const VARIATION_TYPES_S = ['findeOriginal', 'findeNeu', 'findeFaktor']
         const questionType = VARIATION_TYPES_S[Math.floor(Math.random() * VARIATION_TYPES_S.length)]
