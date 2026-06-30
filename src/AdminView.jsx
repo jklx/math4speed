@@ -5,6 +5,7 @@ import ProgressBar from './ProgressBar'
 import Logo from './Logo'
 import { getOperator } from './utils/getOperator'
 import { CATEGORIES, getDefaultSettings } from './utils/categories'
+import { formatDecimal } from './utils/formatNumber'
 
 export default function AdminView() {
   const { roomId } = useParams()
@@ -197,8 +198,8 @@ export default function AdminView() {
 
   // Calculate statistics for finished players
   const stats = finishedPlayerList.length > 0 ? {
-    avgScore: (finishedPlayerList.reduce((sum, p) => sum + p.score.time, 0) / finishedPlayerList.length).toFixed(1),
-    avgErrors: (finishedPlayerList.reduce((sum, p) => sum + p.score.wrongCount, 0) / finishedPlayerList.length).toFixed(1),
+    avgScore: formatDecimal(finishedPlayerList.reduce((sum, p) => sum + p.score.time, 0) / finishedPlayerList.length, { maximumFractionDigits: 1, minimumFractionDigits: 1 }),
+    avgErrors: formatDecimal(finishedPlayerList.reduce((sum, p) => sum + p.score.wrongCount, 0) / finishedPlayerList.length, { maximumFractionDigits: 1, minimumFractionDigits: 1 }),
     totalPlayers: finishedPlayerList.length
   } : null
 

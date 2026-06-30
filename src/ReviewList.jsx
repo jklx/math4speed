@@ -1,6 +1,7 @@
 import React from 'react'
 import { getOperator } from './utils/getOperator'
 import { formatFactors } from './utils/formatFactors'
+import { formatDecimal } from './utils/formatNumber'
 
 /**
  * ReviewList displays a list of answers (correct or incorrect).
@@ -15,6 +16,10 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
   const className = isCorrect ? 'ok' : 'bad'
   const formatGermanDecimalString = (value) => {
     if (value == null) return '—'
+    const n = Number(value)
+    if (isFinite(n)) {
+      return formatDecimal(n, { maximumFractionDigits: 4 })
+    }
     const s = String(value).trim()
     if (!s.length) return '—'
     return s.replace(/\./g, ',').replace(/-/g, '−')

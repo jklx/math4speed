@@ -1,4 +1,5 @@
 const PDFDocument = require('pdfkit');
+const { formatDecimal } = require('../src/utils/formatNumber');
 
 /**
  * generateReport(res, room, finishedPlayers)
@@ -30,8 +31,8 @@ function generateReport(res, room, finishedPlayers) {
   const avgErrors = finished.length ? (finished.reduce((s, p) => s + (p.score?.wrongCount || 0), 0) / finished.length) : 0;
 
   doc.fontSize(12).font('Helvetica').text(`Teilnehmer abgeschlossen: ${finished.length}`);
-  doc.text(`Ø Lösungszeit: ${avgTime.toFixed(1)}s`);
-  doc.text(`Ø Fehleranzahl: ${avgErrors.toFixed(1)}`);
+  doc.text(`Ø Lösungszeit: ${formatDecimal(avgTime, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}s`);
+  doc.text(`Ø Fehleranzahl: ${formatDecimal(avgErrors, { maximumFractionDigits: 1, minimumFractionDigits: 1 })}`);
   doc.moveDown(1);
 
   // summary table header
@@ -58,7 +59,7 @@ function generateReport(res, room, finishedPlayers) {
     x = startX;
     doc.text(String(p.username || '—'), x, doc.y, { width: colWidths[0] });
     x += colWidths[0];
-    doc.text(String(p.score?.time ?? '—'), x, doc.y, { width: colWidths[1], align: 'right' });
+    doc.text(String(p.score?.time !== undefined && p.score?.time !== null ? formatDecimal(p.score.time, { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : '—'), x, doc.y, { width: colWidths[1], align: 'right' });
     x += colWidths[1];
     doc.text(String(p.score?.wrongCount ?? '—'), x, doc.y, { width: colWidths[2], align: 'right' });
     doc.moveDown(0.4);
@@ -69,8 +70,8 @@ function generateReport(res, room, finishedPlayers) {
     doc.addPage({ margin: 48 });
     doc.fontSize(16).font('Helvetica-Bold').text(p.username || `Spieler ${idx + 1}`);
     doc.moveDown(0.5);
-    doc.fontSize(12).font('Helvetica').text(`Zeit: ${p.score?.time ?? '—'}s`);
-    doc.text(`Fehler: ${p.score?.wrongCount ?? '—'}`);
+    doc.fontSize(12).font('Helvetica').text(`Zeit: ${p.score?.time !== undefined && p.score?.time !== null ? formatDecimal(p.score.time, { maximumFractionDigits: 1, minimumFractionDigits: 1 }) + 's' : '—'}`);
+    doc.text(`Fehler: ${p.score?.wrongCount !== undefined && p.score?.wrongCount !== null ? formatDecimal(p.score.wrongCount, { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : '—'}`);
     doc.moveDown(0.6);
     // solved problems list (paginated by doc automatic page break logic)
     doc.fontSize(10);

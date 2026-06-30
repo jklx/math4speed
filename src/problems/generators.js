@@ -386,7 +386,7 @@ export function generateBinomischeProblems(count, settings) {
       return String(n);
     };
 
-    const formatDisplayNumber = (n) => String(n).replace('.', ',');
+    const formatDisplayNumber = (n) => formatDecimal(n, { maximumFractionDigits: 4 });
 
     const formatDisplayCoefficient = (n) => {
       if (n === 1) return '';
@@ -446,10 +446,16 @@ export function generateBinomischeProblems(count, settings) {
 }
 
 // ─── Prozentrechnung mit Gleichungen ────────────────────────────────────────
+import { formatDecimal, formatFractionPercent, formatPercent } from '../utils/formatNumber'
 
 function fmtPct(p) {
-  // Format p/100 as German decimal string: 20 → "0,2", 5 → "0,05", 7.5 → "0,075"
-  return (p / 100).toFixed(4).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',')
+  // Format p/100 as German decimal string using central helper
+  return formatFractionPercent(p)
+}
+
+function formatEmbeddedNumbersInText(text) {
+  if (typeof text !== 'string') return text
+  return text.replace(/(\d+\.\d+)/g, (m) => formatDecimal(Number(m), { maximumFractionDigits: 4 }))
 }
 
 const NAMES = ['Anna', 'Ben', 'Clara', 'David', 'Emma', 'Felix', 'Greta', 'Jonas', 'Karla', 'Leon', 'Mia', 'Noah', 'Olivia', 'Paul', 'Rosa', 'Tim', 'Zara']
@@ -997,7 +1003,7 @@ const ERHOEHUNG_CONTEXTS = [
       unit: '€'
     }),
     findeFaktor: ({ original, newVal }) => ({
-      text: `Ein Artikel stieg im Preis von ${original}€ auf ${newVal}€. Um welchen Anteil wurde er teurer? (x als Dezimalzahl, z.B. 0,3 für 30%)`,
+      text: `Ein Artikel stieg im Preis von ${original}€ auf ${newVal}€. Um welchen Anteil wurde er teurer?`,
       unit: ''
     }),
   },
@@ -1518,6 +1524,8 @@ export function generateProzentGleichungProblems(count, settings) {
         seen.add(key)
         const ctx = validCtxs[Math.floor(Math.random() * validCtxs.length)]
         let { text, unit } = ctx[questionType]({ p, G, P })
+        // Ensure displayed decimal separator is German-style comma for embedded numeric literals
+        if (typeof text === 'string') text = formatEmbeddedNumbersInText(text)
         const pStr = fmtPct(p)
 
         let correct, exampleEquation, problemUnit
@@ -1533,7 +1541,6 @@ export function generateProzentGleichungProblems(count, settings) {
           correct = p / 100
           exampleEquation = `x·${G} = ${P}`
           problemUnit = ''
-          text += ' Du kannst das Ergebnis als Dezimalzahl (z.B. 0,2) oder Prozent (z.B. 20%) angeben.'
         }
 
         problem = {
@@ -1559,6 +1566,7 @@ export function generateProzentGleichungProblems(count, settings) {
         const ctx = validCtxs[Math.floor(Math.random() * validCtxs.length)]
         const pStr = fmtPct(p)
         let { text, unit } = ctx[questionType]({ p, original, newVal })
+        if (typeof text === 'string') text = formatEmbeddedNumbersInText(text)
         let correct, exampleEquation
         if (questionType === 'findeOriginal') {
           correct = original
@@ -1568,7 +1576,6 @@ export function generateProzentGleichungProblems(count, settings) {
           exampleEquation = `${original} + ${pStr}·${original} = x`
         } else {
           correct = p / 100
-          text += ' Du kannst das Ergebnis als Dezimalzahl (z.B. 0,3) oder Prozent (z.B. 30%) angeben.'
           exampleEquation = `${original} + x·${original} = ${newVal}`
         }
         problem = {
@@ -1594,6 +1601,7 @@ export function generateProzentGleichungProblems(count, settings) {
         const ctx = validCtxs[Math.floor(Math.random() * validCtxs.length)]
         const pStr = fmtPct(p)
         let { text, unit } = ctx[questionType]({ p, original, newVal })
+        if (typeof text === 'string') text = formatEmbeddedNumbersInText(text)
         let correct, exampleEquation
         if (questionType === 'findeOriginal') {
           correct = original
@@ -1603,7 +1611,6 @@ export function generateProzentGleichungProblems(count, settings) {
           exampleEquation = `${original} − ${pStr}·${original} = x`
         } else {
           correct = p / 100
-          text += ' Du kannst das Ergebnis als Dezimalzahl (z.B. 0,3) oder Prozent (z.B. 30%) angeben.'
           exampleEquation = `${original} − x·${original} = ${newVal}`
         }
         problem = {

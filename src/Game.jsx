@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
+import { formatDecimal, formatFractionPercent } from './utils/formatNumber'
 
 // Animated demo for Primfaktorisierung input explanation
 // Shows: type "2", press SPACE → token appears, type "2", SPACE, type "3", ENTER
@@ -169,6 +170,7 @@ import { validateSchriftlich, validatePrimfaktorisierung, validatePolynomial } f
 import { getScoreComment, getScoreMarkerPosition } from './utils/performanceFeedback'
 import { computePenaltySeconds } from './utils/penalty'
 import { getCategoryLabel, CATEGORIES, getDefaultSettings, getCategoryPerformanceScore, getCategoryDuration } from './utils/categories'
+import { getOperator } from './utils/getOperator'
 import Schriftlich from './Schriftlich'
 import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
@@ -474,11 +476,38 @@ export default function Game({ isSinglePlayer }) {
     if (prob.type === 'binomische') return prob.correct.replace(/\^2/g, '²')
     if (prob.type === 'prozent-gleichung') {
       if (prob.variant === 'findeFaktor' || prob.variant === 'findeProzentsatz') {
-        return `x = ${String(prob.correct).replace('.', ',')} (= ${prob.p}%)`
+        return `x = ${formatDecimal(prob.correct, { maximumFractionDigits: 4 })} (= ${prob.p}%)`
       }
-      return `x = ${prob.correct}${prob.unit ? ' ' + prob.unit : ''}`
+      return `x = ${formatDecimal(prob.correct, { maximumFractionDigits: 4 })}${prob.unit ? ' ' + prob.unit : ''}`
     }
     return String(prob.correct)
+  }
+
+  const getMistakeQuestion = (prob) => {
+    if (!prob) return ''
+    if (prob.type === 'primfaktorisierung') return `${prob.number} = ?`
+    if (prob.type === 'binomische') return prob.expression?.replace(/\^2/g, '²').replace(/\^3/g, '³') || ''
+    if (prob.type === 'prozent-gleichung') return prob.text || ''
+    if (prob.type === 'schriftlich') return ''
+    const op = getOperator(prob)
+    return `${prob.a} ${op} ${prob.b} = ?`
+  }
+
+  const recordEquationError = () => {
+    const prob = problems[current]
+    const newEntry = { ...prob, user: '(Gleichung falsch)', isCorrect: false }
+    const newAnswers = [...answers, newEntry]
+    setAnswers(newAnswers)
+    const newWrongCount = newAnswers.filter(a => !a.isCorrect).length
+    if (newWrongCount >= MAX_LIVES) {
+      const correct = newAnswers.filter(a => a.isCorrect).length
+      if (roomId && !isSinglePlayer) {
+        finishGame(roomId, correct, newWrongCount)
+        updateProgress(roomId, 100, newAnswers)
+      }
+      setGameEndReason('lives')
+      setFinished(true)
+    }
   }
 
   const submitAnswer = (overrideValueOrEvent) => {
@@ -534,8 +563,10 @@ export default function Game({ isSinglePlayer }) {
         parsed = decimal
         isCorrect = isFinite(decimal) && Math.abs(decimal - prob.correct) < 0.001
       } else {
-        parsed = Number(normalized)
-        isCorrect = Math.abs(parsed - prob.correct) < 0.001
+        // Strip unit symbols (e.g. €, $, letters) — keep digits, decimal point, minus
+        const numericOnly = normalized.replace(/[^\d.\-]/g, '')
+        parsed = Number(numericOnly)
+        isCorrect = isFinite(parsed) && Math.abs(parsed - prob.correct) < 0.001
       }
     } else {
       const candidateValue = overrideValue ?? inputValue
@@ -683,9 +714,9 @@ export default function Game({ isSinglePlayer }) {
       .then(r => r.json())
       .then(board => {
         setLeaderboardData(board)
-        const qualifies = board.length < 10 ||
-          cc > board[9].score ||
-          (cc === board[9].score && wc < board[9].wrongCount)
+        const qualifies = board.length < 20 ||
+          cc > board[19].score ||
+          (cc === board[19].score && wc < board[19].wrongCount)
         setLeaderboardQualifies(qualifies)
       })
       .catch(() => setLeaderboardQualifies(false))
@@ -874,6 +905,9 @@ export default function Game({ isSinglePlayer }) {
                 </svg>
                 Falsch!
               </div>
+              {getMistakeQuestion(problems[current]) && (
+                <div className="mistake-question">{getMistakeQuestion(problems[current])}</div>
+              )}
               <div className="mistake-answers">
                 <div className="mistake-answer mistake-answer--wrong">
                   <span className="mistake-answer__label">Deine Antwort</span>
@@ -966,6 +1000,7 @@ export default function Game({ isSinglePlayer }) {
                     key={problems[current].id}
                     problem={problems[current]}
                     onEnter={submitAnswer}
+                    onEquationError={recordEquationError}
                     showTick={flashResult === 'correct'}
                   />
                 ) : null}
@@ -1044,7 +1079,7 @@ export default function Game({ isSinglePlayer }) {
 
           {isSinglePlayer && leaderboardQualifies === true && !leaderboardSubmitted && (
             <div className="leaderboard-qualify-box">
-              <div className="leaderboard-qualify-title">&#127942; Top 10!</div>
+              <div className="leaderboard-qualify-title">&#127942; Top 20!</div>
               <p>Du hast dich für die Rangliste qualifiziert. Gib deinen Namen ein:</p>
               <form
                 onSubmit={e => { e.preventDefault(); submitLeaderboard(); }}

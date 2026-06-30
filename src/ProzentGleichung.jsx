@@ -97,10 +97,11 @@ const TickMark = ({ visible }) => (
 )
 
 // ─── Component ──────────────────────────────────────────────────────────────
-export default function ProzentGleichung({ problem, onEnter, showTick }) {
+export default function ProzentGleichung({ problem, onEnter, onEquationError, showTick }) {
   const [step, setStep] = useState(1)
   const [equationValue, setEquationValue] = useState('')
   const [equationError, setEquationError] = useState(null)
+  const [equationRevealed, setEquationRevealed] = useState(false)
   const [resultValue, setResultValue] = useState('')
 
   const handleEquationEnter = () => {
@@ -121,7 +122,11 @@ export default function ProzentGleichung({ problem, onEnter, showTick }) {
     }
 
     if (!result.equalsCorrect) {
-      setEquationError('Diese Gleichung passt nicht zur Aufgabe – überprüfe deine Gleichung.')
+      onEquationError?.()
+      setEquationValue(problem.exampleEquation || '')
+      setEquationRevealed(true)
+      setEquationError(null)
+      setStep(2)
       return
     }
 
@@ -149,7 +154,7 @@ export default function ProzentGleichung({ problem, onEnter, showTick }) {
             onChange={val => { setEquationValue(val); setEquationError(null) }}
             onEnter={handleEquationEnter}
             autoFocus={true}
-          placeholder={`z.B. ${problem.exampleEquation || '0,25·x = 75'}`}
+            placeholder="z.B. 0,25·x = 75"
             className="app-input math-input"
             style={{ width: '340px', textAlign: 'left' }}
           />
@@ -171,7 +176,7 @@ export default function ProzentGleichung({ problem, onEnter, showTick }) {
     <div className="question-centered prozent-gleichung">
       <p className="prozent-problem-text prozent-problem-text--secondary">{problem.text}</p>
 
-      <div className="prozent-equation-confirmed">
+      <div className={`prozent-equation-confirmed${equationRevealed ? ' prozent-equation-confirmed--revealed' : ''}`}>
         <AlgebraicInput
           value={equationValue}
           onChange={() => {}}
@@ -180,13 +185,21 @@ export default function ProzentGleichung({ problem, onEnter, showTick }) {
           className=""
           style={{ flex: 1 }}
         />
-        <TickMark visible={true} />
+        <TickMark visible={!equationRevealed} />
       </div>
+      {equationRevealed && (
+        <div className="prozent-equation-revealed-hint">Richtige Gleichung eingetragen – Fehler gezählt.</div>
+      )}
 
       <div className="prozent-step-label">
         Berechne <strong>x</strong>
         {problem.unit ? ` (in ${problem.unit})` : ''}:
       </div>
+      {(problem.variant === 'findeProzentsatz' || problem.variant === 'findeFaktor') && (
+        <div className="hint" style={{ marginTop: '0.5rem', marginBottom: '0.75rem' }}>
+          Du kannst das Ergebnis als Dezimalzahl (z.B. 0,2) oder Prozent (z.B. 20%) angeben.
+        </div>
+      )}
 
       <div className="einmaleins-row" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
         <div className="expression">
