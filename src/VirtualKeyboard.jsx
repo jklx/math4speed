@@ -24,11 +24,6 @@ const KEY_VALUES = {
 //   [,]  [0]  [v]  [+]
 //   [       ↵  ×4     ]
 
-const NUMPAD_BASE = [
-  '7', '8', '9', '⌫',
-  '4', '5', '6', { label: '↵', rowSpan: 2 },
-  '1', '2', '3',
-]
 
 const KEY_LAYOUTS = {
   multiplication: {

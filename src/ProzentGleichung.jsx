@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import AlgebraicInput from './AlgebraicInput'
+import { InlineSubmitButton, TickMark } from './components/AnswerControls'
 
 // ─── Equation evaluator (safe, no eval) ────────────────────────────────────
 // Evaluates one side of a linear equation in x for a given x value.
@@ -90,17 +91,10 @@ function validateEquation(equationStr, expectedX) {
 }
 
 // ─── Small tick mark (like in Binomische) ──────────────────────────────────
-const TickMark = ({ visible }) => (
-  <svg viewBox="8 14 36 26" className="tick-svg tick-svg--small" aria-hidden style={{ visibility: visible ? 'visible' : 'hidden' }}>
-    <path d="M14 27 l9 9 l16 -16" className="tick-check" />
-  </svg>
-)
-
 // ─── Component ──────────────────────────────────────────────────────────────
-export default function ProzentGleichung({ problem, onEnter, onEquationError, showTick }) {
+export default function ProzentGleichung({ problem, onEnter, onEquationError, showTick, crossedOutEquation, mistakeFeedback }) {
   const [step, setStep] = useState(1)
   const [equationValue, setEquationValue] = useState('')
-  const [equationError, setEquationError] = useState(null)
   const [equationRevealed, setEquationRevealed] = useState(false)
   const [resultValue, setResultValue] = useState('')
 
@@ -110,27 +104,13 @@ export default function ProzentGleichung({ problem, onEnter, onEquationError, sh
 
     const result = validateEquation(trimmed, problem.correct)
 
-    if (!result.valid) {
-      const msg =
-        result.reason === 'no_equals'   ? 'Die Gleichung muss ein „=" enthalten.' :
-        result.reason === 'no_x'        ? 'Die Gleichung muss die Variable x enthalten.' :
-        result.reason === 'bad_format'  ? 'Die Gleichung hat kein linkes oder rechtes Ergebnis.' :
-        result.reason === 'tautology'   ? 'Diese Gleichung gilt für jedes x – bitte stelle eine konkrete Gleichung auf.' :
-        'Die Gleichung konnte nicht ausgewertet werden – bitte überprüfen.'
-      setEquationError(msg)
-      return
-    }
-
-    if (!result.equalsCorrect) {
-      onEquationError?.()
-      setEquationValue(problem.exampleEquation || '')
+    if (!result.valid || !result.equalsCorrect) {
+      onEquationError?.(trimmed)
       setEquationRevealed(true)
-      setEquationError(null)
       setStep(2)
       return
     }
 
-    setEquationError(null)
     setStep(2)
   }
 
@@ -151,22 +131,15 @@ export default function ProzentGleichung({ problem, onEnter, onEquationError, sh
         <div className="prozent-equation-row">
           <AlgebraicInput
             value={equationValue}
-            onChange={val => { setEquationValue(val); setEquationError(null) }}
+            onChange={setEquationValue}
             onEnter={handleEquationEnter}
             autoFocus={true}
             placeholder="z.B. 0,25·x = 75"
             className="app-input math-input"
-            style={{ width: '340px', textAlign: 'left' }}
+            style={{ width: 'min(100%, 620px)', textAlign: 'left' }}
           />
+          <InlineSubmitButton onClick={handleEquationEnter} />
         </div>
-
-        {equationError && (
-          <div className="prozent-equation-error" role="alert">{equationError}</div>
-        )}
-
-        <button onClick={handleEquationEnter} className="big" style={{ marginTop: '0.75rem' }}>
-          Gleichung bestätigen
-        </button>
       </div>
     )
   }
@@ -182,49 +155,77 @@ export default function ProzentGleichung({ problem, onEnter, onEquationError, sh
           onChange={() => {}}
           onEnter={() => {}}
           readOnly={true}
+          crossedOut={crossedOutEquation || mistakeFeedback?.field === 'equation'}
           className=""
           style={{ flex: 1 }}
         />
         <TickMark visible={!equationRevealed} />
       </div>
-      {equationRevealed && (
-        <div className="prozent-equation-revealed-hint">Richtige Gleichung eingetragen – Fehler gezählt.</div>
-      )}
-
-      <div className="prozent-step-label">
-        Berechne <strong>x</strong>
-        {problem.unit ? ` (in ${problem.unit})` : ''}:
-      </div>
-      {(problem.variant === 'findeProzentsatz' || problem.variant === 'findeFaktor') && (
-        <div className="hint" style={{ marginTop: '0.5rem', marginBottom: '0.75rem' }}>
-          Du kannst das Ergebnis als Dezimalzahl (z.B. 0,2) oder Prozent (z.B. 20%) angeben.
+      {mistakeFeedback?.field === 'equation' && mistakeFeedback.correctAnswerDisplay && (
+        <div className="inline-feedback">
+          <div className="inline-feedback__label">Richtige Lösung</div>
+          <div className="inline-feedback__value">{mistakeFeedback.correctAnswerDisplay}</div>
         </div>
       )}
+      {/* previously showed a revealed hint here; feedback is now inline in the main game UI */}
 
-      <div className="einmaleins-row" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-        <div className="expression">
-          <math display="inline" style={{ fontSize: '2rem' }}>
-            <mrow>
-              <mi>x</mi>
-              <mo style={{ margin: '0 0.2em' }}>=</mo>
-            </mrow>
-          </math>
-        </div>
-        <AlgebraicInput
-          value={resultValue}
-          onChange={setResultValue}
-          onEnter={handleResultEnter}
-          autoFocus={true}
-          placeholder="Ergebnis…"
-          className="app-input math-input"
-          style={{ width: '160px', textAlign: 'left' }}
-        />
-        <TickMark visible={showTick} />
-      </div>
+      {mistakeFeedback?.field !== 'equation' && (
+        <>
+          <div className="prozent-step-label">
+            Berechne <strong>x</strong>
+            {problem.unit ? ` (in ${problem.unit})` : ''}:
+          </div>
+          {(problem.variant === 'findeProzentsatz' || problem.variant === 'findeFaktor') && (
+            <div className="hint" style={{ marginTop: '0.5rem', marginBottom: '0.75rem' }}>
+              Du kannst das Ergebnis als Dezimalzahl (z.B. 0,2) oder Prozent (z.B. 20%) angeben.
+            </div>
+          )}
 
-      <button onClick={handleResultEnter} className="big" style={{ marginTop: '0.75rem' }}>
-        Lösung einreichen
-      </button>
+          <div className="einmaleins-row" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <div className="expression">
+              <math display="inline" style={{ fontSize: '2rem' }}>
+                <mrow>
+                  <mi>x</mi>
+                  <mo style={{ margin: '0 0.2em' }}>=</mo>
+                </mrow>
+              </math>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AlgebraicInput
+                value={resultValue}
+                onChange={setResultValue}
+                onEnter={handleResultEnter}
+                autoFocus={true}
+                crossedOut={Boolean(mistakeFeedback?.field === 'result' && resultValue)}
+                readOnly={Boolean(mistakeFeedback?.field === 'result')}
+                placeholder="Ergebnis…"
+                className="app-input math-input"
+                style={{ width: 'clamp(160px, 28vw, 240px)', textAlign: 'left' }}
+              />
+              {!mistakeFeedback && <InlineSubmitButton onClick={handleResultEnter} />}
+            </div>
+            <TickMark visible={showTick} />
+          </div>
+          {mistakeFeedback?.field === 'result' && mistakeFeedback.correctAnswerDisplay && (
+            <div className="inline-feedback">
+              <div className="inline-feedback__label">Richtige Lösung</div>
+              <div className="inline-feedback__value">{mistakeFeedback.correctAnswerDisplay}</div>
+            </div>
+          )}
+
+          {mistakeFeedback && mistakeFeedback.field === 'result' && (
+            <button onClick={mistakeFeedback.onContinue} className="big" style={{ marginTop: '0.75rem' }}>
+              Weiter
+            </button>
+          )}
+        </>
+      )}
+
+      {mistakeFeedback?.field === 'equation' && (
+        <button onClick={mistakeFeedback.onContinue} className="big" style={{ marginTop: '0.75rem' }}>
+          Weiter
+        </button>
+      )}
     </div>
   )
 }

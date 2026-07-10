@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
 
-export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, placeholder, className, style, readOnly }) {
+export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, placeholder, className, style, readOnly, crossedOut }) {
   const inputRef = useRef(null)
-  const [cursorPos, setCursorPos] = useState(value.length)
+  const [cursorPos, setCursorPos] = useState(String(value).length)
+  const showError = crossedOut && String(value).trim().length > 0
   const [isFocused, setIsFocused] = useState(false)
   const cursorPosRef = useRef(cursorPos)
   cursorPosRef.current = cursorPos
@@ -110,6 +111,16 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
     if (autoFocus) inputRef.current?.focus()
   }, [autoFocus])
 
+  useEffect(() => {
+    if (readOnly) return
+    const activeElement = document.activeElement
+    if (!inputRef.current) return
+    if (activeElement === document.body || activeElement === null) {
+      const frame = requestAnimationFrame(() => inputRef.current?.focus())
+      return () => cancelAnimationFrame(frame)
+    }
+  }, [value, readOnly])
+
   // --- Rendering Logic ---
 
   const CURSOR_MARKER = '│' // Thin vertical line or similar
@@ -138,7 +149,7 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
     // - Single digits (for strict exponent control)
     // - Sequences of letters
     // - Superscripts ² and ³
-    const regex = /(\│|\^|[+\-=()]|[0-9]|[a-zA-Z]+|[²³])/g
+    const regex = /(│|\^|[+\-=()]|[0-9]|[a-zA-Z]+|[²³])/g
     const rawTokens = textWithCursor.split(regex).filter(t => t && t.trim() !== '')
 
     // First pass: Convert strings to MathML elements (or intermediate objects)
@@ -276,10 +287,10 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
       }}
     >
       {/* Visual MathML Rendering */}
-      <div className="algebraic-display" style={{ pointerEvents: 'none', display: 'flex', alignItems: 'center', height: '100%', minHeight: '2.5rem' }}>
+      <div className="algebraic-display" style={{ pointerEvents: 'none', display: 'flex', alignItems: 'center', height: '100%', minHeight: '2.5rem', color: showError ? 'var(--bad)' : undefined }}>
         <math display="inline">
           <mrow>
-            {value.length === 0 && !isFocused && placeholder ? (
+            {String(value).length === 0 && !isFocused && placeholder ? (
               <mtext style={{ color: '#ccc', fontSize: '1rem' }}>{placeholder}</mtext>
             ) : (
               renderTokens(value, cursorPos, isFocused)

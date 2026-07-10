@@ -300,7 +300,7 @@ export function generateNegativeProblems(count, settings) {
           expression = `${a < 0 ? `(${a})` : a} · ${b < 0 ? `(${b})` : b}`;
           correct = a * b;
           break;
-        case 'divide':
+        case 'divide': {
           b = Math.floor(Math.random() * 25) - 12;
           if (b === 0) b = 1;
           const res = Math.floor(Math.random() * 25) - 12;
@@ -309,6 +309,7 @@ export function generateNegativeProblems(count, settings) {
           expression = `${a < 0 ? `(${a})` : a} ∶ ${b < 0 ? `(${b})` : b}`;
           correct = res;
           break;
+        }
       }
       // Retry if no negative numbers are involved (operands positive and result positive)
       // We allow it occasionally (15% chance) to keep some variety
@@ -340,7 +341,7 @@ export function generateBinomischeProblems(count, settings) {
     // 1: (a+b)^2, 2: (a-b)^2, 3: (a+b)(a-b)
     const type = Math.floor(Math.random() * 3) + 1; 
     
-    let c1, c2, term1, term2, expanded;
+    let expanded;
     
     // Generate coefficients
     // Simple: integers 1-12
@@ -446,7 +447,7 @@ export function generateBinomischeProblems(count, settings) {
 }
 
 // ─── Prozentrechnung mit Gleichungen ────────────────────────────────────────
-import { formatDecimal, formatFractionPercent, formatPercent } from '../utils/formatNumber'
+import { formatDecimal, formatFractionPercent } from '../utils/formatNumber'
 
 function fmtPct(p) {
   // Format p/100 as German decimal string using central helper

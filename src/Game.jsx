@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { formatDecimal, formatFractionPercent } from './utils/formatNumber'
+import { formatDecimal, formatPercent } from './utils/formatNumber'
 
 // Animated demo for Primfaktorisierung input explanation
 // Shows: type "2", press SPACE → token appears, type "2", SPACE, type "3", ENTER
@@ -168,9 +168,7 @@ import ProgressBar from './ProgressBar'
 import { generateProblems } from './problems/generators'
 import { validateSchriftlich, validatePrimfaktorisierung, validatePolynomial } from './problems/validate'
 import { getScoreComment, getScoreMarkerPosition } from './utils/performanceFeedback'
-import { computePenaltySeconds } from './utils/penalty'
 import { getCategoryLabel, CATEGORIES, getDefaultSettings, getCategoryPerformanceScore, getCategoryDuration } from './utils/categories'
-import { getOperator } from './utils/getOperator'
 import Schriftlich from './Schriftlich'
 import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
@@ -187,11 +185,12 @@ export default function Game({ isSinglePlayer }) {
   const location = useLocation();
   // Only use multiplayer hooks when NOT in single player mode
   const multiplayerContext = isSinglePlayer ? null : useMultiplayer();
-  const { roomState, updateProgress, finishGame, username, getRoomState, isConnected } = multiplayerContext || {};
+  const { roomState, updateProgress, finishGame, username, getRoomState, attemptPlayerRejoin, isConnected } = multiplayerContext || {};
   
   // Fetch room state if missing (e.g. on refresh)
   useEffect(() => {
     if (!isSinglePlayer && roomId && isConnected) {
+      attemptPlayerRejoin?.(roomId)
       // We request state even if we have it, to ensure it's fresh, 
       // but critically when we don't have it (refresh)
       getRoomState(roomId)
@@ -254,14 +253,11 @@ export default function Game({ isSinglePlayer }) {
   const [schriftlichInput, setSchriftlichInput] = useState({ digits: [], parsed: '', valid: false })
   const [schriftlichCheckMode, setSchriftlichCheckMode] = useState(false)
   const [selectedSchriftlichId, setSelectedSchriftlichId] = useState(null)
-  const [reviewShowCorrect, setReviewShowCorrect] = useState(false)
   const [finished, setFinished] = useState(false)
-  const [startTime, setStartTime] = useState(null)
-  const [endTime, setEndTime] = useState(null)
+  const [, setStartTime] = useState(null)
   const [toast, setToast] = useState(null)
   const [flashResult, setFlashResult] = useState(null) // 'correct' | null
   const [mistakeState, setMistakeState] = useState(null) // null | { userAnswerDisplay, correctAnswerDisplay }
-  const [gameEndReason, setGameEndReason] = useState('time') // 'time' | 'lives'
   const [leaderboardQualifies, setLeaderboardQualifies] = useState(null) // null | true | false
   const [leaderboardName, setLeaderboardName] = useState('')
   const [leaderboardSubmitted, setLeaderboardSubmitted] = useState(false)
@@ -356,6 +352,19 @@ export default function Game({ isSinglePlayer }) {
     }
   }, [started, current, finished])
 
+  useEffect(() => {
+    const hasActiveGame = (started || countdown !== null) && !finished
+    if (!hasActiveGame) return
+
+    const warnBeforeUnload = (event) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', warnBeforeUnload)
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload)
+  }, [started, countdown, finished])
+
   // Reset schriftlich input container state when moving to a new problem
   useEffect(() => {
     setSchriftlichInput({ digits: [], parsed: '', valid: false })
@@ -396,7 +405,6 @@ export default function Game({ isSinglePlayer }) {
     setTimeLeft(gameDurationRef.current)
     setMistakeState(null)
     setSchriftlichCheckMode(false)
-    setGameEndReason('time')
     setLeaderboardQualifies(null)
     setLeaderboardName('')
     setLeaderboardSubmitted(false)
@@ -466,7 +474,6 @@ export default function Game({ isSinglePlayer }) {
         finishGame(roomId, correct, wrong)
         updateProgress(roomId, 100, answers)
       }
-      setGameEndReason('time')
       setFinished(true)
     }
   }, [timeLeft, started, finished])
@@ -483,17 +490,18 @@ export default function Game({ isSinglePlayer }) {
     return String(prob.correct)
   }
 
-  const getMistakeQuestion = (prob) => {
-    if (!prob) return ''
-    if (prob.type === 'primfaktorisierung') return `${prob.number} = ?`
-    if (prob.type === 'binomische') return prob.expression?.replace(/\^2/g, '²').replace(/\^3/g, '³') || ''
-    if (prob.type === 'prozent-gleichung') return prob.text || ''
-    if (prob.type === 'schriftlich') return ''
-    const op = getOperator(prob)
-    return `${prob.a} ${op} ${prob.b} = ?`
+  const formatCorrectAnswerOptions = (prob) => {
+    if (prob.type === 'prozent-gleichung' && (prob.variant === 'findeFaktor' || prob.variant === 'findeProzentsatz')) {
+      return [
+        `x = ${formatDecimal(prob.correct, { maximumFractionDigits: 4 })}`,
+        'oder',
+        `x = ${formatPercent(prob.p, { maximumFractionDigits: 4 })}`
+      ]
+    }
+    return [formatCorrectAnswer(prob)]
   }
 
-  const recordEquationError = () => {
+  const recordEquationError = (userEquation) => {
     const prob = problems[current]
     const newEntry = { ...prob, user: '(Gleichung falsch)', isCorrect: false }
     const newAnswers = [...answers, newEntry]
@@ -505,9 +513,12 @@ export default function Game({ isSinglePlayer }) {
         finishGame(roomId, correct, newWrongCount)
         updateProgress(roomId, 100, newAnswers)
       }
-      setGameEndReason('lives')
       setFinished(true)
     }
+    // Show inline mistake: display student's equation and the correct example equation
+    const userDisplay = userEquation ? String(userEquation).replace(/\./g, ',') : '(Gleichung falsch)'
+    const correctDisplay = prob.exampleEquation || formatCorrectAnswer(prob)
+    setMistakeState({ userAnswerDisplay: userDisplay, correctAnswerDisplay: correctDisplay, field: 'equation' })
   }
 
   const submitAnswer = (overrideValueOrEvent) => {
@@ -539,7 +550,7 @@ export default function Game({ isSinglePlayer }) {
       isCorrect = ok
     } else if (prob.type === 'binomische') {
       const candidateValue = (overrideValue ?? inputValue)
-      const { isCorrect: ok, parsed: p } = validatePolynomial(candidateValue, prob.correct, prob.variable)
+      const { isCorrect: ok, parsed: p } = validatePolynomial(candidateValue, prob.correct)
       parsed = p
       isCorrect = ok
     } else if (prob.type === 'schriftlich') {
@@ -564,7 +575,7 @@ export default function Game({ isSinglePlayer }) {
         isCorrect = isFinite(decimal) && Math.abs(decimal - prob.correct) < 0.001
       } else {
         // Strip unit symbols (e.g. €, $, letters) — keep digits, decimal point, minus
-        const numericOnly = normalized.replace(/[^\d.\-]/g, '')
+        const numericOnly = normalized.replace(/[^\d.-]/g, '')
         parsed = Number(numericOnly)
         isCorrect = isFinite(parsed) && Math.abs(parsed - prob.correct) < 0.001
       }
@@ -617,7 +628,6 @@ export default function Game({ isSinglePlayer }) {
           finishGame(roomId, correct, newWrongCount)
           updateProgress(roomId, 100, newAnswers)
         }
-        setGameEndReason('lives')
         setFinished(true)
         return
       }
@@ -637,7 +647,8 @@ export default function Game({ isSinglePlayer }) {
             : rawUserAnswer
       setMistakeState({
         userAnswerDisplay,
-        correctAnswerDisplay: formatCorrectAnswer(prob)
+        correctAnswerDisplay: formatCorrectAnswerOptions(prob).join('\n'),
+        field: prob.type === 'prozent-gleichung' ? 'result' : 'other'
       })
       pauseTimerRef.current = true
     }
@@ -653,7 +664,6 @@ export default function Game({ isSinglePlayer }) {
         finishGame(roomId, correct, newWrongCount)
         updateProgress(roomId, 100, answers)
       }
-      setGameEndReason('lives')
       setFinished(true)
       return
     }
@@ -814,6 +824,14 @@ export default function Game({ isSinglePlayer }) {
     el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
   }
 
+  const handleSchriftlichSubmit = () => {
+    if (schriftlichCheckMode) {
+      setSchriftlichCheckMode(false)
+      pauseTimerRef.current = false
+    }
+    submitAnswer()
+  }
+
   return (
     <div className="app">
       <Logo />
@@ -895,34 +913,9 @@ export default function Game({ isSinglePlayer }) {
             <div className="score-timer">Zeit: {formatTime(timeLeft)}</div>
           </div>
 
-          {mistakeState ? (
-            <div className="mistake-panel">
-              <div className="mistake-header">
-                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="15" y1="9" x2="9" y2="15"/>
-                  <line x1="9" y1="9" x2="15" y2="15"/>
-                </svg>
-                Falsch!
-              </div>
-              {getMistakeQuestion(problems[current]) && (
-                <div className="mistake-question">{getMistakeQuestion(problems[current])}</div>
-              )}
-              <div className="mistake-answers">
-                <div className="mistake-answer mistake-answer--wrong">
-                  <span className="mistake-answer__label">Deine Antwort</span>
-                  <span className="mistake-answer__value">{mistakeState.userAnswerDisplay}</span>
-                </div>
-                <div className="mistake-answer mistake-answer--correct">
-                  <span className="mistake-answer__label">Richtige Antwort</span>
-                  <span className="mistake-answer__value">{mistakeState.correctAnswerDisplay}</span>
-                </div>
-              </div>
-              <button ref={weiterButtonRef} onClick={dismissMistake} className="big">Weiter</button>
-            </div>
-          ) : (
+          <>
             <>
-              <div className="question">
+              <div className={`question${flashResult === 'correct' ? ' question--correct' : ''}${mistakeState || schriftlichCheckMode ? ' question--wrong' : ''}`}>
                 {flashResult === 'correct' && problems[current].type === 'schriftlich' && (
                   <div className="tick-inline" aria-hidden>
                     <svg viewBox="0 0 52 52" className="tick-svg">
@@ -939,6 +932,8 @@ export default function Game({ isSinglePlayer }) {
                     onChange={setInputValue}
                     onEnter={submitAnswer}
                     showTick={flashResult === 'correct'}
+                    crossedOut={Boolean(mistakeState)}
+                    mistakeFeedback={mistakeState}
                   />
                 ) : problems[current].type === 'schriftlich' ? (
                   <>
@@ -951,18 +946,22 @@ export default function Game({ isSinglePlayer }) {
                       partialProducts={problems[current].partialProducts}
                       operation={problems[current].operation}
                       onChange={setSchriftlichInput}
-                      onEnter={() => {
-                        if (schriftlichCheckMode) {
-                          setSchriftlichCheckMode(false)
-                          pauseTimerRef.current = false
-                        }
-                        submitAnswer()
-                      }}
+                      onEnter={handleSchriftlichSubmit}
                       checkMode={schriftlichCheckMode}
                     />
                     {schriftlichCheckMode && (
                       <p className="schriftlich-correction-hint">Noch nicht ganz richtig — bitte korrigiere die falschen Zahlen.</p>
                     )}
+                    <div className="question-bottom-actions">
+                      <button
+                        type="button"
+                        className="big schriftlich-check-button"
+                        onClick={handleSchriftlichSubmit}
+                        disabled={!schriftlichInput?.valid || flashResult === 'correct'}
+                      >
+                        Prüfen
+                      </button>
+                    </div>
                   </>
                 ) : problems[current].type === 'multiplication' ? (
                   <Einmaleins
@@ -973,6 +972,8 @@ export default function Game({ isSinglePlayer }) {
                     onChange={setInputValue}
                     onEnter={submitAnswer}
                     showTick={flashResult === 'correct'}
+                    crossedOut={Boolean(mistakeState)}
+                    mistakeFeedback={mistakeState}
                   />
                 ) : problems[current].type === 'negative' ? (
                   <Negative
@@ -985,6 +986,8 @@ export default function Game({ isSinglePlayer }) {
                     onEnter={submitAnswer}
                     explicitPlus={problems[current].explicitPlus}
                     showTick={flashResult === 'correct'}
+                    crossedOut={Boolean(mistakeState)}
+                    mistakeFeedback={mistakeState}
                   />
                 ) : problems[current].type === 'binomische' ? (
                   <Binomische
@@ -994,6 +997,8 @@ export default function Game({ isSinglePlayer }) {
                     onChange={setInputValue}
                     onEnter={submitAnswer}
                     showTick={flashResult === 'correct'}
+                    crossedOut={Boolean(mistakeState)}
+                    mistakeFeedback={mistakeState}
                   />
                 ) : problems[current].type === 'prozent-gleichung' ? (
                   <ProzentGleichung
@@ -1002,14 +1007,19 @@ export default function Game({ isSinglePlayer }) {
                     onEnter={submitAnswer}
                     onEquationError={recordEquationError}
                     showTick={flashResult === 'correct'}
+                    crossedOutEquation={false}
+                    crossedOutResult={mistakeState?.field === 'result'}
+                    mistakeFeedback={mistakeState?.field === 'equation' || mistakeState?.field === 'result' ? { ...mistakeState, onContinue: dismissMistake } : null}
                   />
                 ) : null}
+                {mistakeState && problems[current].type !== 'prozent-gleichung' && (
+                  <div className="question-bottom-actions">
+                    <button onClick={dismissMistake} className="big">Weiter</button>
+                  </div>
+                )}
               </div>
 
               <div className="controls">
-                {problems[current].type !== 'prozent-gleichung' && (
-                  <button onClick={submitAnswer} className="big">Nächste</button>
-                )}
                 <button
                   className="virtual-kb-toggle"
                   onMouseDown={e => e.preventDefault()}
@@ -1039,7 +1049,8 @@ export default function Game({ isSinglePlayer }) {
                 />
               )}
             </>
-          )}
+
+        </>
         </main>
       )}
 

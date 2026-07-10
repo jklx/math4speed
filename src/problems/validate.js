@@ -25,9 +25,9 @@ export function validatePrimfaktorisierung(input, correctFactors) {
   return { isCorrect, parsed: trimmed, valid: true };
 }
 
-export function validatePolynomial(input, correctExpression, variable) {
+export function validatePolynomial(input, correctExpression) {
   // Simple normalization: remove spaces, replace minus with standard hyphen
-  const normalize = (s) => s.replace(/\s+/g, '').replace(/−/g, '-').replace(/,/g, '.').replace(/\^/g, '^');
+  const normalize = (s) => s.replace(/\s+/g, '').replace(/−/g, '-').replace(/,/g, '.');
   
   // This is a basic string comparison after normalization. 
   // A full polynomial parser would be better but complex.

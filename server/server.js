@@ -27,6 +27,53 @@ function saveLeaderboard(data) {
   fs.writeFileSync(LEADERBOARD_FILE, JSON.stringify(data, null, 2));
 }
 
+const REJOIN_GRACE_MS = 60000;
+
+function createSessionId() {
+  return Math.random().toString(36).substring(2, 14);
+}
+
+function getPlayerBySocket(room, socketId) {
+  for (const [playerId, player] of room.players.entries()) {
+    if (player.socketId === socketId) return { playerId, player };
+  }
+  return null;
+}
+
+function finishRoomIfAllPlayersDone(room) {
+  const players = Array.from(room.players.values());
+  if (players.length > 0 && players.every(player => player.score !== null)) {
+    room.status = 'finished';
+  }
+}
+
+function attachPlayerToSocket(room, playerId, socket, roomId) {
+  const player = room.players.get(playerId);
+  if (!player) return null;
+
+  player.socketId = socket.id;
+  delete player.disconnectedAt;
+  socket.join(roomId);
+  return player;
+}
+
+function serializeRoom(room) {
+  return {
+    admin: room.admin,
+    adminName: room.adminName,
+    status: room.status,
+    settings: room.settings || null,
+    players: Array.from(room.players.entries()).map(([id, data]) => ({
+      id,
+      username: data.username,
+      score: data.score,
+      progress: data.progress,
+      solved: data.solved || [],
+      connected: Boolean(data.socketId)
+    }))
+  };
+}
+
 app.get('/api/leaderboard', (req, res) => {
   const category = String(req.query.category || '').trim();
   if (category && !VALID_CATEGORIES.includes(category)) {
@@ -126,7 +173,7 @@ io.on('connection', (socket) => {
     updateRoomState(rid);
   });
 
-  socket.on('joinRoom', ({ roomId, username }) => {
+  socket.on('joinRoom', ({ roomId, username, playerId }) => {
     const rid = String(roomId).toLowerCase();
     const room = rooms.get(rid);
     if (!room) {
@@ -137,9 +184,38 @@ io.on('connection', (socket) => {
       socket.emit('error', 'Game already in progress');
       return;
     }
+
+    const sessionId = String(playerId || createSessionId());
+    const existingPlayer = room.players.get(sessionId);
+    if (existingPlayer) {
+      existingPlayer.username = username;
+      attachPlayerToSocket(room, sessionId, socket, rid);
+      socket.emit('roomJoined', { roomId: rid, isAdmin: false, playerId: sessionId, username });
+      updateRoomState(rid);
+      return;
+    }
+
     socket.join(rid);
-    room.players.set(socket.id, { username, score: null, progress: 0 });
-    socket.emit('roomJoined', { roomId: rid, isAdmin: false });
+    room.players.set(sessionId, { username, score: null, progress: 0, socketId: socket.id });
+    socket.emit('roomJoined', { roomId: rid, isAdmin: false, playerId: sessionId, username });
+    updateRoomState(rid);
+  });
+
+  socket.on('rejoinPlayer', ({ roomId, playerId }) => {
+    const rid = String(roomId).toLowerCase();
+    const sessionId = String(playerId || '');
+    const room = rooms.get(rid);
+    if (!room || !sessionId) return;
+
+    const player = attachPlayerToSocket(room, sessionId, socket, rid);
+    if (!player) return;
+
+    socket.emit('roomRejoined', {
+      roomId: rid,
+      isAdmin: false,
+      playerId: sessionId,
+      username: player.username
+    });
     updateRoomState(rid);
   });
 
@@ -211,19 +287,7 @@ io.on('connection', (socket) => {
       return;
     }
     // Send room state directly to this socket
-    const state = {
-      admin: room.admin,
-      adminName: room.adminName,
-      status: room.status,
-      settings: room.settings || null,
-      players: Array.from(room.players.entries()).map(([id, data]) => ({
-        id,
-        username: data.username,
-        score: data.score,
-        progress: data.progress,
-        solved: data.solved || []
-      }))
-    };
+    const state = serializeRoom(room);
     console.log('[Server] Sending roomState to socket:', socket.id, 'state:', state);
     socket.emit('roomState', state);
   });
@@ -233,7 +297,8 @@ io.on('connection', (socket) => {
     const room = rooms.get(rid);
     if (!room || room.status === 'finished') return;
     
-    const player = room.players.get(socket.id);
+    const playerEntry = getPlayerBySocket(room, socket.id);
+    const player = playerEntry?.player;
     if (player && !player.score) { // only update if player hasn't finished
       player.progress = progress;
       // Store solved problems (array) for admin view
@@ -249,18 +314,13 @@ io.on('connection', (socket) => {
     const room = rooms.get(rid);
     if (!room || room.status === 'finished') return;
     
-    const player = room.players.get(socket.id);
+    const playerEntry = getPlayerBySocket(room, socket.id);
+    const player = playerEntry?.player;
     if (player && !player.score) { // only allow finishing once
       player.score = { time: score, wrongCount };
       player.progress = 100;
       
-      // Check if all players finished
-      const allFinished = Array.from(room.players.values())
-        .every(p => p.score !== null);
-      
-      if (allFinished) {
-        room.status = 'finished';
-      }
+      finishRoomIfAllPlayersDone(room);
       
       updateRoomState(rid);
     }
@@ -288,14 +348,28 @@ io.on('connection', (socket) => {
           
           console.log(`[Server] Grace period expired for room ${roomId}, deleting room`);
           rooms.delete(roomId);
-        }, 60000); // 60 second grace period
+        }, REJOIN_GRACE_MS); // 60 second grace period
         
         continue;
       }
 
-      // If a regular player disconnected, remove them
-      if (room.players.has(socket.id)) {
-        room.players.delete(socket.id);
+      // If a regular player disconnected, keep them briefly so they can reconnect
+      const playerEntry = getPlayerBySocket(room, socket.id);
+      if (playerEntry) {
+        playerEntry.player.socketId = null;
+        playerEntry.player.disconnectedAt = Date.now();
+        console.log(`[Server] Player disconnected from room ${roomId}, setting 60s rejoin grace period`);
+
+        setTimeout(() => {
+          const currentRoom = rooms.get(roomId);
+          const currentPlayer = currentRoom?.players.get(playerEntry.playerId);
+          if (!currentRoom || !currentPlayer || !currentPlayer.disconnectedAt) return;
+
+          currentRoom.players.delete(playerEntry.playerId);
+          finishRoomIfAllPlayersDone(currentRoom);
+          updateRoomState(roomId);
+        }, REJOIN_GRACE_MS);
+
         updateRoomState(roomId);
       }
     }
@@ -306,19 +380,7 @@ function updateRoomState(roomId) {
   const room = rooms.get(roomId);
   if (!room) return;
 
-  const state = {
-    admin: room.admin,
-    adminName: room.adminName,
-    status: room.status,
-    settings: room.settings || null,
-    players: Array.from(room.players.entries()).map(([id, data]) => ({
-      id,
-      username: data.username,
-      score: data.score,
-      progress: data.progress,
-      solved: data.solved || []
-    }))
-  };
+  const state = serializeRoom(room);
   
   io.to(roomId).emit('roomState', state);
 }

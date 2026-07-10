@@ -4,6 +4,13 @@ import { useNavigate } from 'react-router-dom';
 
 const MultiplayerContext = createContext();
 
+function createPlayerId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2, 14);
+}
+
 export function MultiplayerProvider({ children }) {
   const [socket, setSocket] = useState(null);
   const [roomState, setRoomState] = useState(null);
@@ -56,9 +63,17 @@ export function MultiplayerProvider({ children }) {
       }
     });
 
-    socket.on('roomJoined', ({ roomId, isAdmin }) => {
+    socket.on('roomJoined', ({ roomId, isAdmin, playerId, username }) => {
       setError(null);
       setRoomState(null); // clear stale state from any previous room
+      if (!isAdmin && playerId) {
+        try {
+          localStorage.setItem(`m4s_player_${roomId}`, playerId);
+          if (username) localStorage.setItem(`m4s_player_name_${roomId}`, username);
+        } catch (e) {
+          console.warn('[Context] Unable to persist player session', e);
+        }
+      }
 
       // navigate immediately when joining (embed roomId into path)
       try {
@@ -69,9 +84,11 @@ export function MultiplayerProvider({ children }) {
       }
     });
 
-    socket.on('roomRejoined', ({ roomId, isAdmin, adminName }) => {
-      console.log('[Context] roomRejoined received:', { roomId, isAdmin, adminName });
-      // Don't set username from adminName - that's the room name, not player username
+    socket.on('roomRejoined', ({ roomId, isAdmin, adminName, username }) => {
+      console.log('[Context] roomRejoined received:', { roomId, isAdmin, adminName, username });
+      if (!isAdmin && username) {
+        setUsername(username);
+      }
       setError(null);
       // Don't navigate - we're already on the right page after reload
     });
@@ -135,7 +152,41 @@ export function MultiplayerProvider({ children }) {
     setUsername(username);
     // normalize to lowercase before sending to server
     const rid = String(roomId).toLowerCase();
-    socket?.emit('joinRoom', { roomId: rid, username });
+    let playerId = null;
+    try {
+      playerId = localStorage.getItem(`m4s_player_${rid}`) || createPlayerId();
+      localStorage.setItem(`m4s_player_${rid}`, playerId);
+      localStorage.setItem(`m4s_player_name_${rid}`, username);
+    } catch (e) {
+      console.warn('[Context] Unable to persist player session', e);
+      playerId = createPlayerId();
+    }
+    socket?.emit('joinRoom', { roomId: rid, username, playerId });
+  };
+
+  const attemptPlayerRejoin = (roomId) => {
+    if (!socket || !roomId) return;
+
+    const rid = String(roomId).toLowerCase();
+    let playerId = null;
+    let storedUsername = '';
+    try {
+      playerId = localStorage.getItem(`m4s_player_${rid}`);
+      storedUsername = localStorage.getItem(`m4s_player_name_${rid}`) || '';
+    } catch (e) {
+      console.warn('[Context] Unable to read player session', e);
+    }
+
+    if (!playerId) return;
+    if (storedUsername) setUsername(storedUsername);
+
+    if (socket.connected) {
+      socket.emit('rejoinPlayer', { roomId: rid, playerId });
+      return;
+    }
+
+    const onConnect = () => socket.emit('rejoinPlayer', { roomId: rid, playerId });
+    socket.once('connect', onConnect);
   };
 
   const startGame = (roomId, settings = {}) => {
@@ -193,6 +244,7 @@ export function MultiplayerProvider({ children }) {
       updateProgress,
       finishGame,
       attemptAdminRejoin,
+      attemptPlayerRejoin,
       getRoomState
     }}>
       {children}

@@ -405,6 +405,9 @@ export default function AdminView() {
                     {player.id === roomState.admin && (
                       <span className="admin-badge">(Admin)</span>
                     )}
+                    {player.connected === false && (
+                      <span className="connection-badge">Verbindung weg</span>
+                    )}
                   </h3>
                   <span className={`progress-percent ${player.progress >= 100 ? 'complete' : 'active'}`}>
                     {(player.progress || 0).toFixed(0)}%
