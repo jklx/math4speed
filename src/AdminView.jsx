@@ -1,16 +1,17 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
-import ProgressBar from './ProgressBar'
 import Logo from './Logo'
 import { getOperator } from './utils/getOperator'
-import { CATEGORIES, getDefaultSettings } from './utils/categories'
+import { CATEGORIES, getCategoryPerformanceScore, getCategoryProblemCount, getDefaultSettings } from './utils/categories'
 import { formatDecimal } from './utils/formatNumber'
 
 export default function AdminView() {
   const { roomId } = useParams()
   const { roomState, startGame, attemptAdminRejoin, getRoomState, isConnected, updateSettings } = useMultiplayer()
-  const problemRefs = useRef({})
+  const playerRowRefs = useRef(new Map())
+  const previousPlayerPositions = useRef(new Map())
+  const previousPlayerOrder = useRef([])
   const [toast, setToast] = useState(null)
   
   // Local settings state (only for admin)
@@ -48,16 +49,6 @@ export default function AdminView() {
     console.log('[AdminView] Requesting room state');
     getRoomState(roomId);
   }, [roomId, isConnected]); // Wait for actual connection
-
-  useEffect(() => {
-    if (!roomState || !roomState.players) return
-    roomState.players.forEach(p => {
-      const el = problemRefs.current[p.id]
-      if (el) {
-        setTimeout(() => { el.scrollTop = el.scrollHeight }, 0)
-      }
-    })
-  }, [roomState])
 
   useEffect(() => {
     if (roomState?.settings) {
@@ -115,6 +106,8 @@ export default function AdminView() {
 
   const formatProblemPrompt = (problem) => {
     if (!problem) return 'Aufgabe'
+    if (problem.expression) return problem.expression
+    if (problem.text) return problem.text
     if (problem.type === 'primfaktorisierung') {
       return `Primfaktoren von ${problem.number}`
     }
@@ -138,6 +131,55 @@ export default function AdminView() {
     if (problem.user === '' || problem.user === null || typeof problem.user === 'undefined') return '—'
     return problem.user
   }
+
+  const players = roomState?.players?.filter(p => p.id !== roomState.admin) || []
+  const expectedProblemCount = getCategoryProblemCount(roomState?.settings?.category || settings.category)
+  const sortedPlayers = [...players].sort((a, b) => {
+    const correctA = (a.solved || []).filter(problem => problem.isCorrect).length
+    const correctB = (b.solved || []).filter(problem => problem.isCorrect).length
+    return correctB - correctA || a.username.localeCompare(b.username, 'de')
+  })
+
+  useLayoutEffect(() => {
+    if (!roomState) {
+      previousPlayerPositions.current.clear()
+      previousPlayerOrder.current = []
+      return
+    }
+
+    const currentPositions = new Map()
+    const currentOrder = sortedPlayers.map(player => player.id)
+    const orderChanged = currentOrder.some((playerId, index) => previousPlayerOrder.current[index] !== playerId)
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
+    if (orderChanged) {
+      playerRowRefs.current.forEach(element => {
+        element.getAnimations().forEach(animation => animation.cancel())
+      })
+    }
+
+    playerRowRefs.current.forEach((element, playerId) => {
+      const currentTop = element.getBoundingClientRect().top
+      const previousTop = previousPlayerPositions.current.get(playerId)
+      currentPositions.set(playerId, currentTop)
+
+      const previousIndex = previousPlayerOrder.current.indexOf(playerId)
+      const currentIndex = currentOrder.indexOf(playerId)
+
+      if (!reduceMotion && previousTop !== undefined && previousIndex !== currentIndex) {
+        element.animate(
+          [
+            { transform: `translateY(${previousTop - currentTop}px)` },
+            { transform: 'translateY(0)' }
+          ],
+          { duration: 280, easing: 'ease-out' }
+        )
+      }
+    })
+
+    previousPlayerPositions.current = currentPositions
+    previousPlayerOrder.current = currentOrder
+  }, [roomState, sortedPlayers])
 
   if (!roomState) {
     return (
@@ -190,10 +232,10 @@ export default function AdminView() {
     : ''
 
   // Filter out admin from players list for stats and display
-  const players = roomState.players.filter(p => p.id !== roomState.admin)
   const totalPlayerCount = players.length
   const finishedPlayerList = players.filter(p => p.score !== null)
-  const activePlayerCount = players.filter(p => p.score === null).length
+  const connectedPlayerCount = players.filter(p => p.connected !== false).length
+  const disconnectedPlayerCount = players.filter(p => p.connected === false).length
   const finishedPlayerCount = finishedPlayerList.length
 
   // Calculate statistics for finished players
@@ -205,6 +247,20 @@ export default function AdminView() {
 
   // Leaderboard: sorted by correct count (descending - higher is better)
   const leaderboard = [...finishedPlayerList].sort((a, b) => b.score.time - a.score.time)
+  const category = roomState.settings?.category || settings.category
+  const [, expectedHighScore] = getCategoryPerformanceScore(category)
+  const participantScores = players.map(player => ({
+    id: player.id,
+    username: player.username,
+    score: (player.solved || []).filter(problem => problem.isCorrect).length
+  }))
+  const scoreAxisMax = Math.max(expectedHighScore, 1, ...participantScores.map(player => player.score))
+  const dotsAtScore = new Map()
+  const scoreDots = participantScores.map(player => {
+    const level = dotsAtScore.get(player.score) || 0
+    dotsAtScore.set(player.score, level + 1)
+    return { ...player, level }
+  })
 
   return (
     <div className="admin-view">
@@ -229,7 +285,7 @@ export default function AdminView() {
           <aside className="admin-sidebar">
             
             {/* Player Count Card - Always Visible */}
-            <div className="card">
+            <div className="card player-count-card">
               <div className="card-header"><h3>👥 Spieler</h3></div>
               <div className="card-body">
                 <div className="stat-row">
@@ -239,11 +295,17 @@ export default function AdminView() {
                 {roomState.status !== 'waiting' && (
                   <>
                     <div className="stat-row">
-                      <span>Laufend:</span>
-                      <strong>{activePlayerCount}</strong>
+                      <span>Verbunden:</span>
+                      <strong>{connectedPlayerCount}</strong>
                     </div>
+                    {disconnectedPlayerCount > 0 && (
+                      <div className="stat-row">
+                        <span>Getrennt:</span>
+                        <strong>{disconnectedPlayerCount}</strong>
+                      </div>
+                    )}
                     <div className="stat-row">
-                      <span>Fertig:</span>
+                      <span>Abgegeben:</span>
                       <strong>{finishedPlayerCount}</strong>
                     </div>
                   </>
@@ -359,6 +421,30 @@ export default function AdminView() {
                       <div className="stat-value red">{stats.avgErrors}</div>
                     </div>
                   </div>
+                  <div className="score-beam-card" aria-label="Verteilung der richtigen Antworten">
+                    <div className="score-beam-heading">
+                      <strong>Ergebnisse der Teilnehmer:innen</strong>
+                      <span>0–{scoreAxisMax} richtig</span>
+                    </div>
+                    <div className="score-beam">
+                      <div className="score-beam-line" />
+                      {scoreDots.map(player => (
+                        <span
+                          key={player.id}
+                          className="score-beam-dot"
+                          role="img"
+                          aria-label={`${player.username}: ${player.score} richtig`}
+                          title={`${player.username}: ${player.score} richtig`}
+                          style={{
+                            '--score-position': `${(player.score / scoreAxisMax) * 100}%`,
+                            '--stack-level': player.level
+                          }}
+                        />
+                      ))}
+                      <span className="score-beam-label score-beam-label--start">0</span>
+                      <span className="score-beam-label score-beam-label--end">{scoreAxisMax}</span>
+                    </div>
+                  </div>
                   <div className="stats-actions" style={{ marginTop: '0.75rem' }}>
                     <button className="big" onClick={handleDownloadPDF}>📄 PDF herunterladen</button>
                   </div>
@@ -395,32 +481,93 @@ export default function AdminView() {
             )}
           </aside>
 
-          {/* Players grid */}
-          <section className="players-grid">
-            {players.map(player => (
-              <div key={player.id} className="player-card">
+          {/* Registered players */}
+          <section className="players-grid" aria-label="Nutzerliste">
+            {players.length === 0 && (
+              <p className="players-empty">Noch hat sich niemand registriert.</p>
+            )}
+            {sortedPlayers.map(player => {
+              const solved = player.solved || []
+              const correctCount = solved.filter(problem => problem.isCorrect).length
+              const wrongCount = solved.filter(problem => problem.isCorrect === false).length
+              const hasCurrentProblem = roomState.status === 'playing' && !player.score && player.connected !== false
+              const statusLabel = player.score
+                ? 'Abgegeben'
+                : player.connected === false
+                  ? 'Verbindung weg'
+                  : 'Aktiv'
+
+              return (
+              <div
+                key={player.id}
+                className="player-card"
+                ref={element => {
+                  if (element) playerRowRefs.current.set(player.id, element)
+                  else playerRowRefs.current.delete(player.id)
+                }}
+              >
                 <div className="player-card-header">
                   <h3>
                     {player.username}
                     {player.id === roomState.admin && (
                       <span className="admin-badge">(Admin)</span>
                     )}
-                    {player.connected === false && (
-                      <span className="connection-badge">Verbindung weg</span>
-                    )}
                   </h3>
-                  <span className={`progress-percent ${player.progress >= 100 ? 'complete' : 'active'}`}>
-                    {(player.progress || 0).toFixed(0)}%
+                  <span className={`player-status ${player.score ? 'complete' : player.connected === false ? 'offline' : 'active'}`}>
+                    {statusLabel}
                   </span>
                 </div>
 
-                <div className="progress-wrapper">
-                  <ProgressBar progress={player.progress || 0} />
+                <div className="player-progress-summary">
+                  <span>{solved.length} / {expectedProblemCount} bearbeitet</span>
+                  <span className="correct-count">{correctCount} richtig</span>
+                  <span className="wrong-count">{wrongCount} falsch</span>
                 </div>
 
-                {player.solved && player.solved.length > 0 && (
-                  <div className="player-problems" ref={el => { problemRefs.current[player.id] = el }}>
-                    {player.solved.map((problem, idx) => (
+                <div className="player-progress-scroll" aria-label={`${solved.length} bearbeitete Aufgaben von erwarteten ${expectedProblemCount}: ${correctCount} richtig, ${wrongCount} falsch`}>
+                  <div className="player-progress">
+                    {solved.map((problem, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className={`progress-segment ${problem.isCorrect ? 'correct' : 'incorrect'}`}
+                        aria-label={`Aufgabe ${idx + 1}: ${problem.isCorrect ? 'richtig' : 'falsch'}. ${formatProblemPrompt(problem)}. Lösung: ${formatCorrectAnswer(problem)}.`}
+                        title={`Aufgabe ${idx + 1}: ${formatProblemPrompt(problem)}. Lösung: ${formatCorrectAnswer(problem)}`}
+                      >
+                        <span className="progress-tooltip" role="tooltip">
+                          <strong>Aufgabe {idx + 1}</strong>
+                          <span>{formatProblemPrompt(problem)}</span>
+                          <span>Eigene Antwort: {formatUserAnswer(problem)}</span>
+                          <span>Lösung: {formatCorrectAnswer(problem)}</span>
+                        </span>
+                      </button>
+                    ))}
+                    {hasCurrentProblem && (
+                      <span className="progress-segment progress-segment--current" aria-label="Aktuell bearbeitete Aufgabe">
+                        <span className="progress-current-label">Aktuell</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="player-live-stats" aria-label={`Zwischenstand von ${player.username}`}>
+                  <div>
+                    <span>Gelöst</span>
+                    <strong>{solved.length}</strong>
+                  </div>
+                  <div>
+                    <span>Richtig</span>
+                    <strong>{correctCount}</strong>
+                  </div>
+                  <div>
+                    <span>Fehler</span>
+                    <strong>{wrongCount}</strong>
+                  </div>
+                </div>
+
+                {solved.length > 0 && (
+                  <div className="player-problems">
+                    {solved.map((problem, idx) => (
                       <div key={idx} className={`problem-entry ${problem.isCorrect ? 'correct' : 'incorrect'}`}>
                         <span>{formatProblemPrompt(problem)} = {formatUserAnswer(problem)}</span>
                         <span style={{ fontWeight: 'bold' }}>
@@ -433,13 +580,14 @@ export default function AdminView() {
 
                 {player.score && (
                   <div className="player-score">
-                    <div className="score-title">✓ Fertig!</div>
+                    <div className="score-title">✓ Abgegeben</div>
                     <div className="score-detail">Richtig: <strong>{player.score.time}</strong></div>
                     <div className="score-detail">Fehler: <strong>{player.score.wrongCount}</strong></div>
                   </div>
                 )}
               </div>
-            ))}
+              )
+            })}
           </section>
         </div>
       </div>

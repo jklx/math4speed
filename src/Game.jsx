@@ -262,6 +262,7 @@ export default function Game({ isSinglePlayer }) {
   const [leaderboardName, setLeaderboardName] = useState('')
   const [leaderboardSubmitted, setLeaderboardSubmitted] = useState(false)
   const [leaderboardData, setLeaderboardData] = useState(null) // null = not loaded yet
+  const [connectionLost, setConnectionLost] = useState(false)
 
   const inputRef = useRef(null)
   const lastGameInputRef = useRef(null)
@@ -271,6 +272,18 @@ export default function Game({ isSinglePlayer }) {
   const pauseTimerRef = useRef(false)
   const gameDurationRef = useRef(300)
   const weiterButtonRef = useRef(null)
+  const hasConnectedToRoomRef = useRef(false)
+
+  useEffect(() => {
+    if (isSinglePlayer) return
+
+    if (isConnected) {
+      hasConnectedToRoomRef.current = true
+      setConnectionLost(false)
+    } else if (hasConnectedToRoomRef.current) {
+      setConnectionLost(true)
+    }
+  }, [isSinglePlayer, isConnected])
 
   useEffect(() => {
     if (!toast) return
@@ -838,6 +851,12 @@ export default function Game({ isSinglePlayer }) {
       {toast && (
         <div className="copy-toast" role="status">{toast}</div>
       )}
+      {connectionLost && (
+        <div className="connection-lost-notice" role="alert">
+          <span aria-hidden="true">!</span>
+          Verbindung zum Server unterbrochen. Wir versuchen, dich wieder zu verbinden.
+        </div>
+      )}
 
       {!started && (
         <main className="center">
@@ -881,13 +900,29 @@ export default function Game({ isSinglePlayer }) {
                 </>
               ) : (
                 // multiplayer player waiting state
-                <>
-                  <p>Warte auf den Start durch den Admin...</p>
-                  <p>Raum: <strong>{roomId?.toLowerCase()}</strong></p>
-                  {username && <p>Dein Name: <strong>{username}</strong></p>}
-                  <p>Kategorie: <strong>{activeCategoryLabel}</strong></p>
+                <div className="waiting-room">
+                  <div className="waiting-animation" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  <p className={`waiting-connection ${isConnected ? 'connected' : 'connecting'}`} role="status">
+                    <span aria-hidden="true" />
+                    {isConnected ? 'Mit dem Server verbunden' : 'Verbindung wird hergestellt'}
+                  </p>
+                  <h2>{isConnected ? 'Alles bereit!' : 'Einen Moment bitte …'}</h2>
+                  <p className="waiting-room-message">
+                    {isConnected
+                      ? 'Warte auf den Start durch deine Lehrkraft.'
+                      : 'Wir verbinden dich mit dem Raum.'}
+                  </p>
+                  <div className="waiting-room-details">
+                    <span>Raum <strong>{roomId?.toLowerCase()}</strong></span>
+                    {username && <span>Du bist <strong>{username}</strong></span>}
+                    <span>Kategorie <strong>{activeCategoryLabel}</strong></span>
+                  </div>
                   {renderCategoryDescription(multiplayerCategory)}
-                </>
+                </div>
               )}
             </>
           ) : (

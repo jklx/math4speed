@@ -834,6 +834,38 @@ button:disabled {
   box-shadow: 0 6px 18px rgba(0,0,0,0.12);
 }
 
+.connection-lost-notice {
+  position: fixed;
+  z-index: 1200;
+  bottom: 1rem;
+  left: 1rem;
+  display: flex;
+  align-items: center;
+  max-width: min(420px, calc(100vw - 2rem));
+  gap: 0.55rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  box-shadow: 0 6px 18px rgba(124, 45, 18, 0.14);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.connection-lost-notice > span {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: #ea580c;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 /* removed: .admin-view header .room-name (now replaced by .room-title h2) */
 
 .admin-actions {
@@ -870,20 +902,13 @@ button:disabled {
 }
 
 .stats-grid {
-  display: flex;
-  gap: 1rem;
-  align-items: stretch;
-  justify-content: center;
-  /* ensure stat cards keep their intrinsic size and don't stretch to full width */
-}
-
-/* Make stats grid wrap on narrow widths and avoid overlapping the card header */
-.stats-grid {
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
 }
 
 .stat-card {
-  margin: 0.25rem;
+  margin: 0;
 }
 
 /* Ensure card header stays above stat tiles (prevents visual overlap) */
@@ -895,10 +920,6 @@ button:disabled {
 /* Allow card body content to flow under header if shadows exist */
 .card {
   overflow: visible;
-}
-
-.stat-card {
-  flex: 0 0 auto;
 }
 
 .stat-card {
@@ -942,6 +963,73 @@ button:disabled {
   margin-top: 0.25rem;
 }
 
+.score-beam-card {
+  margin-top: 0.85rem;
+  padding: 0.65rem 0.75rem 0.4rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.score-beam-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #475569;
+  font-size: 0.78rem;
+}
+
+.score-beam-heading strong {
+  color: #334155;
+}
+
+.score-beam {
+  position: relative;
+  height: 3.5rem;
+  margin: 0.25rem 0.4rem 0;
+}
+
+.score-beam-line {
+  position: absolute;
+  right: 0;
+  bottom: 0.9rem;
+  left: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #cbd5e1, #60a5fa, #22c55e);
+}
+
+.score-beam-dot {
+  position: absolute;
+  bottom: calc(0.65rem + (var(--stack-level) * 0.45rem));
+  left: var(--score-position);
+  width: 0.65rem;
+  height: 0.65rem;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #2563eb;
+  box-shadow: 0 1px 4px rgba(30, 64, 175, 0.35);
+  transform: translateX(-50%);
+  cursor: help;
+}
+
+.score-beam-dot:hover {
+  z-index: 1;
+  background: #1d4ed8;
+  transform: translateX(-50%) scale(1.35);
+}
+
+.score-beam-label {
+  position: absolute;
+  bottom: 0;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-beam-label--start { left: 0; }
+.score-beam-label--end { right: 0; }
+
 
 /* Admin shell */
 .admin-view {
@@ -977,6 +1065,29 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+@media (max-width: 520px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.player-count-card--header {
+  min-width: 10rem;
+}
+
+.player-count-card--header .card-header {
+  padding: 0.45rem 0.7rem 0.1rem;
+}
+
+.player-count-card--header .card-body {
+  padding: 0.2rem 0.7rem 0.4rem;
+}
+
+.player-count-card--header .stat-row {
+  padding: 0.25rem 0;
+  font-size: 0.85rem;
 }
 
 /* Two-column layout */
@@ -1058,34 +1169,55 @@ button:disabled {
   margin-left: 0.5rem;
 }
 
-.player-card .connection-badge {
-  display: inline-block;
-  margin-left: 0.5rem;
-  padding: 0.15rem 0.4rem;
+.player-status {
+  flex: 0 0 auto;
+  padding: 0.2rem 0.55rem;
   border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.player-status.active {
+  background: rgba(37,99,235,0.1);
+  color: #1d4ed8;
+}
+
+.player-status.complete {
+  background: rgba(22,163,74,0.12);
+  color: #15803d;
+}
+
+.player-status.offline {
   background: #fff7ed;
   color: #c2410c;
+}
+
+.player-live-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.player-live-stats div {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.55rem 0.6rem;
+  background: #f8fafc;
+}
+
+.player-live-stats span {
+  display: block;
+  color: #64748b;
   font-size: 0.75rem;
   font-weight: 700;
-  vertical-align: middle;
+  margin-bottom: 0.15rem;
 }
 
-.player-card .progress-percent {
+.player-live-stats strong {
+  color: #0f172a;
   font-size: 1.25rem;
-  font-weight: bold;
-}
-
-.player-card .progress-percent.complete {
-  color: #16a34a;
-}
-
-.player-card .progress-percent.active {
-  color: #2563eb;
-}
-
-.player-card .progress-wrapper {
-  margin-bottom: 0.75rem;
-  min-height: 24px;
+  line-height: 1;
 }
 
 .player-problems {
@@ -1148,6 +1280,103 @@ button:disabled {
 }
 
 .waiting-message{font-size:1.05rem;color:#444}
+
+.waiting-room {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 0.5rem 0;
+}
+
+.waiting-animation {
+  display: flex;
+  justify-content: center;
+  align-items: end;
+  gap: 0.35rem;
+  height: 2.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.waiting-animation span {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: #60a5fa;
+  animation: waiting-dot 1.2s ease-in-out infinite;
+}
+
+.waiting-animation span:nth-child(2) { animation-delay: 0.15s; }
+.waiting-animation span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes waiting-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-0.75rem); opacity: 1; }
+}
+
+.waiting-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.waiting-connection > span {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #f59e0b;
+}
+
+.waiting-connection.connected {
+  background: #ecfdf5;
+  color: #15803d;
+}
+
+.waiting-connection.connected > span {
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+}
+
+.waiting-room h2 {
+  margin: 0.8rem 0 0.25rem;
+  color: #1e293b;
+}
+
+.waiting-room-message {
+  margin: 0;
+  color: #64748b;
+}
+
+.waiting-room-details {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 1.1rem 0;
+}
+
+.waiting-room-details span {
+  padding: 0.35rem 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.waiting-room-details strong {
+  color: #334155;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waiting-animation span { animation: none; }
+}
+
 .player-name{font-size:0.95rem;color:#333;margin-top:0.25rem}
 
 .problem-entry {
@@ -1544,6 +1773,299 @@ footer{margin-top:1.5rem;text-align:center;color:#666}
   background: #e2e8f0;
   color: var(--accent);
   border-color: var(--accent);
+}
+
+/* Admin flow: configure first, then share access, then follow the class. */
+.admin-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.admin-sidebar {
+  display: contents;
+}
+
+.settings-card {
+  order: 1;
+  grid-column: 1 / -1;
+}
+
+.join-card {
+  order: 2;
+  grid-column: 1 / -1;
+  border: 2px solid #93c5fd;
+  background: linear-gradient(135deg, #eff6ff, #ffffff);
+}
+
+.admin-sidebar > .player-count-card {
+  display: none;
+}
+
+.stats-card {
+  order: 5;
+}
+
+.leaderboard-card {
+  order: 6;
+}
+
+.join-card .card-header {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.join-card .big-room-id .room-id {
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #1d4ed8;
+}
+
+.join-card .join-url {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* Registered players are deliberately a readable list, not a card grid. */
+.players-grid {
+  order: 4;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid #e6e9ef;
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.players-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.players-list-header h3 {
+  margin: 0;
+  color: #334155;
+}
+
+.players-list-header p,
+.players-empty {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.players-list-header > strong {
+  display: grid;
+  place-items: center;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.player-card {
+  display: grid;
+  grid-template-columns: minmax(150px, 230px) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.2rem 1rem;
+  height: auto;
+  min-height: 0;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
+}
+
+.player-card-header {
+  grid-column: 1;
+  margin: 0;
+  min-height: 0;
+}
+
+.player-card h3 {
+  font-size: 1rem;
+}
+
+.player-status {
+  padding: 0.12rem 0.4rem;
+  font-size: 0.7rem;
+}
+
+.player-progress-summary {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.4rem;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.correct-count { color: #15803d; }
+.wrong-count { color: #b91c1c; }
+
+.player-progress-scroll {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+}
+
+.player-progress-scroll::-webkit-scrollbar {
+  height: 5px;
+}
+
+.player-progress-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.player-progress {
+  display: flex;
+  width: fit-content;
+  height: 1.35rem;
+  min-height: 1.35rem;
+  overflow: visible;
+  background: transparent;
+}
+
+.player-progress--empty {
+  min-height: 1.35rem;
+  align-self: center;
+}
+
+.progress-segment {
+  position: relative;
+  flex: 0 0 13px;
+  width: 13px;
+  min-width: 13px;
+  border: 0;
+  background: transparent;
+  --segment-color: transparent;
+  padding: 0;
+  cursor: help;
+}
+
+.progress-segment::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: var(--segment-color);
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 50%, calc(100% - 5px) 100%, 0 100%, 5px 50%);
+}
+
+.progress-segment:first-child::before { clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 50%, calc(100% - 5px) 100%, 0 100%); }
+.progress-segment.correct { --segment-color: #22c55e; }
+.progress-segment.incorrect { --segment-color: #ef4444; }
+.progress-segment:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; z-index: 2; }
+
+.progress-segment--current {
+  flex-basis: 3.5rem;
+  width: 3.5rem;
+  min-width: 3.5rem;
+  --segment-color: #94a3b8;
+  color: #334155;
+  cursor: default;
+}
+
+.progress-current-label {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: calc(100% - 5px);
+  height: 100%;
+  padding-left: 0.45rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.progress-tooltip {
+  position: absolute;
+  z-index: 10;
+  bottom: calc(100% + 0.55rem);
+  left: 50%;
+  display: none;
+  width: max-content;
+  max-width: min(360px, 75vw);
+  transform: translateX(-50%);
+  padding: 0.65rem 0.75rem;
+  border-radius: 7px;
+  background: #0f172a;
+  color: #f8fafc;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.25);
+  text-align: left;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: normal;
+  pointer-events: none;
+}
+
+.progress-tooltip span,
+.progress-tooltip strong { display: block; }
+.progress-tooltip strong { margin-bottom: 0.2rem; }
+.progress-segment:hover .progress-tooltip,
+.progress-segment:focus-visible .progress-tooltip { display: block; }
+
+/* Replaced by the concise segment bar above. */
+.player-live-stats,
+.player-problems,
+.player-score { display: none; }
+
+@media (max-width: 680px) {
+  .admin-layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .settings-card,
+  .join-card,
+  .admin-sidebar > .card:first-child,
+  .stats-card,
+  .leaderboard-card,
+  .players-grid {
+    width: 100%;
+  }
+
+  .settings-card { order: 1; }
+  .join-card { order: 2; }
+  .admin-sidebar > .card:first-child { order: 3; }
+  .players-grid { order: 4; }
+  .stats-card { order: 5; }
+  .leaderboard-card { order: 6; }
+
+  .players-grid {
+    max-height: none;
+  }
+
+  .player-card {
+    grid-template-columns: 1fr;
+  }
+
+  .player-card-header,
+  .player-progress-summary,
+  .player-progress-scroll {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .player-progress {
+    height: 1.2rem;
+    min-height: 1.2rem;
+  }
 }
 
 /* ── Prozentrechnung mit Gleichungen ─────────────────────────────────── */
