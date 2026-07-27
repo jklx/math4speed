@@ -92,7 +92,7 @@ function validateEquation(equationStr, expectedX) {
 
 // ─── Small tick mark (like in Binomische) ──────────────────────────────────
 // ─── Component ──────────────────────────────────────────────────────────────
-export default function ProzentGleichung({ problem, onEnter, onEquationError, showTick, crossedOutEquation, mistakeFeedback }) {
+export default function ProzentGleichung({ problem, onEnter, onEquationError, showTick, crossedOutEquation, mistakeFeedback, continueButtonRef }) {
   const [step, setStep] = useState(1)
   const [equationValue, setEquationValue] = useState('')
   const [equationRevealed, setEquationRevealed] = useState(false)
@@ -214,7 +214,7 @@ export default function ProzentGleichung({ problem, onEnter, onEquationError, sh
           )}
 
           {mistakeFeedback && mistakeFeedback.field === 'result' && (
-            <button onClick={mistakeFeedback.onContinue} className="big" style={{ marginTop: '0.75rem' }}>
+            <button ref={continueButtonRef} onClick={mistakeFeedback.onContinue} className="big" style={{ marginTop: '0.75rem' }}>
               Weiter
             </button>
           )}
@@ -222,7 +222,7 @@ export default function ProzentGleichung({ problem, onEnter, onEquationError, sh
       )}
 
       {mistakeFeedback?.field === 'equation' && (
-        <button onClick={mistakeFeedback.onContinue} className="big" style={{ marginTop: '0.75rem' }}>
+        <button ref={continueButtonRef} onClick={mistakeFeedback.onContinue} className="big" style={{ marginTop: '0.75rem' }}>
           Weiter
         </button>
       )}

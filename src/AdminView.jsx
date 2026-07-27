@@ -543,9 +543,7 @@ export default function AdminView() {
                       </button>
                     ))}
                     {hasCurrentProblem && (
-                      <span className="progress-segment progress-segment--current" aria-label="Aktuell bearbeitete Aufgabe">
-                        <span className="progress-current-label">Aktuell</span>
-                      </span>
+                      <span className="progress-segment progress-segment--current" aria-label="Aktuell bearbeitete Aufgabe" />
                     )}
                   </div>
                 </div>

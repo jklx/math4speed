@@ -178,8 +178,6 @@ import ProzentGleichung from './ProzentGleichung'
 import ReviewList from './ReviewList'
 
 const BATCH_SIZE = 100
-const MAX_LIVES = 3
-
 export default function Game({ isSinglePlayer }) {
   const { roomId, category: urlCategory } = useParams()
   const location = useLocation();
@@ -519,15 +517,6 @@ export default function Game({ isSinglePlayer }) {
     const newEntry = { ...prob, user: '(Gleichung falsch)', isCorrect: false }
     const newAnswers = [...answers, newEntry]
     setAnswers(newAnswers)
-    const newWrongCount = newAnswers.filter(a => !a.isCorrect).length
-    if (newWrongCount >= MAX_LIVES) {
-      const correct = newAnswers.filter(a => a.isCorrect).length
-      if (roomId && !isSinglePlayer) {
-        finishGame(roomId, correct, newWrongCount)
-        updateProgress(roomId, 100, newAnswers)
-      }
-      setFinished(true)
-    }
     // Show inline mistake: display student's equation and the correct example equation
     const userDisplay = userEquation ? String(userEquation).replace(/\./g, ',') : '(Gleichung falsch)'
     const correctDisplay = prob.exampleEquation || formatCorrectAnswer(prob)
@@ -634,16 +623,6 @@ export default function Game({ isSinglePlayer }) {
       // For schriftlich: record the strike, mark wrong cells in-place
       setAnswers(newAnswers)
       pauseTimerRef.current = true
-      const newWrongCount = newAnswers.filter(a => !a.isCorrect).length
-      if (newWrongCount >= MAX_LIVES) {
-        const correct = newAnswers.filter(a => a.isCorrect).length
-        if (roomId && !isSinglePlayer) {
-          finishGame(roomId, correct, newWrongCount)
-          updateProgress(roomId, 100, newAnswers)
-        }
-        setFinished(true)
-        return
-      }
       setSchriftlichCheckMode(true)
     } else {
       // Wrong answer: show mistake panel and pause timer
@@ -668,18 +647,8 @@ export default function Game({ isSinglePlayer }) {
   }
 
   const dismissMistake = () => {
-    const newWrongCount = answers.filter(a => !a.isCorrect).length
     setMistakeState(null)
     pauseTimerRef.current = false
-    if (newWrongCount >= MAX_LIVES) {
-      const correct = answers.filter(a => a.isCorrect).length
-      if (roomId && !isSinglePlayer) {
-        finishGame(roomId, correct, newWrongCount)
-        updateProgress(roomId, 100, answers)
-      }
-      setFinished(true)
-      return
-    }
     setInputValue('')
     setSchriftlichInput({ digits: [], parsed: '', valid: false })
     const nextIndex = current + 1
@@ -768,11 +737,10 @@ export default function Game({ isSinglePlayer }) {
     .catch(() => setLeaderboardSubmitted(true))
   }
 
-  // Auto-focus Weiter button when mistake panel appears so Enter dismisses it
+  // The visible continue button receives focus after an error, so Enter activates it.
   useEffect(() => {
-    if (mistakeState) {
-      requestAnimationFrame(() => weiterButtonRef.current?.focus())
-    }
+    if (!mistakeState) return
+    requestAnimationFrame(() => weiterButtonRef.current?.focus())
   }, [mistakeState])
 
   // Virtual keyboard visibility: OS heuristic for default, persisted in a cookie.
@@ -940,10 +908,19 @@ export default function Game({ isSinglePlayer }) {
               <span className="score-counter__label">Richtig</span>
               <span key={scoreBumpKey} className={`score-counter__value${correctCount > 0 ? ' score-counter__value--bump' : ''}`}>{correctCount}</span>
             </div>
-            <div className="lives" aria-label="Leben">
-              {Array.from({ length: MAX_LIVES }, (_, i) => (
-                <span key={i} className={`life-icon${i < wrongCount ? ' life-icon--used' : ' life-icon--remaining'}`} aria-hidden>✕</span>
-              ))}
+            <div className="player-game-progress" aria-label={`${answers.length} Aufgaben bearbeitet: ${correctCount} richtig, ${wrongCount} falsch`}>
+              <div className="player-progress">
+                {answers.map((answer, index) => (
+                  <span
+                    key={`${answer.id}-${index}`}
+                    className={`progress-segment ${answer.isCorrect ? 'correct' : 'incorrect'}`}
+                    aria-label={`Aufgabe ${index + 1}: ${answer.isCorrect ? 'richtig' : 'falsch'}`}
+                  />
+                ))}
+                {!mistakeState && (
+                  <span className="progress-segment progress-segment--current" aria-label="Aktuell bearbeitete Aufgabe" />
+                )}
+              </div>
             </div>
             <div className="score-timer">Zeit: {formatTime(timeLeft)}</div>
           </div>
@@ -1045,11 +1022,12 @@ export default function Game({ isSinglePlayer }) {
                     crossedOutEquation={false}
                     crossedOutResult={mistakeState?.field === 'result'}
                     mistakeFeedback={mistakeState?.field === 'equation' || mistakeState?.field === 'result' ? { ...mistakeState, onContinue: dismissMistake } : null}
+                    continueButtonRef={weiterButtonRef}
                   />
                 ) : null}
                 {mistakeState && problems[current].type !== 'prozent-gleichung' && (
                   <div className="question-bottom-actions">
-                    <button onClick={dismissMistake} className="big">Weiter</button>
+                    <button ref={weiterButtonRef} onClick={dismissMistake} className="big">Weiter</button>
                   </div>
                 )}
               </div>

@@ -39,10 +39,8 @@ header{margin-bottom:1rem}
 .score-counter__value{font-size:3rem;font-weight:800;color:var(--ok)}
 .score-counter__value--bump{animation:score-bump 0.35s ease-out}
 .score-timer{font-size:1.1rem;font-weight:600;color:var(--text,#1e293b)}
-.lives{display:flex;gap:0.35rem;align-items:center}
-.life-icon{font-size:1.3rem;font-weight:900;line-height:1;transition:color 0.2s}
-.life-icon--remaining{color:var(--muted,#94a3b8)}
-.life-icon--used{color:#ef4444}
+.player-game-progress{flex:1;min-width:0;margin:0 1.25rem;overflow-x:auto;scrollbar-width:thin}
+.player-game-progress .player-progress{min-width:max-content}
 .mistake-panel{display:flex;flex-direction:column;align-items:center;gap:1.5rem;padding:2rem 1.5rem;background:var(--card,#fff);border-radius:1rem;box-shadow:0 8px 32px rgba(0,0,0,0.12);max-width:400px;margin:1rem auto;text-align:center}
 .mistake-header{display:flex;align-items:center;gap:0.5rem;font-size:1.5rem;font-weight:800;color:#ef4444}
 .mistake-question{font-size:1.1rem;font-weight:600;color:var(--muted,#64748b);background:var(--bg,#f8fafc);border-radius:0.5rem;padding:0.5rem 1rem;width:100%;box-sizing:border-box;word-break:break-word}
@@ -1665,7 +1663,11 @@ footer{margin-top:1.5rem;text-align:center;color:#666}
   user-select: none;
   -webkit-user-select: none;
   outline: none;
-  min-height: 2.8rem;
+  height: 3rem;
+}
+.answer-input {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.35rem;
 }
 .fake-input:focus, .fake-input--focused {
   outline: 2px solid var(--accent);
@@ -1973,24 +1975,11 @@ footer{margin-top:1.5rem;text-align:center;color:#666}
 .progress-segment:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; z-index: 2; }
 
 .progress-segment--current {
-  flex-basis: 3.5rem;
-  width: 3.5rem;
-  min-width: 3.5rem;
+  flex-basis: 13px;
+  width: 13px;
+  min-width: 13px;
   --segment-color: #94a3b8;
-  color: #334155;
   cursor: default;
-}
-
-.progress-current-label {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: calc(100% - 5px);
-  height: 100%;
-  padding-left: 0.45rem;
-  font-size: 0.64rem;
-  font-weight: 700;
 }
 
 .progress-tooltip {

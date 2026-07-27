@@ -63,7 +63,7 @@ export default function Negative({ a, b, operator, value = '', onChange, onEnter
           <div
             ref={ref}
             tabIndex={mistakeFeedback ? -1 : 0}
-            className={`math-input fake-input${focused ? ' fake-input--focused' : ''}${mistakeFeedback ? ' fake-input--disabled' : ''}`}
+            className={`math-input fake-input answer-input${focused ? ' fake-input--focused' : ''}${mistakeFeedback ? ' fake-input--disabled' : ''}`}
             style={{ color: mistakeFeedback || crossedOut ? '#b91c1c' : undefined }}
             onKeyDown={handleKey}
             onFocus={() => setFocused(true)}

@@ -24,12 +24,17 @@ export default function Einmaleins({ a, b, value = '', onChange, onEnter, showTi
   return (
     <div className="question-centered">
       <div className="einmaleins-row">
-        <div className="expression">{a} · {b} =</div>
+        <math className="expression" aria-label={`${a} mal ${b} gleich`}>
+          <mn>{a}</mn>
+          <mo>&middot;</mo>
+          <mn>{b}</mn>
+          <mo>=</mo>
+        </math>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div
             ref={ref}
             tabIndex={mistakeFeedback ? -1 : 0}
-            className={`math-input fake-input${focused ? ' fake-input--focused' : ''}${mistakeFeedback ? ' fake-input--disabled' : ''}`}
+            className={`math-input fake-input answer-input${focused ? ' fake-input--focused' : ''}${mistakeFeedback ? ' fake-input--disabled' : ''}`}
             style={{ color: mistakeFeedback || crossedOut ? '#b91c1c' : undefined }}
             onKeyDown={handleKey}
             onFocus={() => setFocused(true)}
