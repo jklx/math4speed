@@ -1,5 +1,11 @@
 const { io } = require('socket.io-client');
 const { performance } = require('perf_hooks');
+const CATEGORIES = require('../shared/categories.json');
+
+const DEFAULT_CATEGORY = 'einmaleins';
+const DEFAULT_DURATION_SECONDS = CATEGORIES[DEFAULT_CATEGORY].durationMinutes * 60;
+const SIM_DURATION_SECONDS = Number(process.env.SIM_DURATION_SECONDS || 0) || null;
+const PROGRESS_UPDATE_INTERVAL_MS = 1000;
 
 // Performance profiles for different types of students
 const STUDENT_PROFILES = {
@@ -58,14 +64,17 @@ function generateProblems(count = 50) {
 }
 
 class SimulatedStudent {
-  constructor(profile, roomId) {
+  constructor(profile, roomId, durationSeconds = DEFAULT_DURATION_SECONDS) {
     this.profile = profile;
     this.roomId = roomId;
     this.socket = io('http://localhost:3000');
-    this.problems = generateProblems(50);
+    this.durationSeconds = durationSeconds;
+    this.problems = generateProblems(80);
     this.answers = [];
     this.current = 0;
     this.startTime = null;
+    this.finished = false;
+    this.progressTimer = null;
   }
 
   async connect() {
@@ -77,8 +86,11 @@ class SimulatedStudent {
 
       // Handle room events
       this.socket.on('gameStarted', () => {
-        console.log(`${this.profile.name} starting game`);
+        console.log(`${this.profile.name} starting timed game (${this.durationSeconds}s)`);
         this.startTime = performance.now();
+        this.progressTimer = setInterval(() => {
+          this.sendProgress();
+        }, PROGRESS_UPDATE_INTERVAL_MS);
         this.solveProblems();
       });
     });
@@ -96,9 +108,20 @@ class SimulatedStudent {
 
   async solveProblems() {
     const solveProblem = async () => {
-      if (this.current >= this.problems.length) {
+      if (this.finished) {
+        return;
+      }
+
+      const elapsedSeconds = (performance.now() - this.startTime) / 1000;
+      if (elapsedSeconds >= this.durationSeconds) {
         this.finish();
         return;
+      }
+
+      if (this.current + 20 >= this.problems.length) {
+        const offset = this.problems.length;
+        const moreProblems = generateProblems(50).map(problem => ({ ...problem, id: problem.id + offset }));
+        this.problems.push(...moreProblems);
       }
 
       const problem = this.problems[this.current];
@@ -108,17 +131,16 @@ class SimulatedStudent {
       const thinkTime = random(this.profile.thinkTimeRange[0], this.profile.thinkTimeRange[1]);
       await new Promise(resolve => setTimeout(resolve, thinkTime));
 
+      if ((performance.now() - this.startTime) / 1000 >= this.durationSeconds) {
+        this.finish();
+        return;
+      }
+
       // Record answer
       const isCorrect = answer === problem.correct;
       this.answers.push({ ...problem, user: answer, isCorrect });
 
-      // Send progress update
-      const progress = ((this.current + 1) / this.problems.length) * 100;
-      this.socket.emit('updateProgress', { 
-        roomId: this.roomId, 
-        progress,
-        solved: this.answers
-      });
+      this.sendProgress();
 
       this.current++;
       solveProblem(); // solve next problem
@@ -127,20 +149,36 @@ class SimulatedStudent {
     solveProblem();
   }
 
+  sendProgress(finalProgress = null) {
+    if (!this.startTime) return;
+
+    const elapsedSeconds = (performance.now() - this.startTime) / 1000;
+    const progress = finalProgress ?? Math.min(99, (elapsedSeconds / this.durationSeconds) * 100);
+    this.socket.emit('updateProgress', {
+      roomId: this.roomId,
+      progress,
+      solved: this.answers
+    });
+  }
+
   finish() {
+    if (this.finished) return;
+    this.finished = true;
+    if (this.progressTimer) clearInterval(this.progressTimer);
+
     const endTime = performance.now();
     const elapsed = Math.floor((endTime - this.startTime) / 1000);
     const wrongCount = this.answers.filter(a => !a.isCorrect).length;
-    const penalty = wrongCount * 10;
-    const finalTime = elapsed + penalty;
+    const correctCount = this.answers.filter(a => a.isCorrect).length;
 
-    console.log(`${this.profile.name} finished in ${elapsed}s with ${wrongCount} wrong answers (final time: ${finalTime}s)`);
+    console.log(`${this.profile.name} finished after ${elapsed}s with ${correctCount} correct and ${wrongCount} wrong answers`);
     
     this.socket.emit('finishGame', {
       roomId: this.roomId,
-      score: finalTime,
+      score: correctCount,
       wrongCount
     });
+    this.sendProgress(100);
   }
 }
 
@@ -174,17 +212,22 @@ async function runTest(roomId) {
     process.exit(1);
   }
 
+  const category = roomStatus.settings?.category || DEFAULT_CATEGORY;
+  const configuredDurationSeconds = (CATEGORIES[category]?.durationMinutes || CATEGORIES[DEFAULT_CATEGORY].durationMinutes) * 60;
+  const durationSeconds = SIM_DURATION_SECONDS || configuredDurationSeconds;
+  console.log(`Simulation mode: fixed time (${durationSeconds}s), category: ${category}`);
+
   checkSocket.disconnect();
 
   // Create students with different profiles
   const students = [
-    new SimulatedStudent(STUDENT_PROFILES.fast, roomId),
-    new SimulatedStudent(STUDENT_PROFILES.fast, roomId),
-    new SimulatedStudent(STUDENT_PROFILES.average, roomId),
-    new SimulatedStudent(STUDENT_PROFILES.average, roomId),
-    new SimulatedStudent(STUDENT_PROFILES.average, roomId),
-    new SimulatedStudent(STUDENT_PROFILES.struggling, roomId),
-    new SimulatedStudent(STUDENT_PROFILES.struggling, roomId),
+    new SimulatedStudent(STUDENT_PROFILES.fast, roomId, durationSeconds),
+    new SimulatedStudent(STUDENT_PROFILES.fast, roomId, durationSeconds),
+    new SimulatedStudent(STUDENT_PROFILES.average, roomId, durationSeconds),
+    new SimulatedStudent(STUDENT_PROFILES.average, roomId, durationSeconds),
+    new SimulatedStudent(STUDENT_PROFILES.average, roomId, durationSeconds),
+    new SimulatedStudent(STUDENT_PROFILES.struggling, roomId, durationSeconds),
+    new SimulatedStudent(STUDENT_PROFILES.struggling, roomId, durationSeconds),
   ];
 
   // Connect all students
@@ -199,9 +242,18 @@ async function runTest(roomId) {
   // Wait for game to start (admin will start it from the UI)
   await new Promise(resolve => {
     const waitSocket = io('http://localhost:3000');
-    waitSocket.emit('joinRoom', { roomId, username: 'SimulationWatcher' });
-    
-    waitSocket.on('gameStarted', () => {
+    let pollTimer = null;
+
+    waitSocket.on('connect', () => {
+      pollTimer = setInterval(() => {
+        waitSocket.emit('getRoomState', roomId);
+      }, 1000);
+    });
+
+    waitSocket.on('roomState', (state) => {
+      if (state.status !== 'playing') return;
+
+      if (pollTimer) clearInterval(pollTimer);
       console.log('Game started by admin!');
       waitSocket.disconnect();
       resolve();
@@ -211,26 +263,36 @@ async function runTest(roomId) {
   // Wait for completion
   await new Promise(resolve => {
     const resultSocket = io('http://localhost:3000');
-    resultSocket.emit('joinRoom', { roomId, username: 'SimulationWatcher' });
-    
     let finishedCount = 0;
+    let pollTimer = null;
+    
+    resultSocket.on('connect', () => {
+      pollTimer = setInterval(() => {
+        resultSocket.emit('getRoomState', roomId);
+      }, 1000);
+    });
+
     resultSocket.on('roomState', (state) => {
-      // Show progress updates
+      // Show live solved/correct/wrong counts during the timed round
       const inProgress = state.players.filter(p => !p.score);
       if (inProgress.length > 0) {
-        process.stdout.write('\r' + inProgress.map(p => 
-          `${p.username}: ${p.progress.toFixed(0)}%`
-        ).join(' | '));
+        process.stdout.write('\r' + inProgress.map(p => {
+          const solved = p.solved || [];
+          const correct = solved.filter(answer => answer.isCorrect).length;
+          const wrong = solved.filter(answer => answer.isCorrect === false).length;
+          return `${p.username}: ${solved.length} solved (${correct} correct, ${wrong} wrong)`;
+        }).join(' | '));
       }
 
       const allFinished = state.players.every(p => p.score !== null);
       if (allFinished && finishedCount === 0) {
         finishedCount++;
+        if (pollTimer) clearInterval(pollTimer);
         console.log('\n\nFinal Results:');
         state.players
-          .sort((a, b) => a.score.time - b.score.time)
+          .sort((a, b) => b.score.time - a.score.time || a.score.wrongCount - b.score.wrongCount)
           .forEach((p, i) => {
-            console.log(`${i + 1}. ${p.username}: ${p.score.time}s (${p.score.wrongCount} wrong)`);
+            console.log(`${i + 1}. ${p.username}: ${p.score.time} correct (${p.score.wrongCount} wrong)`);
           });
         resultSocket.disconnect();
         resolve();

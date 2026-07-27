@@ -338,11 +338,17 @@ io.on('connection', (socket) => {
         room.adminDisconnectedAt = Date.now();
         room.previousAdminId = socket.id;
         
-        // Delete room after 60 seconds if admin hasn't rejoined
+        // Delete an unfinished room after 60 seconds if admin hasn't rejoined.
+        // Finished rooms keep their results available for the admin.
         setTimeout(() => {
           const currentRoom = rooms.get(roomId);
           if (!currentRoom || !currentRoom.adminDisconnectedAt) {
             // Room was deleted or admin already rejoined
+            return;
+          }
+
+          if (currentRoom.status === 'finished') {
+            console.log(`[Server] Keeping finished room ${roomId} so results remain available`);
             return;
           }
           
@@ -353,22 +359,25 @@ io.on('connection', (socket) => {
         continue;
       }
 
-      // If a regular player disconnected, keep them briefly so they can reconnect
+      // If a regular player disconnects before the game starts, remove them after
+      // the grace period. Once play has started, keep the row visible for the admin.
       const playerEntry = getPlayerBySocket(room, socket.id);
       if (playerEntry) {
         playerEntry.player.socketId = null;
         playerEntry.player.disconnectedAt = Date.now();
-        console.log(`[Server] Player disconnected from room ${roomId}, setting 60s rejoin grace period`);
+        console.log(`[Server] Player disconnected from room ${roomId}`);
 
-        setTimeout(() => {
-          const currentRoom = rooms.get(roomId);
-          const currentPlayer = currentRoom?.players.get(playerEntry.playerId);
-          if (!currentRoom || !currentPlayer || !currentPlayer.disconnectedAt) return;
+        if (room.status === 'waiting') {
+          setTimeout(() => {
+            const currentRoom = rooms.get(roomId);
+            const currentPlayer = currentRoom?.players.get(playerEntry.playerId);
+            if (!currentRoom || !currentPlayer || !currentPlayer.disconnectedAt) return;
+            if (currentRoom.status !== 'waiting') return;
 
-          currentRoom.players.delete(playerEntry.playerId);
-          finishRoomIfAllPlayersDone(currentRoom);
-          updateRoomState(roomId);
-        }, REJOIN_GRACE_MS);
+            currentRoom.players.delete(playerEntry.playerId);
+            updateRoomState(roomId);
+          }, REJOIN_GRACE_MS);
+        }
 
         updateRoomState(roomId);
       }
