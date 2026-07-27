@@ -183,7 +183,7 @@ export default function Primfaktorisierung({ number, value = '', onChange, onEnt
           <div
             ref={inputRef}
             tabIndex={mistakeFeedback ? -1 : 0}
-            className="factor-draft"
+            className={`factor-draft${draft ? ' factor-draft--active' : ''}`}
             style={{ color: crossedOut ? '#b91c1c' : undefined }}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
