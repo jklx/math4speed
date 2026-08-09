@@ -114,6 +114,17 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
             </li>
           )
         }
+        if (q.type === 'gemischte-zahlen') {
+          const displayValue = isCorrect ? q.correct : (q.user || '—')
+          return (
+            <li key={q.id} onClick={handleClick}>
+              {q.direction === 'mixed-to-improper'
+                ? `${q.whole} ${q.numerator}/${q.denominator} = ${displayValue}`
+                : `${q.improperNumerator}/${q.denominator} = ${displayValue}`}
+              {renderCorrection(q.correct)}
+            </li>
+          )
+        }
         const op = getOperator(q)
         const displayOperator = op === '-' ? '−' : op
         // For schriftlich, normalize padded zero strings to a compact number

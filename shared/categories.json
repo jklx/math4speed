@@ -99,6 +99,20 @@
       "default": [20, 60]
     }
   },
+  "gemischte-zahlen": {
+    "label": "Gemischte Zahlen",
+    "grade": "6. Klasse",
+    "problemCount": 15,
+    "durationMinutes": 5,
+    "settings": [
+      { "key": "mixedToImproper", "label": "Gemischte Zahl in Bruch umwandeln", "defaultValue": true },
+      { "key": "improperToMixed", "label": "Bruch in gemischte Zahl umwandeln", "defaultValue": true }
+    ],
+    "performanceScore": [10, 22],
+    "performance": {
+      "default": [18, 45]
+    }
+  },
   "binomische": {
     "label": "Binomische Formeln",
     "grade": "7. Klasse",

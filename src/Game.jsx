@@ -175,6 +175,7 @@ import Primfaktorisierung from './Primfaktorisierung'
 import Negative from './Negative'
 import Binomische from './Binomische'
 import ProzentGleichung from './ProzentGleichung'
+import GemischteZahlen from './GemischteZahlen'
 import ReviewList from './ReviewList'
 
 const BATCH_SIZE = 100
@@ -327,6 +328,14 @@ export default function Game({ isSinglePlayer }) {
       return (
         <>
           <p>Du hast {mins} Minuten Zeit, so viele Aufgaben mit negativen Zahlen (+, −, ·, ∶) wie möglich zu lösen.</p>
+        </>
+      )
+    }
+    if (cat === 'gemischte-zahlen') {
+      return (
+        <>
+          <p>Du hast {mins} Minuten Zeit, gemischte Zahlen und unechte Brüche ineinander umzuwandeln.</p>
+          <p>Gib einen Bruch als <kbd>11/4</kbd> und eine gemischte Zahl als <kbd>2 3/4</kbd> ein.</p>
         </>
       )
     }
@@ -498,6 +507,7 @@ export default function Game({ isSinglePlayer }) {
       }
       return `x = ${formatDecimal(prob.correct, { maximumFractionDigits: 4 })}${prob.unit ? ' ' + prob.unit : ''}`
     }
+    if (prob.type === 'gemischte-zahlen') return prob.correct
     return String(prob.correct)
   }
 
@@ -581,6 +591,26 @@ export default function Game({ isSinglePlayer }) {
         parsed = Number(numericOnly)
         isCorrect = isFinite(parsed) && Math.abs(parsed - prob.correct) < 0.001
       }
+    } else if (prob.type === 'gemischte-zahlen') {
+      const candidateValue = String(overrideValue ?? inputValue ?? '').trim()
+      if (prob.direction === 'mixed-to-improper') {
+        const match = candidateValue.match(/^(\d+)\s*\/\s*(\d+)$/)
+        if (match && Number(match[2]) !== 0) {
+          const numerator = Number(match[1])
+          const denominator = Number(match[2])
+          parsed = `${numerator}/${denominator}`
+          isCorrect = numerator * prob.denominator === prob.improperNumerator * denominator
+        }
+      } else {
+        const match = candidateValue.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/)
+        if (match && Number(match[3]) !== 0 && Number(match[2]) < Number(match[3])) {
+          const whole = Number(match[1])
+          const numerator = Number(match[2])
+          const denominator = Number(match[3])
+          parsed = `${whole} ${numerator}/${denominator}`
+          isCorrect = (whole * denominator + numerator) * prob.denominator === prob.improperNumerator * denominator
+        }
+      }
     } else {
       const candidateValue = overrideValue ?? inputValue
       const sanitized = String(candidateValue).replace(/−/g, '-')
@@ -632,10 +662,12 @@ export default function Game({ isSinglePlayer }) {
         ? rawUserAnswer.trim().split(/\s+/).filter(Boolean).join(' · ')
         : prob.type === 'binomische'
           ? rawUserAnswer.replace(/\^2/g, '²').replace(/\^3/g, '³')
-          : prob.type === 'prozent-gleichung'
+        : prob.type === 'prozent-gleichung'
             ? (prob.variant === 'findeFaktor' || prob.variant === 'findeProzentsatz')
               ? `x = ${rawUserAnswer}`
               : `x = ${rawUserAnswer}${prob.unit ? ' ' + prob.unit : ''}`
+            : prob.type === 'gemischte-zahlen'
+              ? rawUserAnswer
             : rawUserAnswer
       setMistakeState({
         userAnswerDisplay,
@@ -997,6 +1029,17 @@ export default function Game({ isSinglePlayer }) {
                     onChange={setInputValue}
                     onEnter={submitAnswer}
                     explicitPlus={problems[current].explicitPlus}
+                    showTick={flashResult === 'correct'}
+                    crossedOut={Boolean(mistakeState)}
+                    mistakeFeedback={mistakeState}
+                  />
+                ) : problems[current].type === 'gemischte-zahlen' ? (
+                  <GemischteZahlen
+                    key={problems[current].id}
+                    problem={problems[current]}
+                    value={inputValue}
+                    onChange={setInputValue}
+                    onEnter={submitAnswer}
                     showTick={flashResult === 'correct'}
                     crossedOut={Boolean(mistakeState)}
                     mistakeFeedback={mistakeState}

@@ -5,6 +5,7 @@ const KEY_VALUES = {
   '⌫': 'Backspace',
   '↵': 'Enter',
   '⋅': ' ',
+  '␣': ' ',
   'mal': ' ',
 }
 
@@ -53,6 +54,15 @@ const KEY_LAYOUTS = {
       '0', { label: 'mal', colSpan: 2 },
     ],
   },
+  'gemischte-zahlen': {
+    cols: 4,
+    keys: [
+      '7', '8', '9', '\u232b',
+      '4', '5', '6', { label: '\u21b5', rowSpan: 3 },
+      '1', '2', '3',
+      '0', '/', { label: '␣' },
+    ],
+  },
 }
 KEY_LAYOUTS.schriftlich = KEY_LAYOUTS.multiplication
 
@@ -96,6 +106,7 @@ export default function VirtualKeyboard({ category, variable, onKey }) {
     if (label === '⌫') return 'Backspace'
     if (label === '↵') return 'Eingabe bestätigen'
     if (label === '⋅') return 'Mal-Punkt (Faktor trennen)'
+    if (label === '␣') return 'Leerzeichen'
     if (label === 'mal') return 'Mal (Faktor trennen)'
     if (label === '−') return 'Minus'
     if (label === '^') return 'Hoch'

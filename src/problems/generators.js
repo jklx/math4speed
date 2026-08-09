@@ -1628,6 +1628,38 @@ export function generateProzentGleichungProblems(count, settings) {
   return problems
 }
 
+export function generateGemischteZahlenProblems(count, settings = {}) {
+  const {
+    mixedToImproper = true,
+    improperToMixed = true
+  } = settings
+  const directions = []
+  if (mixedToImproper) directions.push('mixed-to-improper')
+  if (improperToMixed) directions.push('improper-to-mixed')
+  if (directions.length === 0) directions.push('mixed-to-improper', 'improper-to-mixed')
+
+  return Array.from({ length: count }, (_, index) => {
+    const denominator = Math.floor(Math.random() * 10) + 2
+    const numerator = Math.floor(Math.random() * (denominator - 1)) + 1
+    const whole = Math.floor(Math.random() * 9) + 1
+    const direction = directions[index % directions.length]
+    const improperNumerator = whole * denominator + numerator
+
+    return {
+      id: index + 1,
+      type: 'gemischte-zahlen',
+      direction,
+      whole,
+      numerator,
+      denominator,
+      improperNumerator,
+      correct: direction === 'mixed-to-improper'
+        ? `${improperNumerator}/${denominator}`
+        : `${whole} ${numerator}/${denominator}`
+    }
+  })
+}
+
 export function generateProblems(count, category, settings = {}) {
   if (category === 'einmaleins') return generateEinmaleinsProblems(count, settings);
   if (category === 'schriftlich') return generateSchriftlichProblems(count, settings);
@@ -1636,6 +1668,7 @@ export function generateProblems(count, category, settings = {}) {
   if (category === 'schriftlich-multiply') return generateSchriftlichProblems(count, { schriftlichAdd: false, schriftlichSubtract: false, schriftlichMultiply: true });
   if (category === 'primfaktorisierung') return generatePrimfaktorisierungProblems(count, settings);
   if (category === 'negative') return generateNegativeProblems(count, settings);
+  if (category === 'gemischte-zahlen') return generateGemischteZahlenProblems(count, settings);
   if (category === 'binomische') return generateBinomischeProblems(count, settings);
   if (category === 'prozent-gleichung') return generateProzentGleichungProblems(count, settings);
   return [];

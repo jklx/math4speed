@@ -680,6 +680,22 @@ button:disabled {
   outline-offset: 2px;
 }
 
+.mixed-number-prompt { margin: 0 0 1rem; font-size: 1.05rem; }
+.mixed-number-expression { display: flex; align-items: center; gap: 0.3rem; font-size: 2rem; }
+.mixed-number-equals { margin: 0 0.55rem; }
+.fraction { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; line-height: 1; min-width: 1.25em; }
+.fraction span:first-child { border-bottom: 1.5px solid currentColor; padding: 0 0.12em 0.08em; }
+.fraction span:last-child { padding: 0.08em 0.12em 0; }
+.mixed-number-hint { margin: 0.75rem 0 0; color: var(--text-secondary, #667085); font-size: 0.9rem; }
+.fraction-answer { display: flex; align-items: center; gap: 0.45rem; font-size: 2rem; }
+.fraction--input { min-width: 2.2em; }
+.fraction-input { width: 2.2em; min-width: 2.2em; box-sizing: border-box; border: 0; border-radius: 5px; background: var(--input-bg, #f1f5f9); color: inherit; font: inherit; line-height: 1; padding: 0.08em 0.12em; text-align: center; outline: 2px solid transparent; }
+.fraction-input:focus { outline-color: var(--accent); background: #fff; }
+.fraction-input--disabled { color: #b91c1c; }
+.fraction--input .fraction-input:first-child { border-bottom: 1.5px solid currentColor; border-radius: 5px 5px 0 0; padding-bottom: 0.08em; }
+.fraction--input .fraction-input:last-child { border-radius: 0 0 5px 5px; padding-top: 0.08em; }
+.fraction-answer--wrong .fraction-input { color: #b91c1c; }
+
 .factor-token--feedback {
   cursor: default;
   transform: none;
