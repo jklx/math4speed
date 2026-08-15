@@ -1,0 +1,13 @@
+.git
+.github
+.agents
+.codex
+node_modules
+.pnpm-store
+dist
+output
+tmp-pdf-render-*.png
+npm-debug.log*
+.env
+.env.*
+server/leaderboard.json

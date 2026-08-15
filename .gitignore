@@ -9,6 +9,11 @@ yarn-error.log*
 # Build output
 dist/
 build/
+output/
+
+# Local package-manager cache and visual test artifacts
+.pnpm-store/
+tmp-pdf-render-*.png
 
 # OS files
 .DS_Store

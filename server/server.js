@@ -11,6 +11,10 @@ app.use(cors());
 app.use(express.json());
 const httpServer = createServer(app);
 
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 // ── Leaderboard persistence ──────────────────────────────────────────────────
 const LEADERBOARD_FILE = process.env.LEADERBOARD_FILE || path.join(__dirname, 'leaderboard.json');
 const VALID_CATEGORIES = Object.keys(require('../shared/categories.json'));
@@ -429,6 +433,14 @@ app.get('/api/report/:roomId', (req, res) => {
 
   generateReport(res, { id: roomId, category: room.settings?.category }, exportPlayers);
 });
+
+// In production the Node process serves the Vite build as well. The Vite
+// development server still proxies API and Socket.IO traffic during local work.
+const frontendDir = path.join(__dirname, '..', 'dist');
+if (fs.existsSync(frontendDir)) {
+  app.use(express.static(frontendDir));
+  app.get('*', (_req, res) => res.sendFile(path.join(frontendDir, 'index.html')));
+}
 
 const PORT = 3000;
 httpServer.listen(PORT, () => {
