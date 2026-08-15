@@ -44,7 +44,9 @@ export default function GemischteZahlen({ problem, value = '', onChange, onEnter
     if (event.key === 'Enter') { event.preventDefault(); onEnter?.(); return }
     if (/^[0-9]$/.test(event.key)) {
       event.preventDefault()
-      updatePart(index, parts[index] + event.key)
+      const start = event.currentTarget.selectionStart ?? parts[index].length
+      const end = event.currentTarget.selectionEnd ?? start
+      updatePart(index, parts[index].slice(0, start) + event.key + parts[index].slice(end))
       return
     }
     if ((event.key === '/' || event.key === ' ') && index < parts.length - 1) {
@@ -54,7 +56,10 @@ export default function GemischteZahlen({ problem, value = '', onChange, onEnter
     }
     if (event.key === 'Backspace') {
       event.preventDefault()
-      if (parts[index]) updatePart(index, parts[index].slice(0, -1))
+      const start = event.currentTarget.selectionStart ?? parts[index].length
+      const end = event.currentTarget.selectionEnd ?? start
+      if (start !== end) updatePart(index, parts[index].slice(0, start) + parts[index].slice(end))
+      else if (parts[index]) updatePart(index, parts[index].slice(0, Math.max(0, start - 1)) + parts[index].slice(start))
       else if (index > 0) moveTo(index - 1)
     }
   }
