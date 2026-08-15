@@ -125,6 +125,17 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
             </li>
           )
         }
+        if (q.type === 'dezimalbrueche') {
+          const displayValue = isCorrect ? q.correct : (q.user || '—')
+          return (
+            <li key={q.id} onClick={handleClick}>
+              {q.direction === 'decimal-to-fraction'
+                ? `${q.decimalDisplay} = ${displayValue}`
+                : `${q.numerator}/${q.denominator} = ${displayValue}`}
+              {renderCorrection(q.correct)}
+            </li>
+          )
+        }
         const op = getOperator(q)
         const displayOperator = op === '-' ? '−' : op
         // For schriftlich, normalize padded zero strings to a compact number

@@ -23,7 +23,9 @@ export const getDefaultSettings = () => {
 }
 
 export const getProblemRange = (problem) => {
-  const catConfig = CATEGORIES[problem.type]
+  const catConfig = problem.type === 'schriftlich' && problem.operation === 'divide'
+    ? CATEGORIES['schriftlich-divide']
+    : CATEGORIES[problem.type]
   if (!catConfig) return CATEGORIES.einmaleins.performance.default
   if (problem.type === 'primfaktorisierung') {
     if (problem.number <= 100 && catConfig.performance.easy) {

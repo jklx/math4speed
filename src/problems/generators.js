@@ -201,6 +201,62 @@ export function generateSchriftlichProblems(count, settings) {
   return combined.map((problem, index) => ({ ...problem, id: index + 1 }));
 }
 
+export function generateSchriftlichDivisionProblems(count, settings = {}) {
+  const {
+    schriftlichDivideSingleDigit = true,
+    schriftlichDivideTeens = false,
+    schriftlichDivideLarge = false
+  } = settings
+
+  const divisorPool = []
+  if (schriftlichDivideSingleDigit) for (let n = 2; n <= 9; n++) divisorPool.push(n)
+  if (schriftlichDivideTeens) for (let n = 11; n <= 19; n++) divisorPool.push(n)
+  if (schriftlichDivideLarge) for (let n = 21; n <= 99; n++) divisorPool.push(n)
+  if (!divisorPool.length) for (let n = 2; n <= 9; n++) divisorPool.push(n)
+
+  return Array.from({ length: count }, (_, index) => {
+    const divisor = divisorPool[Math.floor(Math.random() * divisorPool.length)]
+    // Exact quotients keep the focus on the written procedure. Results have
+    // 3–4 digits so every task contains several subtraction steps.
+    // Zero-free quotient digits make each quotient place visible as an
+    // abziehbarer Schritt (and avoid a special-case empty subtraction row).
+    const quotient = Number(Array.from(
+      { length: Math.random() < 0.5 ? 3 : 4 },
+      () => Math.floor(Math.random() * 9) + 1
+    ).join(''))
+    const dividend = divisor * quotient
+    const dividendString = String(dividend)
+    const quotientDigits = String(quotient).split('').map(Number)
+    const steps = []
+    let partial = 0
+    let quotientIndex = 0
+
+    for (let digitIndex = 0; digitIndex < dividendString.length; digitIndex++) {
+      const digit = dividendString[digitIndex]
+      partial = partial * 10 + Number(digit)
+      if (partial < divisor) continue
+      const quotientDigit = quotientDigits[quotientIndex++]
+      const product = quotientDigit * divisor
+      const remainder = partial - product
+      steps.push({ partial, product, remainder, endIndex: digitIndex })
+      partial = remainder
+    }
+
+    return {
+      id: index + 1,
+      a: dividend,
+      b: divisor,
+      correct: quotient,
+      type: 'schriftlich',
+      operation: 'divide',
+      aDigits: dividendString.split('').map(Number),
+      bDigits: String(divisor).split('').map(Number),
+      correctDigits: quotientDigits,
+      divisionSteps: steps
+    }
+  })
+}
+
 export function generatePrimfaktorisierungProblems(count) {
   const getPrimeFactors = (n) => {
     const factors = [];
@@ -1660,15 +1716,125 @@ export function generateGemischteZahlenProblems(count, settings = {}) {
   })
 }
 
+function decimalText(numerator, denominator) {
+  return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 6 }).format(numerator / denominator)
+}
+
+function periodicDecimalText(numerator, denominator) {
+  const whole = Math.floor(numerator / denominator)
+  const remainder = numerator % denominator
+  if (denominator === 3) return `${whole},(${remainder * 3})`
+  if (denominator === 9) return `${whole},(${remainder})`
+
+  const patterns = {
+    1: ['1', '6'],
+    2: ['', '3'],
+    4: ['', '6'],
+    5: ['8', '3']
+  }
+  const [prefix, period] = patterns[remainder]
+  return `${whole},${prefix}(${period})`
+}
+
+export function generateDezimalbruecheProblems(count, settings = {}) {
+  const {
+    decimalPowerOfTen = true,
+    decimalCommonFractions = true,
+    decimalPeriodic = true,
+    decimalExpandableFractions = true
+  } = settings
+  const types = []
+  if (decimalPowerOfTen) types.push('power-of-ten')
+  if (decimalCommonFractions) types.push('common')
+  if (decimalPeriodic) types.push('periodic')
+  if (decimalExpandableFractions) types.push('expandable')
+  if (!types.length) types.push('power-of-ten', 'common', 'periodic', 'expandable')
+  let periodicTaskIndex = 0
+  const usedProblems = new Set()
+  const problems = []
+  let attempts = 0
+  const easySamples = {
+    'power-of-ten': [[1, 10], [5, 10], [25, 100], [1, 100]],
+    common: [[1, 2], [1, 4], [3, 4], [2, 5], [3, 8]],
+    periodic: [[1, 3], [2, 3], [4, 9], [1, 6], [1, 9]],
+    expandable: [[3, 25], [3, 4], [2, 5], [7, 125], [9, 250]]
+  }
+
+  while (problems.length < count && attempts < count * 100) {
+    const index = problems.length
+    const variant = types[index % types.length]
+    let denominator
+    let numerator
+    const easySample = index < 5
+      ? easySamples[variant][Math.floor(index / types.length) % easySamples[variant].length]
+      : null
+
+    if (easySample) {
+      [numerator, denominator] = easySample
+    } else if (variant === 'power-of-ten') {
+      denominator = [10, 100, 1000][Math.floor(Math.random() * 3)]
+      numerator = Math.floor(Math.random() * (denominator * 2 + 1))
+      if (numerator === 0) numerator = 1
+    } else if (variant === 'common') {
+      denominator = [2, 4, 5, 8][Math.floor(Math.random() * 4)]
+      numerator = Math.floor(Math.random() * (denominator * 3)) + 1
+    } else if (variant === 'periodic') {
+      denominator = [3, 6, 9][periodicTaskIndex++ % 3]
+      do {
+        numerator = Math.floor(Math.random() * 100) + 1
+      } while (
+        numerator % denominator === 0 ||
+        (denominator === 6 && numerator % denominator === 3)
+      )
+    } else {
+      denominator = [2, 4, 5, 20, 25, 50, 125, 250, 500][Math.floor(Math.random() * 9)]
+      // The point of these tasks is recognizing the expansion factor (e.g.
+      // ×4 or ×8), not multiplying large numerators in the head.
+      numerator = Math.floor(Math.random() * 100) + 1
+    }
+
+    const isRecurring = variant === 'periodic'
+    const decimalDisplay = isRecurring
+      ? periodicDecimalText(numerator, denominator)
+      : decimalText(numerator, denominator)
+    const direction = Math.floor(index / types.length) % 2 === 0
+      ? 'fraction-to-decimal'
+      : 'decimal-to-fraction'
+    const key = `${direction}:${numerator}/${denominator}`
+
+    if (usedProblems.has(key)) {
+      attempts++
+      continue
+    }
+    usedProblems.add(key)
+
+    problems.push({
+      id: index + 1,
+      type: 'dezimalbrueche',
+      variant,
+      direction,
+      numerator,
+      denominator,
+      decimalDisplay,
+      isRecurring,
+      correct: direction === 'fraction-to-decimal' ? decimalDisplay : `${numerator}/${denominator}`
+    })
+  }
+
+  return problems
+}
+
 export function generateProblems(count, category, settings = {}) {
   if (category === 'einmaleins') return generateEinmaleinsProblems(count, settings);
   if (category === 'schriftlich') return generateSchriftlichProblems(count, settings);
   if (category === 'schriftlich-add') return generateSchriftlichProblems(count, { schriftlichAdd: true, schriftlichSubtract: false, schriftlichMultiply: false });
   if (category === 'schriftlich-subtract') return generateSchriftlichProblems(count, { schriftlichAdd: false, schriftlichSubtract: true, schriftlichMultiply: false });
   if (category === 'schriftlich-multiply') return generateSchriftlichProblems(count, { schriftlichAdd: false, schriftlichSubtract: false, schriftlichMultiply: true });
+  if (category === 'schriftlich-divide') return generateSchriftlichDivisionProblems(count, settings);
   if (category === 'primfaktorisierung') return generatePrimfaktorisierungProblems(count, settings);
   if (category === 'negative') return generateNegativeProblems(count, settings);
   if (category === 'gemischte-zahlen') return generateGemischteZahlenProblems(count, settings);
+  if (category === 'dezimalbrueche') return generateDezimalbruecheProblems(count, settings);
   if (category === 'binomische') return generateBinomischeProblems(count, settings);
   if (category === 'prozent-gleichung') return generateProzentGleichungProblems(count, settings);
   return [];

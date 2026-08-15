@@ -63,6 +63,15 @@ const KEY_LAYOUTS = {
       '0', '/', { label: '␣' },
     ],
   },
+  dezimalbrueche: {
+    cols: 4,
+    keys: [
+      '7', '8', '9', '\u232b',
+      '4', '5', '6', '(',
+      '1', '2', '3', ')',
+      '0', ',', { label: '\u21b5', colSpan: 2 },
+    ],
+  },
 }
 KEY_LAYOUTS.schriftlich = KEY_LAYOUTS.multiplication
 

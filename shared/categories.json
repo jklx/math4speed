@@ -69,6 +69,24 @@
       "default": [60, 200]
     }
   },
+  "schriftlich-divide": {
+    "label": "Schriftl. Division",
+    "homepageLabel": "÷",
+    "homepageGroup": "schriftlich",
+    "homepageGroupLabel": "Schriftlich rechnen",
+    "grade": "5. Klasse",
+    "problemCount": 3,
+    "durationMinutes": 5,
+    "settings": [
+      { "key": "schriftlichDivideSingleDigit", "label": "Einstellige Divisoren (2–9)", "defaultValue": true },
+      { "key": "schriftlichDivideTeens", "label": "Divisoren 11–19", "defaultValue": false },
+      { "key": "schriftlichDivideLarge", "label": "Divisoren 21–99", "defaultValue": false }
+    ],
+    "performanceScore": [3, 8],
+    "performance": {
+      "default": [35, 90]
+    }
+  },
   "negative": {
     "label": "Rechnen mit negativen Zahlen",
     "grade": "5. Klasse",
@@ -107,6 +125,22 @@
     "settings": [
       { "key": "mixedToImproper", "label": "Gemischte Zahl in Bruch umwandeln", "defaultValue": true },
       { "key": "improperToMixed", "label": "Bruch in gemischte Zahl umwandeln", "defaultValue": true }
+    ],
+    "performanceScore": [10, 22],
+    "performance": {
+      "default": [18, 45]
+    }
+  },
+  "dezimalbrueche": {
+    "label": "Dezimalbrüche umwandeln",
+    "grade": "6. Klasse",
+    "problemCount": 15,
+    "durationMinutes": 5,
+    "settings": [
+      { "key": "decimalPowerOfTen", "label": "Nenner 10, 100 und 1 000 (auch unechte Brüche)", "defaultValue": true },
+      { "key": "decimalCommonFractions", "label": "Häufige Brüche: Vielfache von 1/2, 1/4, 1/5 und 1/8", "defaultValue": true },
+      { "key": "decimalPeriodic", "label": "Periodische Dezimalbrüche: Vielfache von 1/3, 1/6 und 1/9", "defaultValue": true },
+      { "key": "decimalExpandableFractions", "label": "Im Kopf auf 10, 100 oder 1 000 erweitern", "defaultValue": true }
     ],
     "performanceScore": [10, 22],
     "performance": {

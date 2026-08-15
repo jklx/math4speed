@@ -66,8 +66,8 @@ export default function AdminView() {
         </>
       )
     }
-    if (cat === 'schriftlich' || cat === 'schriftlich-add' || cat === 'schriftlich-subtract' || cat === 'schriftlich-multiply') {
-      const opLabel = cat === 'schriftlich-add' ? 'Additions' : cat === 'schriftlich-subtract' ? 'Subtraktions' : cat === 'schriftlich-multiply' ? 'Multiplikations' : ''
+    if (cat === 'schriftlich' || cat === 'schriftlich-add' || cat === 'schriftlich-subtract' || cat === 'schriftlich-multiply' || cat === 'schriftlich-divide') {
+      const opLabel = cat === 'schriftlich-add' ? 'Additions' : cat === 'schriftlich-subtract' ? 'Subtraktions' : cat === 'schriftlich-multiply' ? 'Multiplikations' : cat === 'schriftlich-divide' ? 'Divisions' : ''
       return (
         <>
           <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele schriftliche {opLabel}aufgaben wie möglich zu lösen.</p>
@@ -530,8 +530,8 @@ export default function AdminView() {
                       <button
                         key={idx}
                         type="button"
-                        className={`progress-segment ${problem.isCorrect ? 'correct' : 'incorrect'}`}
-                        aria-label={`Aufgabe ${idx + 1}: ${problem.isCorrect ? 'richtig' : 'falsch'}. ${formatProblemPrompt(problem)}. Lösung: ${formatCorrectAnswer(problem)}.`}
+                        className={`progress-segment ${problem.assisted ? 'assisted' : problem.isCorrect ? 'correct' : 'incorrect'}`}
+                        aria-label={`Aufgabe ${idx + 1}: ${problem.assisted ? 'mit Hilfe gelöst' : problem.isCorrect ? 'richtig' : 'falsch'}. ${formatProblemPrompt(problem)}. Lösung: ${formatCorrectAnswer(problem)}.`}
                         title={`Aufgabe ${idx + 1}: ${formatProblemPrompt(problem)}. Lösung: ${formatCorrectAnswer(problem)}`}
                       >
                         <span className="progress-tooltip" role="tooltip">
@@ -539,6 +539,7 @@ export default function AdminView() {
                           <span>{formatProblemPrompt(problem)}</span>
                           <span>Eigene Antwort: {formatUserAnswer(problem)}</span>
                           <span>Lösung: {formatCorrectAnswer(problem)}</span>
+                          {problem.assisted && <span>Mit Hilfe gelöst</span>}
                         </span>
                       </button>
                     ))}

@@ -170,12 +170,14 @@ import { validateSchriftlich, validatePrimfaktorisierung, validatePolynomial } f
 import { getScoreComment, getScoreMarkerPosition } from './utils/performanceFeedback'
 import { getCategoryLabel, CATEGORIES, getDefaultSettings, getCategoryPerformanceScore, getCategoryDuration } from './utils/categories'
 import Schriftlich from './Schriftlich'
+import SchriftlicheDivision from './SchriftlicheDivision'
 import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
 import Negative from './Negative'
 import Binomische from './Binomische'
 import ProzentGleichung from './ProzentGleichung'
 import GemischteZahlen from './GemischteZahlen'
+import Dezimalbrueche from './Dezimalbrueche'
 import ReviewList from './ReviewList'
 
 const BATCH_SIZE = 100
@@ -306,8 +308,8 @@ export default function Game({ isSinglePlayer }) {
         </>
       )
     }
-    if (cat === 'schriftlich' || cat === 'schriftlich-add' || cat === 'schriftlich-subtract' || cat === 'schriftlich-multiply') {
-      const opLabel = cat === 'schriftlich-add' ? 'Additions' : cat === 'schriftlich-subtract' ? 'Subtraktions' : cat === 'schriftlich-multiply' ? 'Multiplikations' : ''
+    if (cat === 'schriftlich' || cat === 'schriftlich-add' || cat === 'schriftlich-subtract' || cat === 'schriftlich-multiply' || cat === 'schriftlich-divide') {
+      const opLabel = cat === 'schriftlich-add' ? 'Additions' : cat === 'schriftlich-subtract' ? 'Subtraktions' : cat === 'schriftlich-multiply' ? 'Multiplikations' : cat === 'schriftlich-divide' ? 'Divisions' : ''
       return (
         <>
           <p>Du hast {mins} Minuten Zeit, so viele schriftliche {opLabel}aufgaben wie möglich zu lösen.</p>
@@ -336,6 +338,14 @@ export default function Game({ isSinglePlayer }) {
         <>
           <p>Du hast {mins} Minuten Zeit, gemischte Zahlen und unechte Brüche ineinander umzuwandeln.</p>
           <p>Gib einen Bruch als <kbd>11/4</kbd> und eine gemischte Zahl als <kbd>2 3/4</kbd> ein.</p>
+        </>
+      )
+    }
+    if (cat === 'dezimalbrueche') {
+      return (
+        <>
+          <p>Du hast {mins} Minuten Zeit, Brüche und Dezimalbrüche ineinander umzuwandeln.</p>
+          <p>Wähle die Aufgabentypen aus, die du üben möchtest. Bei periodischen Dezimalzahlen nutze z.&nbsp;B. <kbd>0,(3)</kbd>.</p>
         </>
       )
     }
@@ -491,8 +501,9 @@ export default function Game({ isSinglePlayer }) {
       const correct = answers.filter(a => a.isCorrect).length
       const wrong = answers.filter(a => !a.isCorrect).length
       if (roomId && !isSinglePlayer) {
-        finishGame(roomId, correct, wrong)
         updateProgress(roomId, 100, answers)
+        // Persist the final task list before the room can switch to "finished".
+        finishGame(roomId, correct, wrong)
       }
       setFinished(true)
     }
@@ -508,6 +519,7 @@ export default function Game({ isSinglePlayer }) {
       return `x = ${formatDecimal(prob.correct, { maximumFractionDigits: 4 })}${prob.unit ? ' ' + prob.unit : ''}`
     }
     if (prob.type === 'gemischte-zahlen') return prob.correct
+    if (prob.type === 'dezimalbrueche') return prob.correct
     return String(prob.correct)
   }
 
@@ -611,6 +623,28 @@ export default function Game({ isSinglePlayer }) {
           isCorrect = (whole * denominator + numerator) * prob.denominator === prob.improperNumerator * denominator
         }
       }
+    } else if (prob.type === 'dezimalbrueche') {
+      const candidateValue = String(overrideValue ?? inputValue ?? '').trim()
+      if (prob.direction === 'decimal-to-fraction') {
+        const match = candidateValue.match(/^(\d+)\s*\/\s*(\d+)$/)
+        if (match && Number(match[2]) !== 0) {
+          const numerator = Number(match[1])
+          const denominator = Number(match[2])
+          parsed = `${numerator}/${denominator}`
+          isCorrect = numerator * prob.denominator === prob.numerator * denominator
+        }
+      } else if (prob.isRecurring) {
+        const normalized = candidateValue.replace(/\s/g, '')
+        const alternate = prob.decimalDisplay.replace(/\((\d+)\)/, (_, period) => `${period.repeat(3)}...`)
+        const overline = prob.decimalDisplay.replace(/\((\d+)\)/g, (_, period) => period.split('').map(digit => `${digit}\u0305`).join(''))
+        const markedOverline = prob.decimalDisplay.replace(/\((\d+)\)/g, (_, period) => `\u2063${period}`)
+        parsed = candidateValue
+        isCorrect = normalized === prob.decimalDisplay || normalized === overline || normalized === markedOverline || normalized === alternate
+      } else {
+        const decimal = Number(candidateValue.replace(',', '.'))
+        parsed = candidateValue
+        isCorrect = Number.isFinite(decimal) && Math.abs(decimal - prob.numerator / prob.denominator) < 0.000001
+      }
     } else {
       const candidateValue = overrideValue ?? inputValue
       const sanitized = String(candidateValue).replace(/−/g, '-')
@@ -618,8 +652,22 @@ export default function Game({ isSinglePlayer }) {
       isCorrect = parsed === prob.correct
     }
 
-    const newEntry = { ...prob, user: parsed, isCorrect, schriftlichSnapshot: prob.type === 'schriftlich' ? schriftlichInput : undefined }
-    const newAnswers = [...answers, newEntry]
+    // Schriftlich and Prozentrechnung mit Gleichungen allow one correction on
+    // the current task. Keep that task as one progress entry and make its
+    // assisted completion visible instead of showing a red and a green entry.
+    const previousAnswer = answers[answers.length - 1]
+    const canBeCorrected = prob.type === 'schriftlich' || prob.type === 'prozent-gleichung'
+    const wasCorrected = canBeCorrected && isCorrect && previousAnswer?.id === prob.id && previousAnswer.isCorrect === false
+    const newEntry = {
+      ...prob,
+      user: parsed,
+      isCorrect,
+      assisted: wasCorrected,
+      schriftlichSnapshot: prob.type === 'schriftlich' ? schriftlichInput : undefined
+    }
+    const newAnswers = wasCorrected
+      ? [...answers.slice(0, -1), newEntry]
+      : [...answers, newEntry]
 
     if (isCorrect) {
       setAnswers(newAnswers)
@@ -667,6 +715,8 @@ export default function Game({ isSinglePlayer }) {
               ? `x = ${rawUserAnswer}`
               : `x = ${rawUserAnswer}${prob.unit ? ' ' + prob.unit : ''}`
             : prob.type === 'gemischte-zahlen'
+              ? rawUserAnswer
+            : prob.type === 'dezimalbrueche'
               ? rawUserAnswer
             : rawUserAnswer
       setMistakeState({
@@ -945,8 +995,9 @@ export default function Game({ isSinglePlayer }) {
                 {answers.map((answer, index) => (
                   <span
                     key={`${answer.id}-${index}`}
-                    className={`progress-segment ${answer.isCorrect ? 'correct' : 'incorrect'}`}
-                    aria-label={`Aufgabe ${index + 1}: ${answer.isCorrect ? 'richtig' : 'falsch'}`}
+                    className={`progress-segment ${answer.assisted ? 'assisted' : answer.isCorrect ? 'correct' : 'incorrect'}`}
+                    aria-label={`Aufgabe ${index + 1}: ${answer.assisted ? 'mit Hilfe gelöst' : answer.isCorrect ? 'richtig' : 'falsch'}`}
+                    title={answer.assisted ? 'Mit Hilfe gelöst' : answer.isCorrect ? 'Richtig' : 'Falsch'}
                   />
                 ))}
                 {!mistakeState && (
@@ -981,8 +1032,17 @@ export default function Game({ isSinglePlayer }) {
                   />
                 ) : problems[current].type === 'schriftlich' ? (
                   <>
-                    <Schriftlich
-                      key={problems[current].id}
+                  {problems[current].operation === 'divide' ? <SchriftlicheDivision
+                    key={problems[current].id}
+                    dividend={problems[current].a}
+                    divisor={problems[current].b}
+                    correctDigits={problems[current].correctDigits}
+                    divisionSteps={problems[current].divisionSteps}
+                    onChange={setSchriftlichInput}
+                    onEnter={handleSchriftlichSubmit}
+                    checkMode={schriftlichCheckMode}
+                  /> : <Schriftlich
+                    key={problems[current].id}
                       aDigits={problems[current].aDigits}
                       bDigits={problems[current].bDigits}
                       summandsDigits={problems[current].summandsDigits}
@@ -990,9 +1050,9 @@ export default function Game({ isSinglePlayer }) {
                       partialProducts={problems[current].partialProducts}
                       operation={problems[current].operation}
                       onChange={setSchriftlichInput}
-                      onEnter={handleSchriftlichSubmit}
-                      checkMode={schriftlichCheckMode}
-                    />
+                    onEnter={handleSchriftlichSubmit}
+                    checkMode={schriftlichCheckMode}
+                  />}
                     {schriftlichCheckMode && (
                       <p className="schriftlich-correction-hint">Noch nicht ganz richtig — bitte korrigiere die falschen Zahlen.</p>
                     )}
@@ -1035,6 +1095,17 @@ export default function Game({ isSinglePlayer }) {
                   />
                 ) : problems[current].type === 'gemischte-zahlen' ? (
                   <GemischteZahlen
+                    key={problems[current].id}
+                    problem={problems[current]}
+                    value={inputValue}
+                    onChange={setInputValue}
+                    onEnter={submitAnswer}
+                    showTick={flashResult === 'correct'}
+                    crossedOut={Boolean(mistakeState)}
+                    mistakeFeedback={mistakeState}
+                  />
+                ) : problems[current].type === 'dezimalbrueche' ? (
+                  <Dezimalbrueche
                     key={problems[current].id}
                     problem={problems[current]}
                     value={inputValue}
@@ -1253,7 +1324,15 @@ export default function Game({ isSinglePlayer }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'start' }}>
                 <div>
                   <h5 style={{ marginTop: 0 }}>Meine Eingabe</h5>
-                  <Schriftlich
+                  {selectedSchriftlich.operation === 'divide' ? <SchriftlicheDivision
+                    key={`review-user-${selectedSchriftlich.id}`}
+                    dividend={selectedSchriftlich.a}
+                    divisor={selectedSchriftlich.b}
+                    correctDigits={selectedSchriftlich.correctDigits}
+                    divisionSteps={selectedSchriftlich.divisionSteps}
+                    initialState={selectedSchriftlich.schriftlichSnapshot}
+                    review
+                  /> : <Schriftlich
                     key={`review-user-${selectedSchriftlich.id}`}
                     aDigits={selectedSchriftlich.aDigits}
                     bDigits={selectedSchriftlich.bDigits}
@@ -1264,11 +1343,20 @@ export default function Game({ isSinglePlayer }) {
                     initialState={selectedSchriftlich.schriftlichSnapshot}
                     review
                     showCorrect={false}
-                  />
+                  />}
                 </div>
                 <div>
                   <h5 style={{ marginTop: 0 }}>Lösung</h5>
-                  <Schriftlich
+                  {selectedSchriftlich.operation === 'divide' ? <SchriftlicheDivision
+                    key={`review-solution-${selectedSchriftlich.id}`}
+                    dividend={selectedSchriftlich.a}
+                    divisor={selectedSchriftlich.b}
+                    correctDigits={selectedSchriftlich.correctDigits}
+                    divisionSteps={selectedSchriftlich.divisionSteps}
+                    initialState={selectedSchriftlich.schriftlichSnapshot}
+                    review
+                    showCorrect
+                  /> : <Schriftlich
                     key={`review-solution-${selectedSchriftlich.id}`}
                     aDigits={selectedSchriftlich.aDigits}
                     bDigits={selectedSchriftlich.bDigits}
@@ -1279,7 +1367,7 @@ export default function Game({ isSinglePlayer }) {
                     initialState={selectedSchriftlich.schriftlichSnapshot}
                     review
                     showCorrect={true}
-                  />
+                  />}
                 </div>
               </div>
             </div>
