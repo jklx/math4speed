@@ -407,10 +407,27 @@ app.get('/api/report/:roomId', (req, res) => {
   const exportPlayers = finishedPlayers.map(p => ({
     username: p.username,
     score: p.score,
-    solved: (p.solved || []).map(s => ({ a: s.a, b: s.b, user: s.user, correct: s.correct }))
+    // The report needs the task type and display fields to describe every current game mode.
+    solved: (p.solved || []).map(s => ({
+      type: s.type,
+      operation: s.operation,
+      a: s.a,
+      b: s.b,
+      number: s.number,
+      expression: s.expression,
+      text: s.text,
+      unit: s.unit,
+      variant: s.variant,
+      exampleEquation: s.exampleEquation,
+      summandsDigits: s.summandsDigits,
+      user: s.user,
+      correct: s.correct,
+      isCorrect: s.isCorrect,
+      assisted: s.assisted
+    }))
   }));
 
-  generateReport(res, { id: roomId }, exportPlayers);
+  generateReport(res, { id: roomId, category: room.settings?.category }, exportPlayers);
 });
 
 const PORT = 3000;
