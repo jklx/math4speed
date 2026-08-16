@@ -30,3 +30,15 @@ Der Workflow in `.github/workflows/deploy.yml` veröffentlicht bei jedem Merge n
 Beim ersten erfolgreichen Deployment stoppt das Skript einen eventuell vorhandenen systemd-Dienst namens `math4speed` erst nach erfolgreichem Container-Check und deaktiviert ihn danach. Schlägt der Containerstart fehl, startet es den bisherigen Dienst wieder.
 
 Nach dem ersten Merge nach `main` ist der Ablauf vollständig automatisch. Ein manueller Start über **Actions → Deploy production → Run workflow** ist ebenfalls möglich.
+
+## LTI-Testinstanz auf derselben VM
+
+Der Workflow `Deploy LTI test` veröffentlicht den Branch `codex/lti-deep-linking` getrennt von Production. Er verwendet auf derselben VM den Container `math4speed-lti-test`, den lokalen Port `3002` und das Datenverzeichnis `/opt/math4speed-lti-test/data`.
+
+Einmalig auf der VM:
+
+1. Zunächst `nginx-math4speed-lti-test.bootstrap.conf` unter `/etc/nginx/sites-available/` aktivieren. Das Verzeichnis `/var/www/certbot` anlegen und mit `certbot certonly --webroot -w /var/www/certbot -d lti-test.m4s.waldmueller.eu` das Zertifikat ausstellen. Anschließend die Bootstrap-Datei durch `nginx-math4speed-lti-test.conf` ersetzen, `nginx -t` ausführen und Nginx neu laden.
+2. Die Datei `/opt/math4speed-lti-test/lti.env` mit Berechtigung `0600` anlegen. Sie enthält die Werte aus `.env.example`, mindestens `LTI_TOOL_ORIGIN=https://lti-test.m4s.waldmueller.eu`, und darf nicht im Repository oder in GitHub Actions stehen.
+3. Im GitHub-Environment `lti-test` dieselben GCP-Variablen wie in `production` hinterlegen. Optional kann dort eine manuelle Freigabe vor dem Deployment verlangt werden.
+
+Die Konfigurationen von Moodle-Aktivitäten liegen im separaten Host-Verzeichnis und überstehen Container-Aktualisierungen.

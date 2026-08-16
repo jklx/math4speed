@@ -6,6 +6,8 @@ import Game from './Game'
 import AdminView from './AdminView'
 import UsernamePage from './UsernamePage'
 import Leaderboard from './Leaderboard'
+import LtiConfiguration from './LtiConfiguration'
+import LtiLaunch from './LtiLaunch'
 
 export default function App() {
   return (
@@ -29,6 +31,10 @@ export default function App() {
           {/* Leaderboard */}
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/leaderboard/:category" element={<Leaderboard />} />
+
+          {/* Moodle LTI 1.3 */}
+          <Route path="/lti/configure/:sessionId" element={<LtiConfiguration />} />
+          <Route path="/lti/play/:launchId" element={<LtiLaunch />} />
           </Routes>
       </MultiplayerProvider>
     </BrowserRouter>

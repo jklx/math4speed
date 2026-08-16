@@ -181,7 +181,7 @@ import Dezimalbrueche from './Dezimalbrueche'
 import ReviewList from './ReviewList'
 
 const BATCH_SIZE = 100
-export default function Game({ isSinglePlayer }) {
+export default function Game({ isSinglePlayer, ltiActivity = null }) {
   const { roomId, category: urlCategory } = useParams()
   const location = useLocation();
   // Only use multiplayer hooks when NOT in single player mode
@@ -200,7 +200,7 @@ export default function Game({ isSinglePlayer }) {
 
   // Category selection (only for training mode)
   const category = isSinglePlayer 
-    ? (urlCategory || (location.state && location.state.category) || 'einmaleins')
+    ? (ltiActivity?.settings?.category || urlCategory || (location.state && location.state.category) || 'einmaleins')
     : 'einmaleins'; // 'einmaleins' | 'schriftlich' | 'primfaktorisierung'
   const multiplayerSettings = roomState?.settings || {};
   const multiplayerCategory = multiplayerSettings.category || 'einmaleins';
@@ -212,7 +212,7 @@ export default function Game({ isSinglePlayer }) {
   // Settings for problem generation (only for training mode)
   const [settings, setSettings] = useState(() => {
     const defaults = getDefaultSettings();
-    if (!isSinglePlayer) return defaults;
+    if (!isSinglePlayer || ltiActivity) return defaults;
     
     const initial = { ...defaults };
     searchParams.forEach((value, key) => {
@@ -227,7 +227,7 @@ export default function Game({ isSinglePlayer }) {
 
   // Sync settings to URL
   useEffect(() => {
-    if (!isSinglePlayer) return;
+    if (!isSinglePlayer || ltiActivity) return;
     
     const defaults = getDefaultSettings();
     const params = {};
@@ -239,7 +239,7 @@ export default function Game({ isSinglePlayer }) {
     });
     
     setSearchParams(params, { replace: true });
-  }, [settings, isSinglePlayer, setSearchParams]);
+  }, [settings, isSinglePlayer, ltiActivity, setSearchParams]);
   
   // Problems will be generated when game starts, not before
   const [problems, setProblems] = useState([])
@@ -422,7 +422,7 @@ export default function Game({ isSinglePlayer }) {
     }
 
     gameSettingsRef.current = finalSettings
-    gameDurationRef.current = getCategoryDuration(gameCategory)
+    gameDurationRef.current = ltiActivity?.settings?.durationSeconds || getCategoryDuration(gameCategory)
     const newProblems = generateProblems(BATCH_SIZE, gameCategory, finalSettings);
     setProblems(newProblems);
 
@@ -776,7 +776,7 @@ export default function Game({ isSinglePlayer }) {
 
   // Check whether the just-finished single-player score qualifies for the top 10
   useEffect(() => {
-    if (!finished || !isSinglePlayer) return
+    if (!finished || !isSinglePlayer || ltiActivity) return
     const cc = answers.filter(a => a.isCorrect).length
     const wc = answers.filter(a => !a.isCorrect).length
     const [minScore] = getCategoryPerformanceScore(activeCategory)
@@ -794,7 +794,7 @@ export default function Game({ isSinglePlayer }) {
         setLeaderboardQualifies(qualifies)
       })
       .catch(() => setLeaderboardQualifies(false))
-  }, [finished])
+  }, [finished, isSinglePlayer, ltiActivity, answers, activeCategory])
 
   const submitLeaderboard = () => {
     const name = leaderboardName.trim()
@@ -916,9 +916,9 @@ export default function Game({ isSinglePlayer }) {
             <>
               {isSinglePlayer ? (
                 <>
-                  <h2>Trainingsmodus</h2>
+                  <h2>{ltiActivity?.settings?.assessmentMode ? 'Prüfungsmodus' : 'Trainingsmodus'}</h2>
                   {renderCategoryDescription(category)}
-                  {CATEGORIES[category] && CATEGORIES[category].settings.length > 0 && (
+                  {!ltiActivity && CATEGORIES[category] && CATEGORIES[category].settings.length > 0 && (
                     <div className="settings-box">
                       <h3>Aufgaben</h3>
                       <div className={`${category}-toggles`} style={{ marginTop: 0, borderLeft: 'none', paddingLeft: 0 }}>
@@ -939,13 +939,13 @@ export default function Game({ isSinglePlayer }) {
                   
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'center' }}>
                     <button onClick={handleStart} className="big">Starten</button>
-                    <button onClick={copyLink} className="big secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {!ltiActivity && <button onClick={copyLink} className="big secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       Link kopieren
                       <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                         <rect x="9" y="7" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
                         <rect x="4" y="4" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
                       </svg>
-                    </button>
+                    </button>}
                   </div>
                 </>
               ) : (
@@ -1215,7 +1215,7 @@ export default function Game({ isSinglePlayer }) {
             </div>
           </div>
 
-          {isSinglePlayer && leaderboardQualifies === true && !leaderboardSubmitted && (
+          {isSinglePlayer && !ltiActivity && leaderboardQualifies === true && !leaderboardSubmitted && (
             <div className="leaderboard-qualify-box">
               <div className="leaderboard-qualify-title">&#127942; Top 20!</div>
               <p>Du hast dich für die Rangliste qualifiziert. Gib deinen Namen ein:</p>
@@ -1236,13 +1236,13 @@ export default function Game({ isSinglePlayer }) {
               </form>
             </div>
           )}
-          {isSinglePlayer && leaderboardSubmitted && (
+          {isSinglePlayer && !ltiActivity && leaderboardSubmitted && (
             <div className="leaderboard-qualify-box leaderboard-qualify-box--submitted">
               <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--ok)', marginBottom: '0.5rem' }}>✓ Eingetragen!</div>
             </div>
           )}
 
-          {isSinglePlayer && leaderboardData !== null && (
+          {isSinglePlayer && !ltiActivity && leaderboardData !== null && (
             <div className="inline-leaderboard">
               <h3>Rangliste &ndash; {activeCategoryLabel}</h3>
               {leaderboardData.length === 0 ? (
@@ -1282,7 +1282,7 @@ export default function Game({ isSinglePlayer }) {
             </div>
           )}
 
-          {isSinglePlayer && (
+          {isSinglePlayer && !ltiActivity && (
             <div className="actions">
               <button onClick={handleStart} className="big">Nochmal versuchen</button>
             </div>

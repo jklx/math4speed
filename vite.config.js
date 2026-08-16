@@ -18,6 +18,14 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
+      '^/lti/(login|launch|deep-link|configuration)$': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/.well-known': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
 });

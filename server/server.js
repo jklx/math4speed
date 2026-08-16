@@ -5,11 +5,14 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { generateReport } = require('./pdfReport');
+const { attachLtiRoutes } = require('./lti');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 const httpServer = createServer(app);
+
+attachLtiRoutes(app);
 
 app.get('/api/health', (_req, res) => {
   res.status(200).json({ ok: true });
@@ -442,7 +445,7 @@ if (fs.existsSync(frontendDir)) {
   app.get('*', (_req, res) => res.sendFile(path.join(frontendDir, 'index.html')));
 }
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

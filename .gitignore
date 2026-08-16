@@ -33,3 +33,4 @@ Thumbs.db
 
 # Leaderboard data (runtime, not source)
 server/leaderboard.json
+server/lti-activities.json
