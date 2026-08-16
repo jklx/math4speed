@@ -299,6 +299,8 @@ function attachLtiRoutes(app) {
       iss: config.clientId,
       sub: config.clientId,
       aud: config.issuer,
+      azp: config.clientId,
+      jti: crypto.randomUUID(),
       iat: nowSeconds(),
       exp: nowSeconds() + 300,
       nonce: crypto.randomUUID(),
