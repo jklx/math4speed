@@ -61,6 +61,42 @@ function readPlatformConfig() {
   return { issuer, clientId, authorizationEndpoint, jwksUrl, deploymentId, toolOrigin: toolOrigin.replace(/\/$/, '') };
 }
 
+async function readAutoDiscoveredPlatformConfig(parameters) {
+  const issuer = process.env.LTI_AUTO_PLATFORM_ISSUER;
+  const toolOrigin = process.env.LTI_TOOL_ORIGIN;
+  const clientId = parameters.client_id;
+  const deploymentId = parameters.lti_deployment_id;
+
+  // This opt-in mode is deliberately pinned to one issuer. Moodle supplies the
+  // client and deployment IDs at launch, while its public OIDC document supplies
+  // the authorization and signing-key endpoints.
+  if (!issuer || !toolOrigin || parameters.iss !== issuer || !clientId || !deploymentId) return null;
+
+  let discovery;
+  try {
+    const url = new URL('/mod/lti/openid-configuration.php', issuer);
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    discovery = await response.json();
+  } catch {
+    return null;
+  }
+
+  if (discovery.issuer !== issuer || !discovery.authorization_endpoint || !discovery.jwks_uri) return null;
+  return {
+    issuer,
+    clientId,
+    deploymentId,
+    authorizationEndpoint: discovery.authorization_endpoint,
+    jwksUrl: discovery.jwks_uri,
+    toolOrigin: toolOrigin.replace(/\/$/, '')
+  };
+}
+
+async function resolvePlatformConfig(parameters) {
+  return readPlatformConfig() || readAutoDiscoveredPlatformConfig(parameters);
+}
+
 function getPrivateKey() {
   const configured = process.env.LTI_PRIVATE_KEY;
   if (!configured) return null;
@@ -162,12 +198,12 @@ function attachLtiRoutes(app) {
     });
   });
 
-  function initiateLogin(req, res) {
-    const config = readPlatformConfig();
-    if (!config) return launchPageError(res, 503, 'Die LTI-Integration ist noch nicht eingerichtet.');
+  async function initiateLogin(req, res) {
     // Moodle sends the OIDC login-initiation parameters as a form POST when
     // opening the Deep Linking content selector. Standard launches may use GET.
     const parameters = req.method === 'POST' ? req.body : req.query;
+    const config = await resolvePlatformConfig(parameters);
+    if (!config) return launchPageError(res, 503, 'Die LTI-Integration ist noch nicht eingerichtet.');
     const { iss, login_hint: loginHint, target_link_uri: targetLinkUri, lti_message_hint: messageHint, client_id: clientId } = parameters;
     const allowedTargets = new Set([`${config.toolOrigin}/lti/launch`, `${config.toolOrigin}/lti/deep-link`]);
     if (iss !== config.issuer || clientId !== config.clientId || !loginHint || !allowedTargets.has(targetLinkUri)) {
@@ -176,7 +212,7 @@ function attachLtiRoutes(app) {
     prune(launches);
     const state = randomId();
     const nonce = randomId();
-    launches.set(state, { nonce, targetLinkUri, expiresAt: Date.now() + SESSION_TTL_MS });
+    launches.set(state, { nonce, targetLinkUri, config, expiresAt: Date.now() + SESSION_TTL_MS });
     const authorizationUrl = new URL(config.authorizationEndpoint);
     authorizationUrl.searchParams.set('scope', 'openid');
     authorizationUrl.searchParams.set('response_type', 'id_token');
@@ -195,11 +231,11 @@ function attachLtiRoutes(app) {
   app.post('/lti/login', initiateLogin);
 
   async function receiveLaunch(req, res, expectedMessageType) {
-    const config = readPlatformConfig();
-    if (!config) return launchPageError(res, 503, 'Die LTI-Integration ist noch nicht eingerichtet.');
     try {
       prune(launches);
       const launch = launches.get(req.body.state);
+      const config = launch?.config || readPlatformConfig();
+      if (!config) throw new Error('Die LTI-Integration ist noch nicht eingerichtet.');
       if (!launch || launch.targetLinkUri !== `${config.toolOrigin}${req.path}`) throw new Error('Ungültiger oder abgelaufener LTI-Start');
       launches.delete(req.body.state);
       const claims = await verifyLaunch(req.body.id_token, config);

@@ -25,6 +25,7 @@ run_container() {
     --env-file "$ENV_FILE" \
     -e LEADERBOARD_FILE=/app/data/leaderboard.json \
     -e LTI_ACTIVITY_FILE=/app/data/lti-activities.json \
+    -e LTI_AUTO_PLATFORM_ISSUER=https://lernplattform.bycs.de \
     "$image"
 }
 
