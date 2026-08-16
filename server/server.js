@@ -10,6 +10,7 @@ const { attachLtiRoutes } = require('./lti');
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 const httpServer = createServer(app);
 
 attachLtiRoutes(app);

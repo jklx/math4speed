@@ -162,10 +162,13 @@ function attachLtiRoutes(app) {
     });
   });
 
-  app.get('/lti/login', (req, res) => {
+  function initiateLogin(req, res) {
     const config = readPlatformConfig();
     if (!config) return launchPageError(res, 503, 'Die LTI-Integration ist noch nicht eingerichtet.');
-    const { iss, login_hint: loginHint, target_link_uri: targetLinkUri, lti_message_hint: messageHint, client_id: clientId } = req.query;
+    // Moodle sends the OIDC login-initiation parameters as a form POST when
+    // opening the Deep Linking content selector. Standard launches may use GET.
+    const parameters = req.method === 'POST' ? req.body : req.query;
+    const { iss, login_hint: loginHint, target_link_uri: targetLinkUri, lti_message_hint: messageHint, client_id: clientId } = parameters;
     const allowedTargets = new Set([`${config.toolOrigin}/lti/launch`, `${config.toolOrigin}/lti/deep-link`]);
     if (iss !== config.issuer || clientId !== config.clientId || !loginHint || !allowedTargets.has(targetLinkUri)) {
       return launchPageError(res, 400, 'Ungültige LTI-Startanfrage.');
@@ -186,7 +189,10 @@ function attachLtiRoutes(app) {
     authorizationUrl.searchParams.set('nonce', nonce);
     if (messageHint) authorizationUrl.searchParams.set('lti_message_hint', messageHint);
     res.redirect(302, authorizationUrl.toString());
-  });
+  }
+
+  app.get('/lti/login', initiateLogin);
+  app.post('/lti/login', initiateLogin);
 
   async function receiveLaunch(req, res, expectedMessageType) {
     const config = readPlatformConfig();
