@@ -297,6 +297,7 @@ function attachLtiRoutes(app) {
     saveActivities(activities);
     const responseClaims = {
       iss: config.clientId,
+      sub: config.clientId,
       aud: config.issuer,
       iat: nowSeconds(),
       exp: nowSeconds() + 300,
