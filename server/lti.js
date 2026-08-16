@@ -223,6 +223,7 @@ function attachLtiRoutes(app) {
     authorizationUrl.searchParams.set('login_hint', loginHint);
     authorizationUrl.searchParams.set('state', state);
     authorizationUrl.searchParams.set('nonce', nonce);
+    authorizationUrl.searchParams.set('lti_deployment_id', config.deploymentId);
     if (messageHint) authorizationUrl.searchParams.set('lti_message_hint', messageHint);
     res.redirect(302, authorizationUrl.toString());
   }
