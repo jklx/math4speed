@@ -217,6 +217,7 @@ function attachLtiRoutes(app) {
     authorizationUrl.searchParams.set('scope', 'openid');
     authorizationUrl.searchParams.set('response_type', 'id_token');
     authorizationUrl.searchParams.set('response_mode', 'form_post');
+    authorizationUrl.searchParams.set('id_token_signed_response_alg', 'RS256');
     authorizationUrl.searchParams.set('prompt', 'none');
     authorizationUrl.searchParams.set('client_id', config.clientId);
     authorizationUrl.searchParams.set('redirect_uri', targetLinkUri);
