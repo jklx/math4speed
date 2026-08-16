@@ -244,6 +244,7 @@ function attachLtiRoutes(app) {
       if (claims.nonce !== launch.nonce || claims[MESSAGE_TYPE] !== expectedMessageType || claims[VERSION] !== '1.3.0') {
         throw new Error('Die LTI-Startdaten passen nicht zur Anfrage');
       }
+      Object.defineProperty(claims, '_ltiConfig', { value: config });
       return claims;
     } catch (error) {
       launchPageError(res, 401, error.message);
@@ -260,6 +261,7 @@ function attachLtiRoutes(app) {
     const id = randomId();
     deepLinkSessions.set(id, {
       claims,
+      config: claims._ltiConfig,
       returnUrl: deepLinking.deep_link_return_url,
       data: deepLinking.data,
       expiresAt: Date.now() + SESSION_TTL_MS
@@ -277,7 +279,7 @@ function attachLtiRoutes(app) {
   app.post('/api/lti/configuration-session/:id/activity', (req, res) => {
     prune(deepLinkSessions);
     const session = deepLinkSessions.get(req.params.id);
-    const config = readPlatformConfig();
+    const config = session?.config || readPlatformConfig();
     const privateKey = getPrivateKey();
     if (!session || !config || !privateKey) return res.status(404).json({ error: 'Die Konfigurationssitzung ist abgelaufen.' });
     const settings = sanitizeSettings(req.body || {});
