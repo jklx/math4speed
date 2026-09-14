@@ -3,24 +3,20 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
 import Logo from './Logo'
 import { getOperator } from './utils/getOperator'
-import { CATEGORIES, getCategoryPerformanceScore, getCategoryProblemCount, getDefaultSettings } from './utils/categories'
+import { getCategoryPerformanceScore, getCategoryProblemCount, getDefaultSettings } from './utils/categories'
 import { formatDecimal } from './utils/formatNumber'
-import { CategoryConfigurator } from './CategoryConfigurator'
-import TemporaryRoomDashboard from './TemporaryRoomDashboard'
 import AnswerDetailDialog from './AnswerDetailDialog'
 
-function PersistentAdminView() {
+export default function AdminView() {
   const { roomId } = useParams()
   const [searchParams] = useSearchParams()
-  const persistent = searchParams.get('persistent') === '1'
   const testToken = searchParams.get('token')
-  const teacherRoomUrl = persistent ? `/pruefungsraum/${roomId}?token=${encodeURIComponent(testToken || '')}` : `/admin/${roomId}`
-  const { error: connectionError, roomState, startGame, attemptAdminRejoin, getRoomState, isConnected, updateSettings, openPersistentRoom } = useMultiplayer()
+  const teacherRoomUrl = `/pruefungsraum/${roomId}?token=${encodeURIComponent(testToken || '')}`
+  const { error: connectionError, roomState, isConnected, openPersistentRoom } = useMultiplayer()
   const playerRowRefs = useRef(new Map())
   const previousPlayerPositions = useRef(new Map())
   const previousPlayerOrder = useRef([])
   const [selectedAnswer, setSelectedAnswer] = useState(null)
-  const [toast, setToast] = useState(null)
   const [testData, setTestData] = useState(null)
   const [testError, setTestError] = useState(null)
   const [startCode, setStartCode] = useState(null)
@@ -31,18 +27,6 @@ function PersistentAdminView() {
     ...getDefaultSettings('einmaleins')
   }));
 
-  // Helper to update settings locally AND on server
-  const handleSettingsChange = (newSettings) => {
-    setSettings(newSettings);
-    updateSettings(roomId, newSettings);
-  };
-
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 2000)
-    return () => clearTimeout(t)
-  }, [toast])
-
   // Request room state when component mounts or roomId changes
   useEffect(() => {
     if (!roomId || !isConnected) {
@@ -52,16 +36,11 @@ function PersistentAdminView() {
     
     console.log('[AdminView] Socket connected! roomId:', roomId, 'hasRoomState:', !!roomState);
     
-    if (persistent) {
-      openPersistentRoom(roomId)
-      return
-    }
-    attemptAdminRejoin(roomId);
-    getRoomState(roomId);
-  }, [roomId, isConnected, persistent]); // Wait for actual connection
+    openPersistentRoom(roomId)
+  }, [roomId, isConnected]); // Wait for actual connection
 
   useEffect(() => {
-    if (!persistent || !roomId) return
+    if (!roomId) return
     const load = async () => {
       try {
         const response = await fetch(`/api/exam-rooms/${roomId}`, { credentials: 'same-origin' })
@@ -73,61 +52,13 @@ function PersistentAdminView() {
     load()
     const timer = window.setInterval(load, 5000)
     return () => window.clearInterval(timer)
-  }, [persistent, roomId])
+  }, [roomId])
 
   useEffect(() => {
     if (roomState?.settings) {
       setSettings(prev => ({ ...prev, ...roomState.settings }))
     }
   }, [roomState?.settings])
-
-  const renderCategoryInfo = (cat) => {
-    const mins = CATEGORIES[cat]?.durationMinutes ?? 5
-    if (cat === 'einmaleins') {
-      return (
-        <>
-          <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele Einmaleins-Aufgaben wie möglich zu lösen.</p>
-          <p>Optional können zusätzliche Quadratzahlen zugeschaltet werden.</p>
-        </>
-      )
-    }
-    if (cat === 'schriftlich' || cat === 'schriftlich-add' || cat === 'schriftlich-subtract' || cat === 'schriftlich-multiply' || cat === 'schriftlich-divide') {
-      const opLabel = cat === 'schriftlich-add' ? 'Additions' : cat === 'schriftlich-subtract' ? 'Subtraktions' : cat === 'schriftlich-multiply' ? 'Multiplikations' : cat === 'schriftlich-divide' ? 'Divisions' : ''
-      return (
-        <>
-          <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele schriftliche {opLabel}aufgaben wie möglich zu lösen.</p>
-          <p>Schüler:innen geben Zwischenergebnisse direkt in den Stellenwerttabellen ein.</p>
-        </>
-      )
-    }
-    if (cat === 'primfaktorisierung') {
-      return (
-        <>
-          <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele Zahlen wie möglich in Primfaktoren zu zerlegen. Erst 10 Einmaleins-Zahlen, dann 5 Zahlen bis 100, danach bis 200. Antworten bitte mit Leerzeichen trennen (z.&nbsp;B. „2 2 3").</p>
-        </>
-      )
-    }
-    if (cat === 'negative') {
-      return (
-        <>
-          <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele Aufgaben mit negativen Zahlen (+, −, ·, ∶) wie möglich zu lösen.</p>
-        </>
-      )
-    }
-    if (cat === 'binomische') {
-      return (
-        <>
-          <p>Die Schüler:innen haben {mins} Minuten Zeit, so viele binomische Formeln wie möglich auszumultiplizieren.</p>
-        </>
-      )
-    }
-    return null
-  }
-
-  const handleStartClick = () => {
-    if (!roomId) return
-    startGame(roomId, settings)
-  }
 
   const formatProblemPrompt = (problem) => {
     if (!problem) return 'Aufgabe'
@@ -245,36 +176,6 @@ function PersistentAdminView() {
     window.open(`/api/report/${roomId}`, '_blank')
   }
 
-  const copyRoomId = () => {
-    navigator.clipboard.writeText(roomId.toLowerCase())
-      .then(() => {
-        setToast('Raum-Code kopiert')
-        console.log('Room ID copied to clipboard');
-      })
-      .catch(err => {
-        console.error('Failed to copy:', err)
-        setToast('Kopieren fehlgeschlagen')
-      });
-  }
-
-  const copyJoinUrl = () => {
-    const joinUrl = `${window.location.origin}/room/${roomId.toLowerCase()}`;
-    navigator.clipboard.writeText(joinUrl)
-      .then(() => {
-        setToast('Beitritts-URL kopiert')
-        console.log('Join URL copied to clipboard');
-      })
-      .catch(err => {
-        console.error('Failed to copy:', err)
-        setToast('Kopieren fehlgeschlagen')
-      });
-  }
-
-  // visible join URL for display
-  const joinUrl = (typeof window !== 'undefined' && roomId)
-    ? `${window.location.origin}/room/${roomId.toLowerCase()}`
-    : ''
-
   // Filter out admin from players list for stats and display
   const totalPlayerCount = players.length
   const finishedPlayerList = players.filter(p => p.score !== null)
@@ -308,9 +209,6 @@ function PersistentAdminView() {
 
   return (
     <div className="admin-view">
-      {toast && (
-        <div className="copy-toast" role="status">{toast}</div>
-      )}
       <div className="admin-inner">
         {/* Top header */}
         <div className="admin-header">
@@ -322,7 +220,7 @@ function PersistentAdminView() {
           </div>
           <div className="admin-header-right" />
         </div>
-        <Link to={teacherRoomUrl}>← {persistent ? 'Zum Testraum' : 'Zur Raumanmeldung'}</Link>
+        <Link to={teacherRoomUrl}>← Zum Testraum</Link>
 
         {selectedProblem && <AnswerDetailDialog answer={selectedProblem} studentName={selectedPlayer.username} position={selectedAnswer.position} total={selectedPlayer.solved.length} onClose={() => setSelectedAnswer(null)} onPrevious={() => setSelectedAnswer(value => ({ ...value, position: value.position - 1 }))} onNext={() => setSelectedAnswer(value => ({ ...value, position: value.position + 1 }))} />}
         {/* Main two-column layout */}
@@ -359,7 +257,6 @@ function PersistentAdminView() {
               </div>
             </div>
 
-            {persistent && (
             <div className="card join-card">
               <div className="card-header"><h3>Testaufsicht</h3></div>
               <div className="card-body">
@@ -371,51 +268,6 @@ function PersistentAdminView() {
                 {roomState.databaseStatus === 'running' && <p className="management-stat">Der Test läuft.</p>}
               </div>
             </div>
-            )}
-
-            {!persistent && roomState.status === 'waiting' && (
-            <div className="card join-card">
-              <div className="card-header">
-                <div className="big-room-id">
-                  <tt className="room-id">{roomId?.toLowerCase()}</tt>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={copyRoomId}
-                    title="Raum-Code kopieren"
-                    aria-label="Raum-Code kopieren"
-                  >
-                    {/* copy icon (overlapping rectangles) */}
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                      <rect x="9" y="7" width="9" height="12" rx="1.5" stroke="#334155" strokeWidth="1.5" fill="none" />
-                      <rect x="4" y="4" width="9" height="12" rx="1.5" stroke="#334155" strokeWidth="1.5" fill="none" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              <div className="card-body">
-                <div className="join-url">
-                  <a href={`/room/${roomId?.toLowerCase()}`} target="_blank" rel="noopener noreferrer">{joinUrl}</a>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={copyJoinUrl}
-                    title="Beitritts-URL kopieren"
-                    aria-label="Beitritts-URL kopieren"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                      <rect x="9" y="7" width="9" height="12" rx="1.5" stroke="#334155" strokeWidth="1.5" fill="none" />
-                      <rect x="4" y="4" width="9" height="12" rx="1.5" stroke="#334155" strokeWidth="1.5" fill="none" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="join-instructions">Teile diesen Code oder die URL mit deinen Spieler:innen.</div>
-                <div className="join-primary-action">
-                  <button className="big" onClick={handleStartClick}>🚀 Spiel starten</button>
-                </div>
-              </div>
-            </div>
-            )}
 
             {stats && (
               <div className="card stats-card">
@@ -505,13 +357,7 @@ function PersistentAdminView() {
               const correctCount = player.score?.time ?? solved.filter(problem => problem.isCorrect).length
               const wrongCount = player.score?.wrongCount ?? solved.filter(problem => problem.isCorrect === false).length
               const hasCurrentProblem = roomState.status === 'playing' && !player.score && player.connected !== false
-              const statusLabel = persistent
-                ? ({ pending: 'wartet auf Anmeldung', ready: 'angemeldet', absent: 'abwesend', started: 'bearbeitet', finished: 'abgeschlossen' })[player.status] || 'bereit'
-                : player.score
-                ? 'Abgegeben'
-                : player.connected === false
-                  ? 'Verbindung weg'
-                  : 'Aktiv'
+              const statusLabel = ({ pending: 'wartet auf Anmeldung', ready: 'angemeldet', absent: 'abwesend', started: 'bearbeitet', finished: 'abgeschlossen' })[player.status] || 'bereit'
 
               return (
               <div
@@ -540,7 +386,7 @@ function PersistentAdminView() {
                   <span className="wrong-count">{wrongCount} falsch</span>
                 </div>
 
-                {persistent && roomState.databaseStatus === 'waiting' && ['pending', 'absent'].includes(player.status) && (
+                {roomState.databaseStatus === 'waiting' && ['pending', 'absent'].includes(player.status) && (
                   <label className="attendance-toggle"><input type="checkbox" checked={player.status === 'absent'} onChange={event => setAbsent(player.id, event.target.checked)} /> Abwesend</label>
                 )}
 
@@ -614,9 +460,4 @@ function PersistentAdminView() {
       </div>
     </div>
   )
-}
-
-export default function AdminView() {
-  const [searchParams] = useSearchParams()
-  return searchParams.get('persistent') === '1' || searchParams.get('observe') === '1' ? <PersistentAdminView /> : <TemporaryRoomDashboard />
 }

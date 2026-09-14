@@ -32,7 +32,7 @@ ADMIN_PASSWORD=<mindestens 12 Zeichen>
 ADMIN_DISPLAY_NAME=Administration
 ```
 
-Beim ersten Start legt die Anwendung mit diesen Angaben das Admin-Konto an. Dieses Konto darf Lehrkraft-Konten erstellen. Ohne `DATABASE_URL` bleiben die bisherigen Trainings- und Mehrspielerfunktionen verfügbar; die Kontoverwaltung ist dann bewusst deaktiviert.
+Beim ersten Start legt die Anwendung mit diesen Angaben das Admin-Konto an. Dieses Konto darf Lehrkraft-Konten erstellen. Ohne `DATABASE_URL` bleiben das freie Training verfügbar; die Kontoverwaltung ist dann bewusst deaktiviert.
 
 ## Probedurchlauf
 

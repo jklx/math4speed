@@ -2,9 +2,7 @@ import React from 'react'
 import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom'
 import { MultiplayerProvider } from './MultiplayerContext'
 import MultiplayerLobby from './MultiplayerLobby'
-import Game from './Game'
 import AdminView from './AdminView'
-import UsernamePage from './UsernamePage'
 import Leaderboard from './Leaderboard'
 import ManagementPortal from './ManagementPortal'
 import TrainingPage from './TrainingPage'
@@ -23,11 +21,7 @@ export default function App() {
           <Route path="/training" element={<TrainingPage />} />
           <Route path="/training/:category" element={<TrainingPage />} />
           
-          {/* Join room with username */}
-          <Route path="/room/:roomId" element={<UsernamePage />} />
-          
-          {/* Active game/admin (separate routes for admin and players) */}
-          <Route path="/play/:roomId" element={<Game isSinglePlayer={false} />} />
+          {/* Live supervision of persistent exams */}
           <Route path="/admin/:roomId" element={<AdminView />} />
 
           {/* Leaderboard */}

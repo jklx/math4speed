@@ -189,17 +189,13 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
   const { roomId, category: urlCategory } = useParams()
   const location = useLocation();
   const multiplayerContext = useMultiplayer();
-  const { roomState, updateProgress, finishGame, username, getRoomState, attemptPlayerRejoin, joinPersistentRoom, createRoom, recordExamAnswer, isConnected } = multiplayerContext;
+  const { roomState, updateProgress, finishGame, username, joinPersistentRoom, recordExamAnswer, isConnected } = multiplayerContext;
   
   // Fetch room state if missing (e.g. on refresh)
   useEffect(() => {
     if (!isSinglePlayer && roomId && isConnected) {
       if (persistentToken) {
         joinPersistentRoom?.(roomId, persistentToken)
-      } else {
-        attemptPlayerRejoin?.(roomId)
-        // Request current room state so a regular room survives a refresh.
-        getRoomState(roomId)
       }
     }
   }, [isSinglePlayer, roomId, isConnected, persistentToken])
@@ -528,10 +524,6 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
         return prev - 1
       })
     }, 1000)
-  }
-
-  const openMultiplayerRoom = () => {
-    createRoom({ category, ...settings })
   }
 
   const restartTraining = () => {
@@ -1084,7 +1076,6 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
                   
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'center' }}>
                     <button onClick={handleStart} className="big">Starten</button>
-                    {!assignmentContext && <button onClick={openMultiplayerRoom} className="big secondary">Mehrspieler-Raum öffnen</button>}
                     {!assignmentContext && <button onClick={copyLink} className="big secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       Link kopieren
                       <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>

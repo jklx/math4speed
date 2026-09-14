@@ -211,23 +211,6 @@ app.get('/api/health', (_req, res) => {
   res.status(200).json({ ok: true });
 });
 
-// QR codes for temporary rooms are restricted to the browser which created
-// the room.  The code itself intentionally contains only the public join URL.
-app.get('/api/rooms/:roomId/qr', async (request, response, next) => {
-  try {
-    const roomId = String(request.params.roomId || '').toLowerCase();
-    const room = rooms.get(roomId);
-    if (!room || room.persistent || !sameHash(request.query.adminToken, room.adminToken)) {
-      return response.status(404).json({ error: 'Raum nicht gefunden.' });
-    }
-    const joinUrl = `${publicOrigin(request)}/room/${roomId}`;
-    const svg = await QRCode.toString(joinUrl, { type: 'svg', errorCorrectionLevel: 'M', margin: 1, width: 480 });
-    return response.set('Cache-Control', 'no-store').type('image/svg+xml').send(svg);
-  } catch (error) {
-    return next(error);
-  }
-});
-
 app.post('/api/auth/login', async (request, response, next) => {
   try {
     if (!isDatabaseConfigured()) return response.status(503).json({ error: 'Die Kontoverwaltung ist noch nicht eingerichtet.' });
@@ -1059,24 +1042,11 @@ function saveLeaderboard(data) {
   fs.writeFileSync(LEADERBOARD_FILE, JSON.stringify(data, null, 2));
 }
 
-const REJOIN_GRACE_MS = 60000;
-
-function createSessionId() {
-  return Math.random().toString(36).substring(2, 14);
-}
-
 function getPlayerBySocket(room, socketId) {
   for (const [playerId, player] of room.players.entries()) {
     if (player.socketId === socketId) return { playerId, player };
   }
   return null;
-}
-
-function finishRoomIfAllPlayersDone(room) {
-  const players = Array.from(room.players.values());
-  if (players.length > 0 && players.every(player => player.score !== null)) {
-    room.status = 'finished';
-  }
 }
 
 function attachPlayerToSocket(room, playerId, socket, roomId) {
@@ -1143,8 +1113,7 @@ const io = new Server(httpServer, {
   }
 });
 
-// Room state management.  Temporary rooms only live here.  Persistent test
-// rooms are hydrated from PostgreSQL and use this map solely for live state
+// Persistent test rooms are hydrated from PostgreSQL and use this map for live state
 // (connections, current progress and websocket broadcasts).
 const rooms = new Map();
 
@@ -1284,66 +1253,8 @@ async function finishPersistentRoomIfComplete(roomId, db = getPool()) {
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
-  socket.on('createRoom', (input) => {
-    // Temporary rooms are fully configured before their code is issued.  The
-    // category is also their display name, so no separate room name is needed.
-    const category = VALID_CATEGORIES.includes(input?.settings?.category) ? input.settings.category : 'einmaleins';
-    const settings = { category, ...sanitizeActivitySettings(category, input?.settings) };
-    const roomName = require('../shared/categories.json')[category]?.label || 'Mehrspieler-Raum';
-    // generate a lowercase 6-char room id
-    const roomId = Math.random().toString(36).substring(2, 8).toLowerCase();
-    // generate a simple admin token so the admin can rejoin after reload
-    const adminToken = Math.random().toString(36).substring(2, 14);
-    // store admin separately; do NOT include admin in the players map
-    rooms.set(roomId, {
-      admin: socket.id,
-      adminName: roomName,
-      adminToken,
-      players: new Map(),
-      status: 'waiting', // waiting, playing, finished
-      startTime: null,
-      settings
-    });
-    socket.join(roomId);
-    socket.emit('roomCreated', { roomId, isAdmin: true, adminName: roomName, adminToken });
-    updateRoomState(roomId);
-  });
-
-  // allow an admin to rejoin using the secret token
-  socket.on('rejoinAsAdmin', ({ roomId, adminToken, username }) => {
-    console.log('[Server] rejoinAsAdmin requested for room:', roomId, 'by socket:', socket.id);
-    const rid = String(roomId).toLowerCase();
-    const room = rooms.get(rid);
-    if (!room) {
-      console.log('[Server] Room not found:', rid);
-      socket.emit('error', 'Room not found');
-      return;
-    }
-    if (!adminToken || adminToken !== room.adminToken) {
-      console.log('[Server] Invalid admin token for room:', rid);
-      socket.emit('error', 'Invalid admin token');
-      return;
-    }
-
-    // assign this socket as admin
-    room.admin = socket.id;
-    if (username) room.adminName = username;
-    
-    // Clear the grace period flag if it exists
-    if (room.adminDisconnectedAt) {
-      console.log('[Server] Admin reconnected, clearing grace period for room:', rid);
-      delete room.adminDisconnectedAt;
-    }
-    
-    // ensure socket is in room
-    socket.join(rid);
-    console.log('[Server] Admin rejoined room:', rid);
-    socket.emit('roomRejoined', { roomId: rid, isAdmin: true, adminName: room.adminName });
-    updateRoomState(rid);
-  });
-
   // Persistent test rooms authenticate the teacher through the normal
-  // HttpOnly session cookie; unlike a temporary room, no browser token is
+  // HttpOnly session cookie; no browser token is
   // stored in localStorage.
   socket.on('openPersistentRoom', async ({ roomId }) => {
     try {
@@ -1374,109 +1285,6 @@ io.on('connection', (socket) => {
       console.error('Persistent room could not be joined:', error);
       socket.emit('error', 'Testzugang konnte nicht hergestellt werden.');
     }
-  });
-
-  socket.on('joinRoom', ({ roomId, username, playerId }) => {
-    const rid = String(roomId).toLowerCase();
-    const room = rooms.get(rid);
-    if (!room) {
-      socket.emit('error', 'Room not found');
-      return;
-    }
-    if (room.status !== 'waiting') {
-      socket.emit('error', 'Game already in progress');
-      return;
-    }
-
-    const sessionId = String(playerId || createSessionId());
-    const existingPlayer = room.players.get(sessionId);
-    if (existingPlayer) {
-      existingPlayer.username = username;
-      attachPlayerToSocket(room, sessionId, socket, rid);
-      socket.emit('roomJoined', { roomId: rid, isAdmin: false, playerId: sessionId, username });
-      updateRoomState(rid);
-      return;
-    }
-
-    socket.join(rid);
-    room.players.set(sessionId, { username, score: null, progress: 0, socketId: socket.id });
-    socket.emit('roomJoined', { roomId: rid, isAdmin: false, playerId: sessionId, username });
-    updateRoomState(rid);
-  });
-
-  socket.on('rejoinPlayer', ({ roomId, playerId }) => {
-    const rid = String(roomId).toLowerCase();
-    const sessionId = String(playerId || '');
-    const room = rooms.get(rid);
-    if (!room || !sessionId) return;
-
-    const player = attachPlayerToSocket(room, sessionId, socket, rid);
-    if (!player) return;
-
-    socket.emit('roomRejoined', {
-      roomId: rid,
-      isAdmin: false,
-      playerId: sessionId,
-      username: player.username
-    });
-    updateRoomState(rid);
-  });
-
-  socket.on('updateSettings', ({ roomId, settings }) => {
-    const rid = String(roomId).toLowerCase();
-    const room = rooms.get(rid);
-    if (!room || room.admin !== socket.id) return;
-
-    // Merge new settings
-    room.settings = {
-      ...room.settings,
-      ...settings
-    };
-    
-    // Broadcast update to all (so admin gets confirmation, and potential other views update)
-    updateRoomState(rid);
-  });
-
-  socket.on('startGame', (data) => {
-    // Handle both old format (just roomId) and new format ({ roomId, settings })
-    const roomId = typeof data === 'string' ? data : data.roomId;
-    const settings = typeof data === 'object' ? data.settings : {};
-    
-    const rid = String(roomId).toLowerCase();
-    const room = rooms.get(rid);
-    if (!room || room.admin !== socket.id) return;
-    
-    // Store settings in room state
-    const category = settings && typeof settings.category === 'string'
-      ? settings.category
-      : (room.settings?.category || 'einmaleins');
-    
-    // Use provided settings but ensure category is correct
-    room.settings = {
-      ...settings,
-      category
-    };
-    
-    room.status = 'playing';
-    room.startTime = Date.now();
-    
-    console.log('[Server] Game started for room:', rid, 'with settings:', room.settings);
-    
-    // Emit gameStarted with settings so clients can generate problems
-    io.to(rid).emit('gameStarted', { settings: room.settings });
-    updateRoomState(rid);
-  });
-
-  // allow clients to check whether a room exists and its status
-  // allow clients to check whether a room exists and its status
-  socket.on('checkRoom', (roomId) => {
-    const rid = String(roomId).toLowerCase();
-    const room = rooms.get(rid);
-    if (!room) {
-      socket.emit('roomCheckResult', { roomId: rid, exists: false, status: null });
-      return;
-    }
-    socket.emit('roomCheckResult', { roomId: rid, exists: true, status: room.status, settings: room.settings || null });
   });
 
   // Allow clients (especially admin) to request current room state
@@ -1524,11 +1332,6 @@ io.on('connection', (socket) => {
         finishPersistentAttempt(rid, playerEntry.playerId)
           .then(() => broadcastPersistentRoom(rid))
           .catch(error => { console.error('Could not persist test result:', error); socket.emit('error', 'Die Abgabe konnte nicht gespeichert werden. Bitte erneut versuchen.'); });
-      } else {
-        player.score = { time: score, wrongCount };
-        player.progress = 100;
-        finishRoomIfAllPlayersDone(room);
-        updateRoomState(rid);
       }
     }
   });
@@ -1548,53 +1351,16 @@ io.on('connection', (socket) => {
     for (const [roomId, room] of rooms.entries()) {
       // If the admin disconnected
       if (room.admin === socket.id) {
-        if (room.persistent) { room.admin = null; continue; }
-        // Set a grace period before deleting the room
-        // This allows admin to reload/reconnect without losing the room
-        console.log(`[Server] Admin disconnected from room ${roomId}, setting 60s grace period`);
-        room.adminDisconnectedAt = Date.now();
-        room.previousAdminId = socket.id;
-        
-        // Delete an unfinished room after 60 seconds if admin hasn't rejoined.
-        // Finished rooms keep their results available for the admin.
-        setTimeout(() => {
-          const currentRoom = rooms.get(roomId);
-          if (!currentRoom || !currentRoom.adminDisconnectedAt) {
-            // Room was deleted or admin already rejoined
-            return;
-          }
-
-          if (currentRoom.status === 'finished') {
-            console.log(`[Server] Keeping finished room ${roomId} so results remain available`);
-            return;
-          }
-          
-          console.log(`[Server] Grace period expired for room ${roomId}, deleting room`);
-          rooms.delete(roomId);
-        }, REJOIN_GRACE_MS); // 60 second grace period
-        
+        room.admin = null;
         continue;
       }
 
-      // If a regular player disconnects before the game starts, remove them after
-      // the grace period. Once play has started, keep the row visible for the admin.
+      // Keep persistent participants visible while disconnected.
       const playerEntry = getPlayerBySocket(room, socket.id);
       if (playerEntry) {
         playerEntry.player.socketId = null;
         playerEntry.player.disconnectedAt = Date.now();
         console.log(`[Server] Player disconnected from room ${roomId}`);
-
-        if (room.status === 'waiting') {
-          setTimeout(() => {
-            const currentRoom = rooms.get(roomId);
-            const currentPlayer = currentRoom?.players.get(playerEntry.playerId);
-            if (!currentRoom || !currentPlayer || !currentPlayer.disconnectedAt) return;
-            if (currentRoom.status !== 'waiting') return;
-
-            currentRoom.players.delete(playerEntry.playerId);
-            updateRoomState(roomId);
-          }, REJOIN_GRACE_MS);
-        }
 
         updateRoomState(roomId);
       }
