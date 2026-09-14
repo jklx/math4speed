@@ -38,13 +38,36 @@ const NOUNS = [
   'Berglöwe', 'Blauwal', 'Erdwolf', 'Goldfisch', 'Murmeltier', 'Nebelkrähe', 'Schneeleopard', 'Steinadler'
 ];
 
+const FEMININE_NOUNS = new Set([
+  'Fledermaus', 'Giraffe', 'Krabbe', 'Libelle', 'Meerkatze', 'Nebelkrähe', 'Robbe', 'Wachtel'
+]);
+
+const NEUTER_NOUNS = new Set([
+  'Chamäleon', 'Dromedar', 'Eichhörnchen', 'Erdmännchen', 'Frettchen', 'Hermelin',
+  'Kamel', 'Känguru', 'Krokodil', 'Lama', 'Mammut', 'Murmeltier', 'Nashorn', 'Okapi',
+  'Reh', 'Rentier', 'Seepferdchen', 'Walross', 'Wiesel', 'Wildschwein', 'Zebra'
+]);
+
+function inflectAdjective(adjective, noun) {
+  const stem = adjective.slice(0, -2);
+  if (FEMININE_NOUNS.has(noun)) return `${stem}e`;
+  if (NEUTER_NOUNS.has(noun)) return `${stem}es`;
+  return adjective;
+}
+
+function formatStudentCode(adjective, noun, suffix) {
+  return `${inflectAdjective(adjective, noun)}${noun}${suffix}`;
+}
+
 function createStudentCode() {
   const suffix = String(crypto.randomInt(0, 10));
-  return `${ADJECTIVES[crypto.randomInt(ADJECTIVES.length)]}${NOUNS[crypto.randomInt(NOUNS.length)]}${suffix}`;
+  const adjective = ADJECTIVES[crypto.randomInt(ADJECTIVES.length)];
+  const noun = NOUNS[crypto.randomInt(NOUNS.length)];
+  return formatStudentCode(adjective, noun, suffix);
 }
 
 function normalizeStudentCode(value) {
   return String(value || '').trim().toLocaleLowerCase('de-DE').replace(/[\s\-‐‑–—]+/g, '');
 }
 
-module.exports = { createStudentCode, normalizeStudentCode };
+module.exports = { createStudentCode, formatStudentCode, normalizeStudentCode };
