@@ -268,10 +268,6 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
   const [toast, setToast] = useState(null)
   const [flashResult, setFlashResult] = useState(null) // 'correct' | null
   const [mistakeState, setMistakeState] = useState(null) // null | { userAnswerDisplay, correctAnswerDisplay }
-  const [leaderboardQualifies, setLeaderboardQualifies] = useState(null) // null | true | false
-  const [leaderboardName, setLeaderboardName] = useState('')
-  const [leaderboardSubmitted, setLeaderboardSubmitted] = useState(false)
-  const [leaderboardData, setLeaderboardData] = useState(null) // null = not loaded yet
   const trainingReportedRef = useRef(false)
   const [connectionLost, setConnectionLost] = useState(false)
 
@@ -488,10 +484,6 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     setTimeLeft(savedPlan ? resumedTime : gameDurationRef.current)
     setMistakeState(null)
     setSchriftlichCheckMode(false)
-    setLeaderboardQualifies(null)
-    setLeaderboardName('')
-    setLeaderboardSubmitted(false)
-    setLeaderboardData(null)
     trainingReportedRef.current = false
     pauseTimerRef.current = false
     // clear any existing countdown and game timers before starting a new one
@@ -928,51 +920,6 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     }).catch(() => {})
   }, [finished, isSinglePlayer, examContext, activeCategory, correctCount, wrongCount])
 
-  // Check whether the just-finished single-player score qualifies for the top 10
-  useEffect(() => {
-    if (!finished || !isSinglePlayer || examContext) return
-    const cc = answers.filter(a => a.isCorrect).length
-    const wc = answers.filter(a => !a.isCorrect).length
-    const [minScore] = getCategoryPerformanceScore(activeCategory)
-    if (cc < minScore) {
-      setLeaderboardQualifies(false)
-      return
-    }
-    fetch(`/api/leaderboard?category=${activeCategory}`)
-      .then(r => r.json())
-      .then(board => {
-        setLeaderboardData(board)
-        const qualifies = board.length < 20 ||
-          cc > board[19].score ||
-          (cc === board[19].score && wc < board[19].wrongCount)
-        setLeaderboardQualifies(qualifies)
-      })
-      .catch(() => setLeaderboardQualifies(false))
-  }, [finished, examContext])
-
-  const submitLeaderboard = () => {
-    const name = leaderboardName.trim()
-    if (!name) return
-    fetch('/api/leaderboard', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: name,
-        category: activeCategory,
-        score: correctCount,
-        wrongCount
-      })
-    })
-    .then(() =>
-      fetch(`/api/leaderboard?category=${activeCategory}`).then(r => r.json())
-    )
-    .then(board => {
-      setLeaderboardData(board)
-      setLeaderboardSubmitted(true)
-    })
-    .catch(() => setLeaderboardSubmitted(true))
-  }
-
   // The visible continue button receives focus after an error, so Enter activates it.
   useEffect(() => {
     if (!mistakeState) return
@@ -1363,73 +1310,6 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
               </div>
             </div>
           </div>
-
-          {isSinglePlayer && !examContext && leaderboardQualifies === true && !leaderboardSubmitted && (
-            <div className="leaderboard-qualify-box">
-              <div className="leaderboard-qualify-title">&#127942; Top 20!</div>
-              <p>Du hast dich für die Rangliste qualifiziert. Gib deinen Namen ein:</p>
-              <form
-                onSubmit={e => { e.preventDefault(); submitLeaderboard(); }}
-                style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}
-              >
-                <input
-                  className="app-input"
-                  type="text"
-                  placeholder="Dein Name"
-                  value={leaderboardName}
-                  onChange={e => setLeaderboardName(e.target.value)}
-                  maxLength={30}
-                  autoFocus
-                />
-                <button type="submit" className="big" disabled={!leaderboardName.trim()}>Eintragen</button>
-              </form>
-            </div>
-          )}
-          {isSinglePlayer && !examContext && leaderboardSubmitted && (
-            <div className="leaderboard-qualify-box leaderboard-qualify-box--submitted">
-              <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--ok)', marginBottom: '0.5rem' }}>✓ Eingetragen!</div>
-            </div>
-          )}
-
-          {isSinglePlayer && !examContext && leaderboardData !== null && (
-            <div className="inline-leaderboard">
-              <h3>Rangliste &ndash; {activeCategoryLabel}</h3>
-              {leaderboardData.length === 0 ? (
-                <p style={{ color: '#888', margin: 0 }}>Noch keine Einträge.</p>
-              ) : (
-                <div className="leaderboard-table-wrap">
-                  <table className="leaderboard-table">
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Name</th>
-                        <th>Richtig</th>
-                        <th>Fehler</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {leaderboardData.map((entry, i) => {
-                        const isNew = leaderboardSubmitted &&
-                          entry.username === leaderboardName.trim() &&
-                          entry.score === correctCount &&
-                          entry.wrongCount === wrongCount
-                        return (
-                          <tr key={i} className={`${i < 3 ? 'leaderboard-podium' : ''}${isNew ? ' leaderboard-new-entry' : ''}`}>
-                            <td className="leaderboard-rank">
-                              {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
-                            </td>
-                            <td className="leaderboard-name">{entry.username}</td>
-                            <td className="leaderboard-score">{entry.score}</td>
-                            <td className="leaderboard-wrong">{entry.wrongCount}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
 
           {isSinglePlayer && !examContext && (
             <div className="actions">

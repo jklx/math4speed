@@ -3,7 +3,6 @@ import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom'
 import { MultiplayerProvider } from './MultiplayerContext'
 import MultiplayerLobby from './MultiplayerLobby'
 import AdminView from './AdminView'
-import Leaderboard from './Leaderboard'
 import ManagementPortal from './ManagementPortal'
 import TrainingPage from './TrainingPage'
 import AssignmentProgress from './AssignmentProgress'
@@ -24,9 +23,6 @@ export default function App() {
           {/* Live supervision of persistent exams */}
           <Route path="/admin/:roomId" element={<AdminView />} />
 
-          {/* Leaderboard */}
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/leaderboard/:category" element={<Leaderboard />} />
           <Route path="/verwaltung" element={<ManagementPortal />} />
           <Route path="/verwaltung/klasse/:classId" element={<ManagementPortal />} />
           <Route path="/verwaltung/klasse/:classId/uebung/:assignmentId" element={<AssignmentProgress />} />
