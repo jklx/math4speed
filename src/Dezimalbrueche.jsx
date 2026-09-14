@@ -176,10 +176,10 @@ function setEditorCaret(editor, offset) {
 }
 
 function FractionInput({ inputRef, value, onChange, onKeyDown, label, disabled }) {
-  return <input ref={inputRef} className={`fraction-input${disabled ? ' fraction-input--disabled' : ''}`} value={value} onChange={onChange} onKeyDown={onKeyDown} inputMode="numeric" aria-label={label} disabled={disabled} />
+  return <input ref={inputRef} className={`fraction-input${disabled ? ' fraction-input--disabled' : ''}`} value={value} onChange={onChange} onKeyDown={onKeyDown} inputMode="none" aria-label={label} disabled={disabled} />
 }
 
-export default function Dezimalbrueche({ problem, value = '', onChange, onEnter, showTick = false, crossedOut = false, mistakeFeedback = null }) {
+export default function Dezimalbrueche({ problem, value = '', onChange, onEnter, showTick = false, crossedOut = false, mistakeFeedback = null, readOnly = false }) {
   const decimalToFraction = problem.direction === 'decimal-to-fraction'
   const fractionRefs = useRef([])
   const decimalRef = useRef(null)
@@ -200,7 +200,7 @@ export default function Dezimalbrueche({ problem, value = '', onChange, onEnter,
 
   useEffect(() => {
     const initialInput = decimalToFraction ? fractionRefs.current[0] : decimalRef.current
-    initialInput?.focus()
+    if (!readOnly) initialInput?.focus()
   }, [])
 
   const updatePart = (index, nextValue) => {
@@ -209,7 +209,7 @@ export default function Dezimalbrueche({ problem, value = '', onChange, onEnter,
     onChange?.(`${next[0]}/${next[1]}`)
   }
   const fractionKey = (event, index) => {
-    if (mistakeFeedback) { event.preventDefault(); return }
+    if (readOnly || mistakeFeedback) { event.preventDefault(); return }
     if (event.key === 'Enter') { event.preventDefault(); onEnter?.(); return }
     if (/^[0-9]$/.test(event.key)) {
       event.preventDefault()
@@ -234,7 +234,7 @@ export default function Dezimalbrueche({ problem, value = '', onChange, onEnter,
     onChange?.(normalized)
   }
   const decimalKey = event => {
-    if (mistakeFeedback) { event.preventDefault(); return }
+    if (readOnly || mistakeFeedback) { event.preventDefault(); return }
     if (event.key === 'Enter') { event.preventDefault(); onEnter?.(); return }
     if (event.isTrusted) return
     const selection = getEditorSelection(event.currentTarget)
@@ -274,15 +274,15 @@ export default function Dezimalbrueche({ problem, value = '', onChange, onEnter,
         {decimalToFraction ? (
           <div className={`fraction-answer${crossedOut ? ' fraction-answer--wrong' : ''}`}>
             <span className="fraction fraction--input">
-              <FractionInput inputRef={el => { fractionRefs.current[0] = el }} value={parts[0]} onChange={event => updatePart(0, event.target.value)} onKeyDown={event => fractionKey(event, 0)} label="Zähler" disabled={Boolean(mistakeFeedback)} />
-              <FractionInput inputRef={el => { fractionRefs.current[1] = el }} value={parts[1]} onChange={event => updatePart(1, event.target.value)} onKeyDown={event => fractionKey(event, 1)} label="Nenner" disabled={Boolean(mistakeFeedback)} />
+              <FractionInput inputRef={el => { fractionRefs.current[0] = el }} value={parts[0]} onChange={event => updatePart(0, event.target.value)} onKeyDown={event => fractionKey(event, 0)} label="Zähler" disabled={readOnly || Boolean(mistakeFeedback)} />
+              <FractionInput inputRef={el => { fractionRefs.current[1] = el }} value={parts[1]} onChange={event => updatePart(1, event.target.value)} onKeyDown={event => fractionKey(event, 1)} label="Nenner" disabled={readOnly || Boolean(mistakeFeedback)} />
             </span>
-            {!mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.()} />}
+            {!readOnly && !mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.()} />}
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div ref={decimalRef} className={`math-input fake-input answer-input decimal-rich-input${mistakeFeedback ? ' fake-input--disabled' : ''}`} contentEditable={!mistakeFeedback} suppressContentEditableWarning onInput={handleDecimalInput} onKeyDown={decimalKey} role="textbox" aria-label="Dezimalbruch" />
-            {!mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.()} />}
+            <div ref={decimalRef} className={`math-input fake-input answer-input decimal-rich-input${mistakeFeedback ? ' fake-input--disabled' : ''}`} contentEditable={!readOnly && !mistakeFeedback} inputMode="none" suppressContentEditableWarning onInput={handleDecimalInput} onKeyDown={decimalKey} role="textbox" aria-label="Dezimalbruch" />
+            {!readOnly && !mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.()} />}
           </div>
         )}
       </div>

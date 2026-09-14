@@ -168,41 +168,47 @@ import ProgressBar from './ProgressBar'
 import { generateProblems } from './problems/generators'
 import { validateSchriftlich, validatePrimfaktorisierung, validatePolynomial } from './problems/validate'
 import { getScoreComment, getScoreMarkerPosition } from './utils/performanceFeedback'
-import { getCategoryLabel, CATEGORIES, getDefaultSettings, getCategoryPerformanceScore, getCategoryDuration } from './utils/categories'
+import { getCategoryLabel, CATEGORIES, getDefaultSettings, getCategoryPerformanceScore, getCategoryDuration, getCategoryAttemptRating, getCategoryRatingThresholds } from './utils/categories'
 import Schriftlich from './Schriftlich'
 import SchriftlicheDivision from './SchriftlicheDivision'
 import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
+import Hauptnenner from './Hauptnenner'
+import { validateHauptnenner, parseHauptnennerInput } from './problems/validate'
 import Negative from './Negative'
 import Binomische from './Binomische'
 import ProzentGleichung from './ProzentGleichung'
 import GemischteZahlen from './GemischteZahlen'
 import Dezimalbrueche from './Dezimalbrueche'
 import ReviewList from './ReviewList'
+import AnswerReview from './AnswerReview'
+import { CategoryConfigurator } from './CategoryConfigurator'
 
 const BATCH_SIZE = 100
-export default function Game({ isSinglePlayer }) {
+export default function Game({ isSinglePlayer, examContext = null, onExamFinished = null, persistentToken = null, persistentSession = null, assignmentContext = null }) {
   const { roomId, category: urlCategory } = useParams()
   const location = useLocation();
-  // Only use multiplayer hooks when NOT in single player mode
-  const multiplayerContext = isSinglePlayer ? null : useMultiplayer();
-  const { roomState, updateProgress, finishGame, username, getRoomState, attemptPlayerRejoin, isConnected } = multiplayerContext || {};
+  const multiplayerContext = useMultiplayer();
+  const { roomState, updateProgress, finishGame, username, getRoomState, attemptPlayerRejoin, joinPersistentRoom, createRoom, recordExamAnswer, isConnected } = multiplayerContext;
   
   // Fetch room state if missing (e.g. on refresh)
   useEffect(() => {
     if (!isSinglePlayer && roomId && isConnected) {
-      attemptPlayerRejoin?.(roomId)
-      // We request state even if we have it, to ensure it's fresh, 
-      // but critically when we don't have it (refresh)
-      getRoomState(roomId)
+      if (persistentToken) {
+        joinPersistentRoom?.(roomId, persistentToken)
+      } else {
+        attemptPlayerRejoin?.(roomId)
+        // Request current room state so a regular room survives a refresh.
+        getRoomState(roomId)
+      }
     }
-  }, [isSinglePlayer, roomId, isConnected])
+  }, [isSinglePlayer, roomId, isConnected, persistentToken])
 
   // Category selection (only for training mode)
   const category = isSinglePlayer 
-    ? (urlCategory || (location.state && location.state.category) || 'einmaleins')
+    ? (assignmentContext?.category || examContext?.category || urlCategory || (location.state && location.state.category) || 'einmaleins')
     : 'einmaleins'; // 'einmaleins' | 'schriftlich' | 'primfaktorisierung'
-  const multiplayerSettings = roomState?.settings || {};
+  const multiplayerSettings = roomState?.settings || (persistentSession ? { ...persistentSession.settings, category: persistentSession.category, durationSeconds: persistentSession.durationSeconds } : {});
   const multiplayerCategory = multiplayerSettings.category || 'einmaleins';
   const activeCategory = isSinglePlayer ? category : multiplayerCategory;
   const activeCategoryLabel = getCategoryLabel(activeCategory);
@@ -213,8 +219,9 @@ export default function Game({ isSinglePlayer }) {
   const [settings, setSettings] = useState(() => {
     const defaults = getDefaultSettings();
     if (!isSinglePlayer) return defaults;
+    if (assignmentContext) return { ...defaults, ...assignmentContext.settings };
     
-    const initial = { ...defaults };
+    const initial = { ...defaults, ...(examContext?.settings || {}) };
     searchParams.forEach((value, key) => {
       if (key in initial) {
         if (value === 'true') initial[key] = true;
@@ -227,7 +234,7 @@ export default function Game({ isSinglePlayer }) {
 
   // Sync settings to URL
   useEffect(() => {
-    if (!isSinglePlayer) return;
+    if (!isSinglePlayer || examContext || assignmentContext) return;
     
     const defaults = getDefaultSettings();
     const params = {};
@@ -237,9 +244,11 @@ export default function Game({ isSinglePlayer }) {
         params[key] = settings[key];
       }
     });
+    const assignmentId = searchParams.get('assignment')
+    if (assignmentId) params.assignment = assignmentId
     
     setSearchParams(params, { replace: true });
-  }, [settings, isSinglePlayer, setSearchParams]);
+  }, [settings, isSinglePlayer, examContext, setSearchParams]);
   
   // Problems will be generated when game starts, not before
   const [problems, setProblems] = useState([])
@@ -253,8 +262,12 @@ export default function Game({ isSinglePlayer }) {
   // schriftlich input state lifted from component via onChange
   const [schriftlichInput, setSchriftlichInput] = useState({ digits: [], parsed: '', valid: false })
   const [schriftlichCheckMode, setSchriftlichCheckMode] = useState(false)
-  const [selectedSchriftlichId, setSelectedSchriftlichId] = useState(null)
+  const [selectedAnswerId, setSelectedAnswerId] = useState(null)
   const [finished, setFinished] = useState(false)
+  const [submissionStatus, setSubmissionStatus] = useState('idle')
+  const [submissionError, setSubmissionError] = useState(null)
+  const submissionBusy = useRef(false)
+  const finalAnswersSaved = useRef(false)
   const [, setStartTime] = useState(null)
   const [toast, setToast] = useState(null)
   const [flashResult, setFlashResult] = useState(null) // 'correct' | null
@@ -263,17 +276,36 @@ export default function Game({ isSinglePlayer }) {
   const [leaderboardName, setLeaderboardName] = useState('')
   const [leaderboardSubmitted, setLeaderboardSubmitted] = useState(false)
   const [leaderboardData, setLeaderboardData] = useState(null) // null = not loaded yet
+  const trainingReportedRef = useRef(false)
   const [connectionLost, setConnectionLost] = useState(false)
 
   const inputRef = useRef(null)
   const lastGameInputRef = useRef(null)
   const countdownTimerRef = useRef(null)
   const gameTimerRef = useRef(null)
+  const answerAdvanceTimerRef = useRef(null)
   const gameSettingsRef = useRef({})
   const pauseTimerRef = useRef(false)
   const gameDurationRef = useRef(300)
   const weiterButtonRef = useRef(null)
   const hasConnectedToRoomRef = useRef(false)
+  const timeLeftRef = useRef(gameDurationRef.current)
+
+  const savePersistentProgress = (taskPlan, currentPosition) => {
+    if (!roomId || !persistentToken) return
+    fetch(`/api/exam-rooms/${roomId}/progress`, {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: persistentToken, taskPlan, currentPosition, remainingSeconds: Math.max(0, Math.floor(timeLeftRef.current)) })
+    }).catch(() => {})
+  }
+
+  const savePersistentAnswer = (position, entry) => {
+    if (!roomId || !persistentToken) return
+    fetch(`/api/exam-rooms/${roomId}/answers`, {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: persistentToken, position, entry })
+    }).catch(() => {})
+  }
 
   useEffect(() => {
     if (isSinglePlayer) return
@@ -316,6 +348,7 @@ export default function Game({ isSinglePlayer }) {
         </>
       )
     }
+    if (cat === 'hauptnenner') return <><p>Du hast {mins} Minuten Zeit. Zerlege beide Nenner in Primfaktoren und bestimme damit den Hauptnenner.</p><p>Übernimm jeden Primfaktor so oft, wie er in einer der beiden Zerlegungen höchstens vorkommt. Multipliziere diese Faktoren, um den Hauptnenner zu erhalten.</p><p>Beispiel: 12 = 2 · 2 · 3 und 18 = 2 · 3 · 3 → Hauptnenner = 2 · 2 · 3 · 3 = 36.</p><PrimfaktorDemo /></>
     if (cat === 'primfaktorisierung') {
       return (
         <>
@@ -402,12 +435,17 @@ export default function Game({ isSinglePlayer }) {
 
 
   useEffect(() => {
-    if (!isSinglePlayer && roomState?.status === 'playing' && !started && !countdown) {
+    if (!isSinglePlayer && (persistentSession || roomState?.status === 'playing') && !started && !countdown) {
       handleStart()
     }
-  }, [roomState?.status, started, countdown, isSinglePlayer])
+  }, [roomState?.status, persistentSession, started, countdown, isSinglePlayer])
 
   const handleStart = () => {
+    // A delayed transition from the previous attempt must not change the new one.
+    if (answerAdvanceTimerRef.current) {
+      clearTimeout(answerAdvanceTimerRef.current)
+      answerAdvanceTimerRef.current = null
+    }
     // Generate problems when game starts (not before)
     const gameSettings = isSinglePlayer ? settings : multiplayerSettings;
     const gameCategory = isSinglePlayer ? category : multiplayerCategory;
@@ -422,23 +460,43 @@ export default function Game({ isSinglePlayer }) {
     }
 
     gameSettingsRef.current = finalSettings
-    gameDurationRef.current = getCategoryDuration(gameCategory)
-    const newProblems = generateProblems(BATCH_SIZE, gameCategory, finalSettings);
+    gameDurationRef.current = examContext?.durationSeconds || persistentSession?.durationSeconds || multiplayerSettings.durationSeconds || getCategoryDuration(gameCategory)
+    const savedPlan = !isSinglePlayer && Array.isArray(persistentSession?.taskPlan) && persistentSession.taskPlan.length ? persistentSession.taskPlan : null
+    const newProblems = savedPlan || generateProblems(BATCH_SIZE, gameCategory, finalSettings);
+    const resumedAnswers = savedPlan ? (persistentSession.answers || []).map(answer => ({
+      ...answer.task,
+      user: answer.submittedAnswer?.value ?? null,
+      isCorrect: answer.isCorrect,
+      assisted: answer.assisted,
+      schriftlichSnapshot: answer.submittedAnswer?.schriftlichSnapshot
+    })) : []
     setProblems(newProblems);
 
     setStarted(false)
     setCountdown(3)
-    setCurrent(0)
-    setAnswers([])
+    setCurrent(savedPlan ? Math.min(Number(persistentSession.currentPosition) || resumedAnswers.length, Math.max(0, newProblems.length - 1)) : 0)
+    setAnswers(resumedAnswers)
     setInputValue('')
     setFinished(false)
-    setTimeLeft(gameDurationRef.current)
+    setFlashResult(null)
+    setSchriftlichInput({ digits: [], parsed: '', valid: false })
+    setSelectedAnswerId(null)
+    const serverRemaining = Number(persistentSession?.remainingSeconds)
+    const elapsedSinceStart = persistentSession?.startedAt
+      ? Math.max(0, Math.floor((Date.now() - new Date(persistentSession.startedAt).getTime()) / 1000))
+      : 0
+    const resumedTime = Math.max(0, Math.min(
+      Number.isFinite(serverRemaining) ? serverRemaining : gameDurationRef.current,
+      Math.max(0, gameDurationRef.current - elapsedSinceStart)
+    ))
+    setTimeLeft(savedPlan ? resumedTime : gameDurationRef.current)
     setMistakeState(null)
     setSchriftlichCheckMode(false)
     setLeaderboardQualifies(null)
     setLeaderboardName('')
     setLeaderboardSubmitted(false)
     setLeaderboardData(null)
+    trainingReportedRef.current = false
     pauseTimerRef.current = false
     // clear any existing countdown and game timers before starting a new one
     if (countdownTimerRef.current) {
@@ -449,6 +507,13 @@ export default function Game({ isSinglePlayer }) {
       clearInterval(gameTimerRef.current)
       gameTimerRef.current = null
     }
+    if (savedPlan) {
+      setCountdown(null)
+      setStarted(true)
+      setStartTime(Date.now())
+      return
+    }
+    if (!isSinglePlayer && persistentToken) savePersistentProgress(newProblems, 0)
     countdownTimerRef.current = setInterval(() => {
       setCountdown(prev => {
         if (prev == null || prev <= 1) {
@@ -465,6 +530,21 @@ export default function Game({ isSinglePlayer }) {
     }, 1000)
   }
 
+  const openMultiplayerRoom = () => {
+    createRoom({ category, ...settings })
+  }
+
+  const restartTraining = () => {
+    if (!isSinglePlayer || examContext || persistentToken || !started || finished) return
+    if (!window.confirm('Versuch neu starten? Dein aktueller Versuch wird abgebrochen und nicht gespeichert.')) return
+    // Reset directly without marking the discarded attempt as finished.
+    handleStart()
+  }
+
+  useEffect(() => {
+    if (examContext && !started && countdown === null && !finished) handleStart()
+  }, [examContext, started, countdown, finished])
+
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -473,6 +553,7 @@ export default function Game({ isSinglePlayer }) {
 
   // countdown while game is running
   const [timeLeft, setTimeLeft] = useState(gameDurationRef.current)
+  useEffect(() => { timeLeftRef.current = timeLeft }, [timeLeft])
   useEffect(() => {
     if (!started || finished) return
     if (gameTimerRef.current) clearInterval(gameTimerRef.current)
@@ -495,6 +576,39 @@ export default function Game({ isSinglePlayer }) {
     }
   }, [started, finished])
 
+  useEffect(() => {
+    if (!started || finished || !persistentToken) return
+    const checkpoint = setInterval(() => savePersistentProgress(null, current), 5000)
+    return () => clearInterval(checkpoint)
+  }, [started, finished, persistentToken, current])
+
+  async function submitPersistentExam() {
+    if (submissionBusy.current || submissionStatus === 'saved') return
+    submissionBusy.current = true
+    setSubmissionStatus('saving'); setSubmissionError(null)
+    try {
+      async function post(suffix, body) {
+        const response = await fetch(`/api/exam-rooms/${roomId}/${suffix}`, {
+          method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: persistentToken, ...body })
+        })
+        if (!response.ok) { const result = await response.json().catch(() => ({})); throw new Error(result.error || 'Abgabe konnte nicht gespeichert werden.') }
+      }
+      if (!finalAnswersSaved.current) {
+        // Await all answer writes before asking the server to close this attempt.
+        for (const [position, entry] of answers.entries()) await post('answers', { position, entry })
+        finalAnswersSaved.current = true
+      }
+      await post('finish', {})
+      setSubmissionStatus('saved')
+    } catch (error) { setSubmissionStatus('error'); setSubmissionError(error.message) }
+    finally { submissionBusy.current = false }
+  }
+
+  useEffect(() => {
+    if (finished && persistentToken) submitPersistentExam()
+  }, [finished, isConnected, persistentToken])
+
   // Finish game when timer reaches zero
   useEffect(() => {
     if (timeLeft === 0 && started && !finished) {
@@ -503,8 +617,9 @@ export default function Game({ isSinglePlayer }) {
       if (roomId && !isSinglePlayer) {
         updateProgress(roomId, 100, answers)
         // Persist the final task list before the room can switch to "finished".
-        finishGame(roomId, correct, wrong)
+        if (!persistentToken) finishGame(roomId, correct, wrong)
       }
+      if (examContext && onExamFinished) onExamFinished({ correctCount: correct, wrongCount: wrong })
       setFinished(true)
     }
   }, [timeLeft, started, finished])
@@ -536,7 +651,7 @@ export default function Game({ isSinglePlayer }) {
 
   const recordEquationError = (userEquation) => {
     const prob = problems[current]
-    const newEntry = { ...prob, user: '(Gleichung falsch)', isCorrect: false }
+    const newEntry = { ...prob, user: '(Gleichung falsch)', isCorrect: false, equationSnapshot: { equationValue: userEquation, resultValue: '', equationRevealed: true } }
     const newAnswers = [...answers, newEntry]
     setAnswers(newAnswers)
     // Show inline mistake: display student's equation and the correct example equation
@@ -545,7 +660,7 @@ export default function Game({ isSinglePlayer }) {
     setMistakeState({ userAnswerDisplay: userDisplay, correctAnswerDisplay: correctDisplay, field: 'equation' })
   }
 
-  const submitAnswer = (overrideValueOrEvent) => {
+  const submitAnswer = (overrideValueOrEvent, equationSnapshot = null) => {
     const overrideValue = typeof overrideValueOrEvent === 'string' ? overrideValueOrEvent : undefined
     if (flashResult === 'correct') return // block resubmission during tick display
     const prob = problems[current]
@@ -567,7 +682,12 @@ export default function Game({ isSinglePlayer }) {
       }
     }
 
-    if (prob.type === 'primfaktorisierung') {
+    if (prob.type === 'hauptnenner') {
+      const result = validateHauptnenner(overrideValue ?? inputValue, prob)
+      if (!result.valid) return
+      parsed = result.parsed
+      isCorrect = result.isCorrect
+    } else if (prob.type === 'primfaktorisierung') {
       const candidateValue = (overrideValue ?? inputValue)
       const { isCorrect: ok, parsed: p } = validatePrimfaktorisierung(candidateValue, prob.factors)
       parsed = p
@@ -656,18 +776,29 @@ export default function Game({ isSinglePlayer }) {
     // the current task. Keep that task as one progress entry and make its
     // assisted completion visible instead of showing a red and a green entry.
     const previousAnswer = answers[answers.length - 1]
-    const canBeCorrected = prob.type === 'schriftlich' || prob.type === 'prozent-gleichung'
+    const canBeCorrected = prob.type === 'schriftlich' || prob.type === 'prozent-gleichung' || prob.type === 'hauptnenner'
+    const isHauptnennerRetry = prob.type === 'hauptnenner' && previousAnswer?.id === prob.id && previousAnswer.isCorrect === false
     const wasCorrected = canBeCorrected && isCorrect && previousAnswer?.id === prob.id && previousAnswer.isCorrect === false
     const newEntry = {
       ...prob,
       user: parsed,
+      hauptnennerSnapshot: prob.type === 'hauptnenner' ? parseHauptnennerInput(overrideValue ?? inputValue) : undefined,
+      hauptnennerFirstAttempt: isHauptnennerRetry ? previousAnswer.hauptnennerSnapshot : undefined,
       isCorrect,
       assisted: wasCorrected,
+      equationSnapshot: prob.type === 'prozent-gleichung' ? equationSnapshot : undefined,
       schriftlichSnapshot: prob.type === 'schriftlich' ? schriftlichInput : undefined
     }
-    const newAnswers = wasCorrected
+    const replacesAnswer = wasCorrected || isHauptnennerRetry
+    const newAnswers = replacesAnswer
       ? [...answers.slice(0, -1), newEntry]
       : [...answers, newEntry]
+    const answerPosition = replacesAnswer ? answers.length - 1 : answers.length
+
+    if (roomId && !isSinglePlayer && persistentToken) {
+      recordExamAnswer(roomId, answerPosition, newEntry)
+      savePersistentAnswer(answerPosition, newEntry)
+    }
 
     if (isCorrect) {
       setAnswers(newAnswers)
@@ -681,7 +812,8 @@ export default function Game({ isSinglePlayer }) {
       const progressAtSubmit = (roomId && !isSinglePlayer)
         ? Math.min(99, ((gameDurationRef.current - timeLeft) / gameDurationRef.current) * 100)
         : 0
-      setTimeout(() => {
+      answerAdvanceTimerRef.current = setTimeout(() => {
+        answerAdvanceTimerRef.current = null
         setFlashResult(null)
         setInputValue('')
         setSchriftlichInput({ digits: [], parsed: '', valid: false })
@@ -695,6 +827,7 @@ export default function Game({ isSinglePlayer }) {
         setCurrent(nextIndex)
         if (roomId && !isSinglePlayer) {
           updateProgress(roomId, progressAtSubmit, newAnswers)
+          savePersistentProgress(null, nextIndex)
         }
       }, 250)
     } else if (prob.type === 'schriftlich') {
@@ -720,6 +853,7 @@ export default function Game({ isSinglePlayer }) {
               ? rawUserAnswer
             : rawUserAnswer
       setMistakeState({
+        canRetry: prob.type === 'hauptnenner' && !isHauptnennerRetry,
         userAnswerDisplay,
         correctAnswerDisplay: formatCorrectAnswerOptions(prob).join('\n'),
         field: prob.type === 'prozent-gleichung' ? 'result' : 'other'
@@ -729,6 +863,11 @@ export default function Game({ isSinglePlayer }) {
   }
 
   const dismissMistake = () => {
+    if (problems[current].type === 'hauptnenner' && mistakeState?.canRetry) {
+      setMistakeState(null)
+      pauseTimerRef.current = false
+      return
+    }
     setMistakeState(null)
     pauseTimerRef.current = false
     setInputValue('')
@@ -746,23 +885,27 @@ export default function Game({ isSinglePlayer }) {
     if (roomId && !isSinglePlayer) {
       const progress = Math.min(99, ((gameDurationRef.current - timeLeft) / gameDurationRef.current) * 100)
       updateProgress(roomId, progress, answers)
+      savePersistentProgress(null, nextIndex)
     }
   }
 
   const correctCount = answers.filter(a => a.isCorrect).length
   const wrongCount = answers.filter(a => !a.isCorrect).length
-  const scoreRange = getCategoryPerformanceScore(activeCategory)
+  const assignmentThresholds = assignmentContext?.policy?.ratingThresholds || getCategoryRatingThresholds(activeCategory)
+  const assignmentRating = getCategoryAttemptRating(activeCategory, correctCount, assignmentThresholds)
+  const scoreRange = assignmentContext ? [assignmentThresholds[0], assignmentThresholds[3]] : getCategoryPerformanceScore(activeCategory)
   // bump key changes every time a correct answer is added, triggering re-animation
   const scoreBumpKey = correctCount
 
-  const schriftlichAnswers = answers.filter(a => a.type === 'schriftlich')
-  const selectedSchriftlich = selectedSchriftlichId == null
+  const reviewAnswers = answers
+  const selectedAnswer = selectedAnswerId == null
     ? null
-    : schriftlichAnswers.find(a => a.id === selectedSchriftlichId) || null
+    : reviewAnswers.find(a => a.id === selectedAnswerId) || null
 
   // Cleanup timers on unmount
   useEffect(() => {
     return () => {
+      if (answerAdvanceTimerRef.current) clearTimeout(answerAdvanceTimerRef.current)
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current)
         countdownTimerRef.current = null
@@ -774,9 +917,28 @@ export default function Game({ isSinglePlayer }) {
     }
   }, [])
 
+  // Training results are persisted only when the current browser has a student
+  // session. Public training remains available without a student account.
+  useEffect(() => {
+    if (!finished || !isSinglePlayer || examContext || trainingReportedRef.current) return
+    trainingReportedRef.current = true
+    fetch('/api/student/practice-sessions', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        category: activeCategory,
+        assignmentId: assignmentContext?.id || null,
+        durationSeconds: gameDurationRef.current,
+        correctCount,
+        wrongCount
+      })
+    }).catch(() => {})
+  }, [finished, isSinglePlayer, examContext, activeCategory, correctCount, wrongCount])
+
   // Check whether the just-finished single-player score qualifies for the top 10
   useEffect(() => {
-    if (!finished || !isSinglePlayer) return
+    if (!finished || !isSinglePlayer || examContext) return
     const cc = answers.filter(a => a.isCorrect).length
     const wc = answers.filter(a => !a.isCorrect).length
     const [minScore] = getCategoryPerformanceScore(activeCategory)
@@ -794,7 +956,7 @@ export default function Game({ isSinglePlayer }) {
         setLeaderboardQualifies(qualifies)
       })
       .catch(() => setLeaderboardQualifies(false))
-  }, [finished])
+  }, [finished, examContext])
 
   const submitLeaderboard = () => {
     const name = leaderboardName.trim()
@@ -914,40 +1076,26 @@ export default function Game({ isSinglePlayer }) {
             <div className="loading">Lade Raumdaten...</div>
           ) : countdown === null ? (
             <>
-              {isSinglePlayer ? (
+              {isSinglePlayer && !examContext ? (
                 <>
-                  <h2>Trainingsmodus</h2>
+                  <h2>{assignmentContext ? assignmentContext.title : 'Trainingsmodus'}</h2>
                   {renderCategoryDescription(category)}
-                  {CATEGORIES[category] && CATEGORIES[category].settings.length > 0 && (
-                    <div className="settings-box">
-                      <h3>Aufgaben</h3>
-                      <div className={`${category}-toggles`} style={{ marginTop: 0, borderLeft: 'none', paddingLeft: 0 }}>
-                        {CATEGORIES[category].settings.map(setting => (
-                          <label key={setting.key} className="checkbox-label">
-                            <input
-                              type="checkbox"
-                              checked={settings[setting.key] ?? setting.defaultValue}
-                              disabled={setting.disabled}
-                              onChange={(e) => setSettings({ ...settings, [setting.key]: e.target.checked })}
-                            />
-                            <span>{setting.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  {assignmentContext ? <p>Die Einstellungen für diese Übung wurden von deiner Lehrkraft festgelegt.</p> : <CategoryConfigurator category={category} values={settings} onChange={setSettings} />}
                   
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'center' }}>
                     <button onClick={handleStart} className="big">Starten</button>
-                    <button onClick={copyLink} className="big secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {!assignmentContext && <button onClick={openMultiplayerRoom} className="big secondary">Mehrspieler-Raum öffnen</button>}
+                    {!assignmentContext && <button onClick={copyLink} className="big secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       Link kopieren
                       <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                         <rect x="9" y="7" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
                         <rect x="4" y="4" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
                       </svg>
-                    </button>
+                    </button>}
                   </div>
                 </>
+              ) : examContext ? (
+                <div className="waiting-room"><p>Test wird vorbereitet…</p></div>
               ) : (
                 // multiplayer player waiting state
                 <div className="waiting-room">
@@ -996,8 +1144,8 @@ export default function Game({ isSinglePlayer }) {
                   <span
                     key={`${answer.id}-${index}`}
                     className={`progress-segment ${answer.assisted ? 'assisted' : answer.isCorrect ? 'correct' : 'incorrect'}`}
-                    aria-label={`Aufgabe ${index + 1}: ${answer.assisted ? 'mit Hilfe gelöst' : answer.isCorrect ? 'richtig' : 'falsch'}`}
-                    title={answer.assisted ? 'Mit Hilfe gelöst' : answer.isCorrect ? 'Richtig' : 'Falsch'}
+                    aria-label={`Aufgabe ${index + 1}: ${answer.assisted ? (answer.type === 'hauptnenner' ? 'teilweise gelöst' : 'mit Hilfe gelöst') : answer.isCorrect ? 'richtig' : 'falsch'}`}
+                    title={answer.assisted ? (answer.type === 'hauptnenner' ? 'Teilweise gelöst' : 'Mit Hilfe gelöst') : answer.isCorrect ? 'Richtig' : 'Falsch'}
                   />
                 ))}
                 {!mistakeState && (
@@ -1007,6 +1155,11 @@ export default function Game({ isSinglePlayer }) {
             </div>
             <div className="score-timer">Zeit: {formatTime(timeLeft)}</div>
           </div>
+          {isSinglePlayer && !examContext && !persistentToken && (
+            <div className="training-attempt-actions">
+              <button type="button" className="management-link-button" onClick={restartTraining}>Versuch neu starten</button>
+            </div>
+          )}
 
           <>
             <>
@@ -1019,7 +1172,9 @@ export default function Game({ isSinglePlayer }) {
                     </svg>
                   </div>
                 )}
-                {problems[current].type === 'primfaktorisierung' ? (
+                {problems[current].type === 'hauptnenner' ? (
+                  <Hauptnenner key={problems[current].id} problem={problems[current]} value={inputValue} onChange={setInputValue} onEnter={submitAnswer} showTick={flashResult === 'correct'} mistakeFeedback={mistakeState} />
+                ) : problems[current].type === 'primfaktorisierung' ? (
                   <Primfaktorisierung
                     key={problems[current].id}
                     number={problems[current].number}
@@ -1141,7 +1296,7 @@ export default function Game({ isSinglePlayer }) {
                 ) : null}
                 {mistakeState && problems[current].type !== 'prozent-gleichung' && (
                   <div className="question-bottom-actions">
-                    <button ref={weiterButtonRef} onClick={dismissMistake} className="big">Weiter</button>
+                    <button ref={weiterButtonRef} onClick={dismissMistake} className="big">{mistakeState.canRetry ? 'Verbessern' : 'Weiter'}</button>
                   </div>
                 )}
               </div>
@@ -1184,6 +1339,9 @@ export default function Game({ isSinglePlayer }) {
       {finished && (
         <main>
           <h2>Ergebnis</h2>
+          {persistentToken && <div role="status" aria-live="polite">
+            {submissionStatus === 'saved' ? <p>✓ Deine Abgabe ist gespeichert.</p> : submissionStatus === 'error' ? <><p className="error">Die Abgabe ist noch nicht gespeichert. {submissionError}</p><button className="big" onClick={submitPersistentExam}>Abgabe erneut senden</button></> : <p>Deine Abgabe wird gespeichert. Bitte lasse dieses Fenster geöffnet.</p>}
+          </div>}
           <div className="summary">
             <div className="result-score-hero">
               <span className="result-score-number">{correctCount}</span>
@@ -1210,12 +1368,12 @@ export default function Game({ isSinglePlayer }) {
                 </span>
               </div>
               <div className="performance-comment">
-                {getScoreComment(correctCount, scoreRange)}
+                {assignmentContext ? <span aria-label={`${assignmentRating.label}, ${assignmentRating.stars} von 5 Sternen`}>{assignmentRating.label} {'★'.repeat(assignmentRating.stars)}{'☆'.repeat(5 - assignmentRating.stars)}</span> : getScoreComment(correctCount, scoreRange)}
               </div>
             </div>
           </div>
 
-          {isSinglePlayer && leaderboardQualifies === true && !leaderboardSubmitted && (
+          {isSinglePlayer && !examContext && leaderboardQualifies === true && !leaderboardSubmitted && (
             <div className="leaderboard-qualify-box">
               <div className="leaderboard-qualify-title">&#127942; Top 20!</div>
               <p>Du hast dich für die Rangliste qualifiziert. Gib deinen Namen ein:</p>
@@ -1236,13 +1394,13 @@ export default function Game({ isSinglePlayer }) {
               </form>
             </div>
           )}
-          {isSinglePlayer && leaderboardSubmitted && (
+          {isSinglePlayer && !examContext && leaderboardSubmitted && (
             <div className="leaderboard-qualify-box leaderboard-qualify-box--submitted">
               <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--ok)', marginBottom: '0.5rem' }}>✓ Eingetragen!</div>
             </div>
           )}
 
-          {isSinglePlayer && leaderboardData !== null && (
+          {isSinglePlayer && !examContext && leaderboardData !== null && (
             <div className="inline-leaderboard">
               <h3>Rangliste &ndash; {activeCategoryLabel}</h3>
               {leaderboardData.length === 0 ? (
@@ -1282,7 +1440,7 @@ export default function Game({ isSinglePlayer }) {
             </div>
           )}
 
-          {isSinglePlayer && (
+          {isSinglePlayer && !examContext && (
             <div className="actions">
               <button onClick={handleStart} className="big">Nochmal versuchen</button>
             </div>
@@ -1295,7 +1453,7 @@ export default function Game({ isSinglePlayer }) {
               <ReviewList
                 answers={answers}
                 isCorrect={true}
-                onSelectSchriftlich={id => setSelectedSchriftlichId(id)}
+                onSelectAnswer={answer => setSelectedAnswerId(answer.id)}
               />
             </div>
             <div className="review-column">
@@ -1303,75 +1461,13 @@ export default function Game({ isSinglePlayer }) {
               <ReviewList
                 answers={answers}
                 isCorrect={false}
-                onSelectSchriftlich={id => setSelectedSchriftlichId(id)}
+                onSelectAnswer={answer => setSelectedAnswerId(answer.id)}
               />
             </div>
           </div>
 
-          {selectedSchriftlich && (
-            <div className="schriftlich-review-detail">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <h4 style={{ margin: 0 }}>Detailansicht</h4>
-                <button
-                  type="button"
-                  className="big secondary"
-                  onClick={() => setSelectedSchriftlichId(null)}
-                  style={{ marginRight: '0.5rem' }}
-                >
-                  Schließen
-                </button>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'start' }}>
-                <div>
-                  <h5 style={{ marginTop: 0 }}>Meine Eingabe</h5>
-                  {selectedSchriftlich.operation === 'divide' ? <SchriftlicheDivision
-                    key={`review-user-${selectedSchriftlich.id}`}
-                    dividend={selectedSchriftlich.a}
-                    divisor={selectedSchriftlich.b}
-                    correctDigits={selectedSchriftlich.correctDigits}
-                    divisionSteps={selectedSchriftlich.divisionSteps}
-                    initialState={selectedSchriftlich.schriftlichSnapshot}
-                    review
-                  /> : <Schriftlich
-                    key={`review-user-${selectedSchriftlich.id}`}
-                    aDigits={selectedSchriftlich.aDigits}
-                    bDigits={selectedSchriftlich.bDigits}
-                    summandsDigits={selectedSchriftlich.summandsDigits}
-                    correctDigits={selectedSchriftlich.correctDigits}
-                    partialProducts={selectedSchriftlich.partialProducts}
-                    operation={selectedSchriftlich.operation}
-                    initialState={selectedSchriftlich.schriftlichSnapshot}
-                    review
-                    showCorrect={false}
-                  />}
-                </div>
-                <div>
-                  <h5 style={{ marginTop: 0 }}>Lösung</h5>
-                  {selectedSchriftlich.operation === 'divide' ? <SchriftlicheDivision
-                    key={`review-solution-${selectedSchriftlich.id}`}
-                    dividend={selectedSchriftlich.a}
-                    divisor={selectedSchriftlich.b}
-                    correctDigits={selectedSchriftlich.correctDigits}
-                    divisionSteps={selectedSchriftlich.divisionSteps}
-                    initialState={selectedSchriftlich.schriftlichSnapshot}
-                    review
-                    showCorrect
-                  /> : <Schriftlich
-                    key={`review-solution-${selectedSchriftlich.id}`}
-                    aDigits={selectedSchriftlich.aDigits}
-                    bDigits={selectedSchriftlich.bDigits}
-                    summandsDigits={selectedSchriftlich.summandsDigits}
-                    correctDigits={selectedSchriftlich.correctDigits}
-                    partialProducts={selectedSchriftlich.partialProducts}
-                    operation={selectedSchriftlich.operation}
-                    initialState={selectedSchriftlich.schriftlichSnapshot}
-                    review
-                    showCorrect={true}
-                  />}
-                </div>
-              </div>
-            </div>
-          )}
+          {selectedAnswer && <section className="schriftlich-review-detail"><div className="answer-detail-header"><h4>Detailansicht</h4><button type="button" className="management-link-button" onClick={() => setSelectedAnswerId(null)}>Schließen</button></div><AnswerReview key={selectedAnswer.id} answer={selectedAnswer} inputLabel="Meine Eingabe" /></section>}
+
         </main>
       )}
 

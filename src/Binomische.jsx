@@ -2,7 +2,7 @@ import React from 'react'
 import AlgebraicInput from './AlgebraicInput'
 import { InlineSubmitButton, TickMark } from './components/AnswerControls'
 
-export default function Binomische({ expression, value = '', onChange, onEnter, showTick = false, crossedOut = false, mistakeFeedback = null }) {
+export default function Binomische({ expression, value = '', onChange, onEnter, showTick = false, crossedOut = false, mistakeFeedback = null, readOnly = false }) {
   
   return (
     <div className="question-centered" style={{ alignItems: 'flex-start' }}>
@@ -20,14 +20,14 @@ export default function Binomische({ expression, value = '', onChange, onEnter, 
             value={value}
             onChange={onChange}
             onEnter={onEnter}
-            autoFocus={true}
+            autoFocus={!readOnly}
             crossedOut={Boolean(mistakeFeedback) || crossedOut}
-            readOnly={Boolean(mistakeFeedback)}
+            readOnly={readOnly || Boolean(mistakeFeedback)}
             placeholder="Ergebnis..."
             className="app-input math-input"
             style={{ width: '300px', textAlign: 'left' }}
           />
-          {!mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.()} />}
+          {!readOnly && !mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.()} />}
         </div>
       </div>
       {mistakeFeedback?.correctAnswerDisplay && (

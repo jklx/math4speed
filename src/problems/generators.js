@@ -503,7 +503,7 @@ export function generateBinomischeProblems(count, settings) {
 }
 
 // ─── Prozentrechnung mit Gleichungen ────────────────────────────────────────
-import { formatDecimal, formatFractionPercent } from '../utils/formatNumber'
+import { formatDecimal, formatFractionPercent } from '../utils/formatNumber.js'
 
 function fmtPct(p) {
   // Format p/100 as German decimal string using central helper
@@ -1824,6 +1824,43 @@ export function generateDezimalbruecheProblems(count, settings = {}) {
   return problems
 }
 
+export function generateHauptnennerProblems(count) {
+  const gcd = (a, b) => b ? gcd(b, a % b) : a;
+  const factorize = number => {
+    const factors = [];
+    for (let p = 2; p <= number; p++) {
+      while (number % p === 0) { factors.push(p); number /= p; }
+    }
+    return factors;
+  };
+  const denominators = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 24, 25, 27, 28, 30, 32, 36];
+  const common = [], coprime = [];
+  denominators.forEach((a, i) => denominators.slice(i + 1).forEach(b => {
+    const correct = a * b / gcd(a, b);
+    if (correct <= 180) (gcd(a, b) === 1 ? coprime : common).push({ a, b, correct });
+  }));
+  const shuffle = pool => {
+    const result = [...pool];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  };
+  let commonQueue = [], coprimeQueue = [], rarePosition;
+  return Array.from({ length: count }, (_, index) => {
+    // One coprime pair per ten tasks, at a varying position in each block.
+    if (index % 10 === 0) rarePosition = Math.floor(Math.random() * 10);
+    if (!commonQueue.length) commonQueue = shuffle(common);
+    if (!coprimeQueue.length) coprimeQueue = shuffle(coprime);
+    const pair = (index % 10 === rarePosition ? coprimeQueue : commonQueue).pop();
+    const { a, b, correct } = pair;
+    return { id: index + 1, type: 'hauptnenner', ...pair,
+      expression: `Hauptnenner von 1/${a} und 1/${b}`,
+      factorsA: factorize(a), factorsB: factorize(b), lcmFactors: factorize(correct) };
+  });
+}
+
 export function generateProblems(count, category, settings = {}) {
   if (category === 'einmaleins') return generateEinmaleinsProblems(count, settings);
   if (category === 'schriftlich') return generateSchriftlichProblems(count, settings);
@@ -1831,6 +1868,7 @@ export function generateProblems(count, category, settings = {}) {
   if (category === 'schriftlich-subtract') return generateSchriftlichProblems(count, { schriftlichAdd: false, schriftlichSubtract: true, schriftlichMultiply: false });
   if (category === 'schriftlich-multiply') return generateSchriftlichProblems(count, { schriftlichAdd: false, schriftlichSubtract: false, schriftlichMultiply: true });
   if (category === 'schriftlich-divide') return generateSchriftlichDivisionProblems(count, settings);
+  if (category === 'hauptnenner') return generateHauptnennerProblems(count);
   if (category === 'primfaktorisierung') return generatePrimfaktorisierungProblems(count, settings);
   if (category === 'negative') return generateNegativeProblems(count, settings);
   if (category === 'gemischte-zahlen') return generateGemischteZahlenProblems(count, settings);

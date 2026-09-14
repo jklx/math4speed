@@ -1,8 +1,10 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Logo from './Logo'
 import { useMultiplayer } from './MultiplayerContext';
-import { useNavigate } from 'react-router-dom';
-import { getCategoryLabel, CATEGORIES, CATEGORY_GRADE_ORDER } from './utils/categories';
+import { Link, useNavigate } from 'react-router-dom';
+import { getCategoryLabel } from './utils/categories';
+import TrainingCategorySelection from './TrainingCategorySelection';
+import StudentTraining from './StudentTraining';
 
 function JoinRoomStatus({ roomCode }) {
   const { roomCheck } = useMultiplayer();
@@ -46,43 +48,10 @@ function JoinRoomStatus({ roomCode }) {
 
 export default function MultiplayerLobby() {
   const navigate = useNavigate();
-  const { createRoom, error, checkRoom, roomCheck } = useMultiplayer();
+  const { error, checkRoom, roomCheck } = useMultiplayer();
 
   // Landing tile states
   const [joinTileRoom, setJoinTileRoom] = useState('');
-  const [createTileName, setCreateTileName] = useState('');
-
-  const categoryGroups = useMemo(() => {
-    // First, merge entries that share the same homepageGroup into a single grouped card.
-    const mergedByGrade = {};
-    const seenGroups = {};
-
-    Object.entries(CATEGORIES).forEach(([key, config]) => {
-      const grade = config.grade || 'Weitere Kategorien';
-      if (!mergedByGrade[grade]) mergedByGrade[grade] = [];
-
-      if (config.homepageGroup) {
-        const groupId = `${grade}::${config.homepageGroup}`;
-        if (!seenGroups[groupId]) {
-          seenGroups[groupId] = {
-            key: config.homepageGroup,
-            label: config.homepageGroupLabel || config.homepageGroup,
-            grade,
-            isGroup: true,
-            members: [],
-          };
-          mergedByGrade[grade].push(seenGroups[groupId]);
-        }
-        seenGroups[groupId].members.push({ key, label: config.homepageLabel || config.label });
-      } else {
-        mergedByGrade[grade].push({ key, label: config.label, isGroup: false });
-      }
-    });
-
-    return [...CATEGORY_GRADE_ORDER, ...Object.keys(mergedByGrade).filter(g => !CATEGORY_GRADE_ORDER.includes(g))]
-      .filter(grade => mergedByGrade[grade]?.length)
-      .map(grade => ({ grade, categories: mergedByGrade[grade] }));
-  }, []);
 
   // If we got into a room, redirect to game/admin
   // navigation is handled centrally in MultiplayerContext
@@ -94,64 +63,24 @@ export default function MultiplayerLobby() {
     }
   }, [joinTileRoom]);
 
-  const navigateToTraining = (categoryKey) => {
-    navigate(`/training/${categoryKey}`);
-  }
   
 
   return (
     <div className="app">
       <div className="lobby">
         <Logo />
+        <nav className="lobby-navigation" aria-label="Schnellzugriff"><Link to="/verwaltung">Lehrkraft-Login</Link></nav>
         {error && <div className="error">{error}</div>}
 
       <div className="menu-grid">
+        <StudentTraining />
         <div className="tile big">
           <div className="tile-body">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.5rem' }}>
-              <div className="title" style={{ marginBottom: 0 }}>Trainieren</div>
+              <div className="title" style={{ marginBottom: 0 }}>Freies Training</div>
               <a href="/leaderboard" style={{ fontSize: '0.85rem', color: 'var(--accent)', textDecoration: 'none', whiteSpace: 'nowrap' }}>🏆 Rangliste</a>
             </div>
-            <div className="category-selection category-selection-wide category-selection-minimal">
-              <div className="category-grade-groups">
-                {categoryGroups.map(({ grade, categories }) => (
-                  <section key={grade} className="category-grade-group">
-                    <div className="category-grade-header">{grade}</div>
-                    <div className="category-buttons category-buttons-grid">
-                      {categories.map((config) => (
-                        config.isGroup ? (
-                          <div key={config.key} className="category-btn category-card category-card-static" role="group" aria-label={config.label}>
-                            <span className="category-card-title">{config.label}</span>
-                            <div className="category-subactions">
-                              {config.members.map((member) => (
-                                <button
-                                  key={member.key}
-                                  type="button"
-                                  className="category-subbtn"
-                                  onClick={() => navigateToTraining(member.key)}
-                                  aria-label={`${config.label} ${member.label}`}
-                                >
-                                  {member.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            key={config.key}
-                            className="category-btn category-card"
-                            onClick={() => navigateToTraining(config.key)}
-                            type="button"
-                          >
-                            <span>{config.label}</span>
-                          </button>
-                        )
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            </div>
+            <TrainingCategorySelection />
           </div>
         </div>
         <div className="menu-row">
@@ -176,7 +105,6 @@ export default function MultiplayerLobby() {
                     value={joinTileRoom}
                     onChange={(e) => setJoinTileRoom(e.target.value)}
                     maxLength={6}
-                    autoFocus
                   />
                   {joinTileRoom.length === 6 && (
                     <JoinRoomStatus
@@ -184,38 +112,6 @@ export default function MultiplayerLobby() {
                     />
                   )}
                   <div className="hint">Raum-Code ist 6 Zeichen lang.</div>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div className="tile">
-            <div>
-                  <div className="title">Neuen Raum erstellen</div>
-                  <div className="subtitle">Erstelle einen Raum (Raum-Name) und werde Admin. Andere können mit dem Code beitreten.</div>
-              <div className="tile-body">
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  if (createTileName) {
-                    createRoom(createTileName);
-                  }
-                }}>
-                  <input
-                    type="text"
-                    className="app-input"
-                    placeholder="Raum-Name"
-                    value={createTileName}
-                    onChange={(e) => setCreateTileName(e.target.value)}
-                    required
-                  />
-                  <div className="tile-actions">
-                    <button
-                      type="submit"
-                      className="big"
-                      disabled={!createTileName}
-                    >
-                      Raum erstellen
-                    </button>
-                  </div>
                 </form>
               </div>
             </div>

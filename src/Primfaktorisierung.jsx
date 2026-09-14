@@ -11,20 +11,20 @@ import { InlineSubmitButton, TickMark } from './components/AnswerControls'
  * - onChange: (value: string) => void
  * - onEnter?: () => void
  */
-export default function Primfaktorisierung({ number, value = '', onChange, onEnter, showTick = false, crossedOut = false, mistakeFeedback = null }) {
+export default function Primfaktorisierung({ number, value = '', onChange, onEnter, showTick = false, crossedOut = false, mistakeFeedback = null, readOnly = false, instruction = 'Zerlege die Zahl in ihre Primfaktoren!', expressionLabel, autoFocus = true, onFocus }) {
   const inputRef = useRef(null)
   const [draft, setDraft] = useState('')
 
-  useEffect(() => { inputRef.current?.focus() }, [])
+  useEffect(() => { if (autoFocus && !readOnly && !mistakeFeedback) inputRef.current?.focus() }, [autoFocus, readOnly, mistakeFeedback])
 
   useEffect(() => {
-    if (mistakeFeedback) return
+    if (!autoFocus || readOnly || mistakeFeedback) return
     const activeElement = document.activeElement
     if (activeElement === document.body || activeElement === null) {
       const frame = requestAnimationFrame(() => inputRef.current?.focus())
       return () => cancelAnimationFrame(frame)
     }
-  }, [value, mistakeFeedback])
+  }, [value, mistakeFeedback, autoFocus, readOnly])
 
   const tokens = useMemo(() => {
     const t = String(value || '').trim()
@@ -42,7 +42,7 @@ export default function Primfaktorisierung({ number, value = '', onChange, onEnt
   }
 
   const handleKeyDown = (e) => {
-    if (mistakeFeedback) { e.preventDefault(); return }
+    if (readOnly || mistakeFeedback) { e.preventDefault(); return }
     if (e.key === 'Enter') {
       const committedValue = commitDraft()
       const finalValue = committedValue ?? tokens.join(' ')
@@ -74,7 +74,7 @@ export default function Primfaktorisierung({ number, value = '', onChange, onEnt
   }
 
   const handlePaste = (e) => {
-    if (mistakeFeedback) { e.preventDefault(); return }
+    if (readOnly || mistakeFeedback) { e.preventDefault(); return }
     const text = (e.clipboardData || window.clipboardData).getData('text') || ''
     const parts = text.split(/[^0-9]+/).filter(Boolean)
     if (parts.length > 0) {
@@ -152,9 +152,9 @@ export default function Primfaktorisierung({ number, value = '', onChange, onEnt
 
   return (
     <>
-      <div className="instruction">Zerlege die Zahl in ihre Primfaktoren!</div>
+      {instruction && <div className="instruction">{instruction}</div>}
       <div className="factor-row">
-        <div className="expression">{number} =</div>
+        {expressionLabel !== '' && <div className="expression">{expressionLabel ?? number} =</div>}
         <div
           className="factor-input"
           onClick={() => inputRef.current?.focus()}
@@ -171,24 +171,26 @@ export default function Primfaktorisierung({ number, value = '', onChange, onEnt
                 <button
                   type="button"
                   className="factor-token"
-                  title="Faktor entfernen"
+                  title={readOnly ? undefined : "Faktor entfernen"}
+                  disabled={readOnly}
                   onClick={() => removeAt(i)}
                 >
                   {t}
                 </button>
               )}
-              <span className="factor-sep" aria-hidden="true">⋅</span>
+              {(i < displayTokens.length - 1 || (!readOnly && !mistakeFeedback)) && <span className="factor-sep" aria-hidden="true">⋅</span>}
             </React.Fragment>
           ))}
           <div
             ref={inputRef}
-            tabIndex={mistakeFeedback ? -1 : 0}
+            tabIndex={readOnly || mistakeFeedback ? -1 : 0}
             className={`factor-draft${draft ? ' factor-draft--active' : ''}`}
             style={{ color: crossedOut ? '#b91c1c' : undefined }}
             onKeyDown={handleKeyDown}
+            onFocus={onFocus}
             onPaste={handlePaste}
             onBlur={(e) => {
-              if (mistakeFeedback) return
+              if (readOnly || mistakeFeedback) return
               const related = e.relatedTarget || (e.nativeEvent && e.nativeEvent.relatedTarget);
               const container = inputRef.current?.closest('.factor-input');
               if (related && container && container.contains(related)) return;
@@ -199,7 +201,7 @@ export default function Primfaktorisierung({ number, value = '', onChange, onEnt
           </div>
           <TickMark visible={showTick} />
         </div>
-        {!mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.()} />}
+        {!readOnly && !mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.(commitDraft() ?? tokens.join(' '))} />}
       </div>
       {mistakeFeedback?.correctAnswerDisplay && (
         <div className="inline-feedback">

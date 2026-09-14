@@ -92,7 +92,7 @@ function validateEquation(equationStr, expectedX) {
 
 // ─── Small tick mark (like in Binomische) ──────────────────────────────────
 // ─── Component ──────────────────────────────────────────────────────────────
-export default function ProzentGleichung({ problem, onEnter, onEquationError, showTick, crossedOutEquation, mistakeFeedback, continueButtonRef }) {
+export default function ProzentGleichung({ problem, onEnter, onEquationError, showTick, crossedOutEquation, mistakeFeedback, continueButtonRef, readOnly = false, reviewValue = '', reviewEquation = null }) {
   const [step, setStep] = useState(1)
   const [equationValue, setEquationValue] = useState('')
   const [equationRevealed, setEquationRevealed] = useState(false)
@@ -118,11 +118,11 @@ export default function ProzentGleichung({ problem, onEnter, onEquationError, sh
     const val = resultValue.trim()
     if (!val) return
     // Normalize German decimal comma before passing to submitAnswer
-    onEnter(val.replace(',', '.'))
+    onEnter(val.replace(',', '.'), { equationValue, resultValue, equationRevealed })
   }
 
   // ── Step 1: equation input ─────────────────────────────────────────────
-  if (step === 1) {
+  if (!readOnly && step === 1) {
     return (
       <div className="question-centered prozent-gleichung">
         <p className="prozent-problem-text">{problem.text}</p>
@@ -133,7 +133,7 @@ export default function ProzentGleichung({ problem, onEnter, onEquationError, sh
             value={equationValue}
             onChange={setEquationValue}
             onEnter={handleEquationEnter}
-            autoFocus={true}
+            autoFocus={!readOnly}
             placeholder="z.B. 0,25·x = 75"
             className="app-input math-input"
             style={{ width: 'min(100%, 620px)', textAlign: 'left' }}
@@ -149,9 +149,9 @@ export default function ProzentGleichung({ problem, onEnter, onEquationError, sh
     <div className="question-centered prozent-gleichung">
       <p className="prozent-problem-text prozent-problem-text--secondary">{problem.text}</p>
 
-      <div className={`prozent-equation-confirmed${equationRevealed ? ' prozent-equation-confirmed--revealed' : ''}`}>
+      {(!readOnly || reviewEquation) && <div className={`prozent-equation-confirmed${equationRevealed ? ' prozent-equation-confirmed--revealed' : ''}`}>
         <AlgebraicInput
-          value={equationValue}
+          value={readOnly ? reviewEquation : equationValue}
           onChange={() => {}}
           onEnter={() => {}}
           readOnly={true}
@@ -159,8 +159,8 @@ export default function ProzentGleichung({ problem, onEnter, onEquationError, sh
           className=""
           style={{ flex: 1 }}
         />
-        <TickMark visible={!equationRevealed} />
-      </div>
+        <TickMark visible={!readOnly && !equationRevealed} />
+      </div>}
       {mistakeFeedback?.field === 'equation' && mistakeFeedback.correctAnswerDisplay && (
         <div className="inline-feedback">
           <div className="inline-feedback__label">Richtige Lösung</div>
@@ -192,17 +192,17 @@ export default function ProzentGleichung({ problem, onEnter, onEquationError, sh
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <AlgebraicInput
-                value={resultValue}
+                value={readOnly ? reviewValue : resultValue}
                 onChange={setResultValue}
                 onEnter={handleResultEnter}
-                autoFocus={true}
+                autoFocus={!readOnly}
                 crossedOut={Boolean(mistakeFeedback?.field === 'result' && resultValue)}
-                readOnly={Boolean(mistakeFeedback?.field === 'result')}
+                readOnly={readOnly || Boolean(mistakeFeedback?.field === 'result')}
                 placeholder="Ergebnis…"
                 className="app-input math-input"
                 style={{ width: 'clamp(160px, 28vw, 240px)', textAlign: 'left' }}
               />
-              {!mistakeFeedback && <InlineSubmitButton onClick={handleResultEnter} />}
+              {!readOnly && !mistakeFeedback && <InlineSubmitButton onClick={handleResultEnter} />}
             </div>
             <TickMark visible={showTick} />
           </div>

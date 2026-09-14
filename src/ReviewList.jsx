@@ -11,7 +11,7 @@ import { formatDecimal } from './utils/formatNumber'
  * - isCorrect: boolean - true for correct answers, false for incorrect
  * - onSelectSchriftlich?: function(answerId) - called when a schriftlich item is clicked, with its global answer id
  */
-export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) {
+export default function ReviewList({ answers, isCorrect, onSelectSchriftlich, onSelectAnswer }) {
   const filtered = answers.filter(a => a.isCorrect === isCorrect)
   const className = isCorrect ? 'ok' : 'bad'
   const formatGermanDecimalString = (value) => {
@@ -38,20 +38,27 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
     <ul className={`review-list ${className}`}>
       {filtered.map((q) => {
         const handleClick = () => {
+          if (onSelectAnswer) { onSelectAnswer(q); return }
           if (q.type === 'schriftlich' && onSelectSchriftlich) {
             onSelectSchriftlich(q.id)
           }
         }
 
+        const selectionProps = onSelectAnswer || (q.type === 'schriftlich' && onSelectSchriftlich) ? {
+          role: 'button', tabIndex: 0, onClick: handleClick,
+          onKeyDown: event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); handleClick() } },
+          title: 'Aufgabe in der Schülerdarstellung ansehen'
+        } : {}
         const renderCorrection = (correctValue) => {
           if (isCorrect) return null
           return <span style={{ color: 'var(--ok)', marginLeft: '10px', fontWeight: 'bold' }}>{correctValue}</span>
         }
 
+        if (q.type === 'hauptnenner') return <li key={q.id} {...selectionProps}>Hauptnenner von {q.a} und {q.b}: {q.user || '—'}{renderCorrection(q.correct)}</li>
         if (q.type === 'primfaktorisierung') {
           const displayValue = isCorrect ? formatFactors(q.correct) : formatFactors(q.user)
           return (
-            <li key={q.id} onClick={handleClick}>
+            <li key={q.id} {...selectionProps} onClick={handleClick}>
               Primfaktoren von {q.number} = {displayValue}
               {renderCorrection(formatFactors(q.correct))}
             </li>
@@ -81,7 +88,7 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
           }
           const displayValue = isCorrect ? q.correct : (isNaN(q.user) ? '—' : normalizeNumberString(q.user))
           return (
-            <li key={q.id} onClick={handleClick} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <li key={q.id} {...selectionProps} onClick={handleClick} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <math display="inline">
                 <mrow>
                   {renderOperand(q.a)}
@@ -98,7 +105,7 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
         if (q.type === 'binomische') {
           const displayValue = isCorrect ? formatGermanDecimalString(q.correct) : formatGermanDecimalString(q.user)
           return (
-            <li key={q.id} onClick={handleClick}>
+            <li key={q.id} {...selectionProps} onClick={handleClick}>
               {q.expression} = {displayValue}
               {renderCorrection(formatGermanDecimalString(q.correct))}
             </li>
@@ -108,7 +115,7 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
           const displayResult = isCorrect ? String(q.correct) : (isNaN(q.user) ? '—' : String(q.user))
           const shortText = q.text.length > 55 ? q.text.slice(0, 55) + '…' : q.text
           return (
-            <li key={q.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+            <li key={q.id} {...selectionProps} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
               <span style={{ fontSize: '0.8em', color: 'var(--text-secondary, #888)', lineHeight: 1.3 }}>{shortText}</span>
               <span>x = {displayResult}{q.unit ? ' ' + q.unit : ''}{renderCorrection(`x = ${q.correct}${q.unit ? ' ' + q.unit : ''}`)}</span>
             </li>
@@ -117,7 +124,7 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
         if (q.type === 'gemischte-zahlen') {
           const displayValue = isCorrect ? q.correct : (q.user || '—')
           return (
-            <li key={q.id} onClick={handleClick}>
+            <li key={q.id} {...selectionProps} onClick={handleClick}>
               {q.direction === 'mixed-to-improper'
                 ? `${q.whole} ${q.numerator}/${q.denominator} = ${displayValue}`
                 : `${q.improperNumerator}/${q.denominator} = ${displayValue}`}
@@ -128,7 +135,7 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
         if (q.type === 'dezimalbrueche') {
           const displayValue = isCorrect ? q.correct : (q.user || '—')
           return (
-            <li key={q.id} onClick={handleClick}>
+            <li key={q.id} {...selectionProps} onClick={handleClick}>
               {q.direction === 'decimal-to-fraction'
                 ? `${q.decimalDisplay} = ${displayValue}`
                 : `${q.numerator}/${q.denominator} = ${displayValue}`}
@@ -143,7 +150,7 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
           const shown = normalizeNumberString(q.user)
           const displayValue = isCorrect ? q.correct : shown
           return (
-            <li key={q.id} onClick={handleClick}>
+            <li key={q.id} {...selectionProps} onClick={handleClick}>
               {q.a} {displayOperator} {q.b} = {displayValue}
               {renderCorrection(q.correct)}
             </li>
@@ -152,7 +159,7 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich }) 
         // Default numeric display for Einmaleins
         const displayValue = isCorrect ? q.correct : (isNaN(q.user) ? '—' : normalizeNumberString(q.user))
         return (
-          <li key={q.id} onClick={handleClick}>
+          <li key={q.id} {...selectionProps} onClick={handleClick}>
             {q.a} {displayOperator} {q.b} = {displayValue}
             {renderCorrection(q.correct)}
           </li>

@@ -1,18 +1,29 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useMultiplayer } from './MultiplayerContext'
 import Logo from './Logo'
 import { getOperator } from './utils/getOperator'
 import { CATEGORIES, getCategoryPerformanceScore, getCategoryProblemCount, getDefaultSettings } from './utils/categories'
 import { formatDecimal } from './utils/formatNumber'
+import { CategoryConfigurator } from './CategoryConfigurator'
+import TemporaryRoomDashboard from './TemporaryRoomDashboard'
+import AnswerDetailDialog from './AnswerDetailDialog'
 
-export default function AdminView() {
+function PersistentAdminView() {
   const { roomId } = useParams()
-  const { roomState, startGame, attemptAdminRejoin, getRoomState, isConnected, updateSettings } = useMultiplayer()
+  const [searchParams] = useSearchParams()
+  const persistent = searchParams.get('persistent') === '1'
+  const testToken = searchParams.get('token')
+  const teacherRoomUrl = persistent ? `/pruefungsraum/${roomId}?token=${encodeURIComponent(testToken || '')}` : `/admin/${roomId}`
+  const { error: connectionError, roomState, startGame, attemptAdminRejoin, getRoomState, isConnected, updateSettings, openPersistentRoom } = useMultiplayer()
   const playerRowRefs = useRef(new Map())
   const previousPlayerPositions = useRef(new Map())
   const previousPlayerOrder = useRef([])
+  const [selectedAnswer, setSelectedAnswer] = useState(null)
   const [toast, setToast] = useState(null)
+  const [testData, setTestData] = useState(null)
+  const [testError, setTestError] = useState(null)
+  const [startCode, setStartCode] = useState(null)
   
   // Local settings state (only for admin)
   const [settings, setSettings] = useState(() => ({
@@ -41,14 +52,28 @@ export default function AdminView() {
     
     console.log('[AdminView] Socket connected! roomId:', roomId, 'hasRoomState:', !!roomState);
     
-    // Always attempt to rejoin as admin (validates our token)
-    console.log('[AdminView] Attempting admin rejoin');
+    if (persistent) {
+      openPersistentRoom(roomId)
+      return
+    }
     attemptAdminRejoin(roomId);
-    
-    // Always request current room state to ensure we have fresh data
-    console.log('[AdminView] Requesting room state');
     getRoomState(roomId);
-  }, [roomId, isConnected]); // Wait for actual connection
+  }, [roomId, isConnected, persistent]); // Wait for actual connection
+
+  useEffect(() => {
+    if (!persistent || !roomId) return
+    const load = async () => {
+      try {
+        const response = await fetch(`/api/exam-rooms/${roomId}`, { credentials: 'same-origin' })
+        const body = await response.json()
+        if (!response.ok) throw new Error(body.error || 'Testraum konnte nicht geladen werden.')
+        setTestData(body)
+      } catch (error) { setTestError(error.message) }
+    }
+    load()
+    const timer = window.setInterval(load, 5000)
+    return () => window.clearInterval(timer)
+  }, [persistent, roomId])
 
   useEffect(() => {
     if (roomState?.settings) {
@@ -132,7 +157,26 @@ export default function AdminView() {
     return problem.user
   }
 
+  const setAbsent = async (studentId, absent) => {
+    try {
+      const response = await fetch(`/api/exam-rooms/${roomId}/students/${studentId}/attendance`, { method: 'PATCH', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ absent }) })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(body.error || 'Status konnte nicht geändert werden.')
+    } catch (error) { setTestError(error.message) }
+  }
+
+  const releaseCode = async () => {
+    try {
+      const response = await fetch(`/api/exam-rooms/${roomId}/release-code`, { method: 'POST', credentials: 'same-origin' })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(body.error || 'Startcode konnte nicht erstellt werden.')
+      setStartCode(body.code)
+    } catch (error) { setTestError(error.message) }
+  }
+
   const players = roomState?.players?.filter(p => p.id !== roomState.admin) || []
+  const selectedPlayer = players.find(player => player.id === selectedAnswer?.playerId)
+  const selectedProblem = selectedPlayer?.solved?.[selectedAnswer?.position]
   const expectedProblemCount = getCategoryProblemCount(roomState?.settings?.category || settings.category)
   const sortedPlayers = [...players].sort((a, b) => {
     const correctA = (a.solved || []).filter(problem => problem.isCorrect).length
@@ -190,7 +234,7 @@ export default function AdminView() {
             <header>
               <h2>Admin-Ansicht — Raum: <tt className="room-id">{roomId?.toLowerCase()}</tt></h2>
             </header>
-            <div className="loading">Lade Raumdaten…</div>
+            <div className="loading">{testError || connectionError ? <p className="error" role="alert">{testError || connectionError}</p> : isConnected ? 'Lade Raumdaten…' : 'Verbindung zur Live-Ansicht wird hergestellt…'}</div><Link to={teacherRoomUrl}>Zurück zum Testraum</Link>
           </div>
         </div>
       </div>
@@ -278,7 +322,9 @@ export default function AdminView() {
           </div>
           <div className="admin-header-right" />
         </div>
+        <Link to={teacherRoomUrl}>← {persistent ? 'Zum Testraum' : 'Zur Raumanmeldung'}</Link>
 
+        {selectedProblem && <AnswerDetailDialog answer={selectedProblem} studentName={selectedPlayer.username} position={selectedAnswer.position} total={selectedPlayer.solved.length} onClose={() => setSelectedAnswer(null)} onPrevious={() => setSelectedAnswer(value => ({ ...value, position: value.position - 1 }))} onNext={() => setSelectedAnswer(value => ({ ...value, position: value.position + 1 }))} />}
         {/* Main two-column layout */}
         <div className="admin-layout">
           {/* Sidebar */}
@@ -313,7 +359,21 @@ export default function AdminView() {
               </div>
             </div>
 
-            {roomState.status === 'waiting' && (
+            {persistent && (
+            <div className="card join-card">
+              <div className="card-header"><h3>Testaufsicht</h3></div>
+              <div className="card-body">
+                <div className="join-instructions">{roomState.databaseStatus === 'finished' ? 'Der Test ist abgeschlossen. Die gespeicherten Ergebnisse bleiben hier einsehbar.' : 'Die Klassenliste und der Arbeitsfortschritt werden live aktualisiert.'}</div>
+                {startCode && <div className="exam-code"><span>Startcode – 60 Sekunden gültig</span><strong>{startCode}</strong></div>}
+                {testError && <p className="error">{testError}</p>}
+                {roomState.databaseStatus === 'waiting' && <button className="big" disabled={(testData?.students || []).some(student => student.status === 'pending')} onClick={releaseCode}> {(testData?.students || []).some(student => student.status === 'pending') ? 'Anmeldung noch nicht vollständig' : 'Startcode anzeigen'}</button>}
+                {roomState.databaseStatus === 'code_released' && <p className="management-stat">Der Startcode wird im Raum angezeigt.</p>}
+                {roomState.databaseStatus === 'running' && <p className="management-stat">Der Test läuft.</p>}
+              </div>
+            </div>
+            )}
+
+            {!persistent && roomState.status === 'waiting' && (
             <div className="card join-card">
               <div className="card-header">
                 <div className="big-room-id">
@@ -353,52 +413,6 @@ export default function AdminView() {
                 <div className="join-primary-action">
                   <button className="big" onClick={handleStartClick}>🚀 Spiel starten</button>
                 </div>
-              </div>
-            </div>
-            )}
-
-            {roomState.status === 'waiting' && (
-            <div className="card settings-card">
-              <div className="card-header">
-                <h3>Aufgaben-Einstellungen</h3>
-              </div>
-              <div className="card-body">
-                <div className="category-selection">
-                  <h4>Kategorie wählen</h4>
-                  <div className="category-buttons">
-                    {Object.entries(CATEGORIES).map(([key, config]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        className={`category-btn ${settings.category === key ? 'active' : ''}`}
-                        onClick={() => handleSettingsChange({ ...settings, category: key })}
-                      >
-                        {config.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="category-details">
-                  {renderCategoryInfo(settings.category)}
-                </div>
-
-                {CATEGORIES[settings.category] && CATEGORIES[settings.category].settings.length > 0 && (
-                  <div className={`${settings.category}-toggles`}>
-                    {CATEGORIES[settings.category].settings.map(setting => (
-                      <label key={setting.key} className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          className="app-input"
-                          checked={settings[setting.key] ?? setting.defaultValue}
-                          disabled={setting.disabled}
-                          onChange={(e) => handleSettingsChange({ ...settings, [setting.key]: e.target.checked })}
-                        />
-                        <span>{setting.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
             )}
@@ -488,10 +502,12 @@ export default function AdminView() {
             )}
             {sortedPlayers.map(player => {
               const solved = player.solved || []
-              const correctCount = solved.filter(problem => problem.isCorrect).length
-              const wrongCount = solved.filter(problem => problem.isCorrect === false).length
+              const correctCount = player.score?.time ?? solved.filter(problem => problem.isCorrect).length
+              const wrongCount = player.score?.wrongCount ?? solved.filter(problem => problem.isCorrect === false).length
               const hasCurrentProblem = roomState.status === 'playing' && !player.score && player.connected !== false
-              const statusLabel = player.score
+              const statusLabel = persistent
+                ? ({ pending: 'wartet auf Anmeldung', ready: 'angemeldet', absent: 'abwesend', started: 'bearbeitet', finished: 'abgeschlossen' })[player.status] || 'bereit'
+                : player.score
                 ? 'Abgegeben'
                 : player.connected === false
                   ? 'Verbindung weg'
@@ -524,12 +540,18 @@ export default function AdminView() {
                   <span className="wrong-count">{wrongCount} falsch</span>
                 </div>
 
+                {persistent && roomState.databaseStatus === 'waiting' && ['pending', 'absent'].includes(player.status) && (
+                  <label className="attendance-toggle"><input type="checkbox" checked={player.status === 'absent'} onChange={event => setAbsent(player.id, event.target.checked)} /> Abwesend</label>
+                )}
+
                 <div className="player-progress-scroll" aria-label={`${solved.length} bearbeitete Aufgaben von erwarteten ${expectedProblemCount}: ${correctCount} richtig, ${wrongCount} falsch`}>
                   <div className="player-progress">
                     {solved.map((problem, idx) => (
                       <button
                         key={idx}
                         type="button"
+                        onClick={() => setSelectedAnswer({ playerId: player.id, position: idx })}
+                        aria-haspopup="dialog"
                         className={`progress-segment ${problem.assisted ? 'assisted' : problem.isCorrect ? 'correct' : 'incorrect'}`}
                         aria-label={`Aufgabe ${idx + 1}: ${problem.assisted ? 'mit Hilfe gelöst' : problem.isCorrect ? 'richtig' : 'falsch'}. ${formatProblemPrompt(problem)}. Lösung: ${formatCorrectAnswer(problem)}.`}
                         title={`Aufgabe ${idx + 1}: ${formatProblemPrompt(problem)}. Lösung: ${formatCorrectAnswer(problem)}`}
@@ -567,12 +589,12 @@ export default function AdminView() {
                 {solved.length > 0 && (
                   <div className="player-problems">
                     {solved.map((problem, idx) => (
-                      <div key={idx} className={`problem-entry ${problem.isCorrect ? 'correct' : 'incorrect'}`}>
+                      <button type="button" onClick={() => setSelectedAnswer({ playerId: player.id, position: idx })} aria-haspopup="dialog" key={idx} className={`problem-entry ${problem.isCorrect ? 'correct' : 'incorrect'}`}>
                         <span>{formatProblemPrompt(problem)} = {formatUserAnswer(problem)}</span>
                         <span style={{ fontWeight: 'bold' }}>
                           {problem.isCorrect ? '✓' : `✗ (${formatCorrectAnswer(problem)})`}
                         </span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -592,4 +614,9 @@ export default function AdminView() {
       </div>
     </div>
   )
+}
+
+export default function AdminView() {
+  const [searchParams] = useSearchParams()
+  return searchParams.get('persistent') === '1' || searchParams.get('observe') === '1' ? <PersistentAdminView /> : <TemporaryRoomDashboard />
 }

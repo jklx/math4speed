@@ -73,6 +73,7 @@ const KEY_LAYOUTS = {
     ],
   },
 }
+KEY_LAYOUTS.hauptnenner = KEY_LAYOUTS.primfaktorisierung
 KEY_LAYOUTS.schriftlich = KEY_LAYOUTS.multiplication
 
 function getBinomischeLayout(variable) {

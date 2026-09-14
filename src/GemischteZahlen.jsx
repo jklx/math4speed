@@ -18,19 +18,19 @@ function FractionInput({ inputRef, value, onChange, onKeyDown, label, disabled }
       value={value}
       onChange={onChange}
       onKeyDown={onKeyDown}
-      inputMode="numeric"
+      inputMode="none"
       aria-label={label}
       disabled={disabled}
     />
   )
 }
 
-export default function GemischteZahlen({ problem, value = '', onChange, onEnter, showTick = false, crossedOut = false, mistakeFeedback = null }) {
+export default function GemischteZahlen({ problem, value = '', onChange, onEnter, showTick = false, crossedOut = false, mistakeFeedback = null, readOnly = false }) {
   const isMixedToImproper = problem.direction === 'mixed-to-improper'
   const fieldRefs = useRef([])
   const parts = useMemo(() => getParts(value, !isMixedToImproper), [value, isMixedToImproper])
 
-  useEffect(() => { fieldRefs.current[0]?.focus() }, [])
+  useEffect(() => { if (!readOnly) fieldRefs.current[0]?.focus() }, [readOnly])
 
   const updatePart = (index, nextValue) => {
     const next = [...parts]
@@ -40,7 +40,7 @@ export default function GemischteZahlen({ problem, value = '', onChange, onEnter
 
   const moveTo = (index) => fieldRefs.current[index]?.focus()
   const handleKey = (event, index) => {
-    if (mistakeFeedback) { event.preventDefault(); return }
+    if (readOnly || mistakeFeedback) { event.preventDefault(); return }
     if (event.key === 'Enter') { event.preventDefault(); onEnter?.(); return }
     if (/^[0-9]$/.test(event.key)) {
       event.preventDefault()
@@ -70,7 +70,7 @@ export default function GemischteZahlen({ problem, value = '', onChange, onEnter
     onChange: event => updatePart(index, event.target.value),
     onKeyDown: event => handleKey(event, index),
     label,
-    disabled: Boolean(mistakeFeedback)
+    disabled: readOnly || Boolean(mistakeFeedback)
   })
 
   const given = isMixedToImproper
@@ -90,7 +90,7 @@ export default function GemischteZahlen({ problem, value = '', onChange, onEnter
             <FractionInput {...inputProps(isMixedToImproper ? 0 : 1, 'Zähler')} />
             <FractionInput {...inputProps(isMixedToImproper ? 1 : 2, 'Nenner')} />
           </span>
-          {!mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.()} />}
+          {!readOnly && !mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.()} />}
         </div>
       </div>
       <p className="mixed-number-hint">Mit <kbd>/</kbd> oder Leertaste wechselst du zum nächsten Feld.</p>

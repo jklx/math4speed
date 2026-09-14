@@ -6,8 +6,10 @@ Der Workflow in `.github/workflows/deploy.yml` veröffentlicht bei jedem Merge n
 
 1. Docker und Nginx installieren. Nginx leitet die öffentliche Domain auf `127.0.0.1:3000` weiter. `nginx-math4speed.conf` ist die passende Server-Konfiguration; TLS sollte über Certbot oder einen bestehenden Reverse Proxy eingerichtet werden.
 2. Das Datenverzeichnis anlegen. Der Container läuft als Nutzer-ID 1000: `sudo install -d -m 0750 -o 1000 -g 1000 /opt/math4speed/data`.
-3. Der Benutzer, mit dem der GitHub-Deploy per OS Login auf die VM kommt, braucht Zugriff auf Docker. Gib nur diesem Benutzer die Docker-Berechtigung; er muss `docker ps` ohne Passwortabfrage ausführen können.
-4. Der **an die VM gebundene** Google-Service-Account benötigt `roles/artifactregistry.reader` auf dem Artifact-Registry-Repository, damit Docker Images laden kann.
+3. PostgreSQL auf derselben VM installieren und eine eigene Datenbank sowie einen eigenen Datenbankbenutzer für Math4Speed anlegen. Die Datenbank darf nicht aus dem Internet erreichbar sein. Wenn PostgreSQL direkt auf dem Host läuft, verwende in `DATABASE_URL` den Hostnamen `host.docker.internal` und erlaube ausschließlich Verbindungen vom Docker-Bridge-Netz.
+4. Lege die Datei `/opt/math4speed/app.env` mit restriktiven Rechten an. Sie enthält mindestens `DATABASE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` und optional `ADMIN_DISPLAY_NAME`. Das Admin-Passwort muss mindestens zwölf Zeichen lang sein. Beispiel: `DATABASE_URL=postgresql://math4speed:GEHEIM@host.docker.internal:5432/math4speed`.
+5. Der Benutzer, mit dem der GitHub-Deploy per OS Login auf die VM kommt, braucht Zugriff auf Docker. Gib nur diesem Benutzer die Docker-Berechtigung; er muss `docker ps` ohne Passwortabfrage ausführen können.
+6. Der **an die VM gebundene** Google-Service-Account benötigt `roles/artifactregistry.reader` auf dem Artifact-Registry-Repository, damit Docker Images laden kann.
 
 ## Google Cloud und GitHub einrichten
 

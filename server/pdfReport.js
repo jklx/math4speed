@@ -41,6 +41,13 @@ const operationSymbol = (operation) => ({ add: '+', subtract: '-', multiply: '*'
 function formatProblem(problem, includeUserAnswer = true) {
   let question;
   switch (problem.type) {
+    case 'hauptnenner':
+      question = `Hauptnenner von ${problem.a} und ${problem.b}: ${problem.correct}`;
+      if (includeUserAnswer && problem.hauptnennerSnapshot) {
+        const steps = problem.hauptnennerSnapshot;
+        question += `\n${problem.a} = ${formatFactorString(steps.first)}; ${problem.b} = ${formatFactorString(steps.second)}; Hauptnenner = ${formatFactorString(steps.lcm)}`;
+      }
+      break;
     case 'primfaktorisierung':
       question = `Primfaktorzerlegung: ${text(problem.number)} = ${formatFactorString(problem.correct)}`;
       break;

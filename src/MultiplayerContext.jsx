@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 
@@ -12,6 +12,7 @@ function createPlayerId() {
 }
 
 export function MultiplayerProvider({ children }) {
+  const persistentConnection = useRef(null);
   const [socket, setSocket] = useState(null);
   const [roomState, setRoomState] = useState(null);
   const [username, setUsername] = useState('');
@@ -63,9 +64,10 @@ export function MultiplayerProvider({ children }) {
       }
     });
 
-    socket.on('roomJoined', ({ roomId, isAdmin, playerId, username }) => {
+    socket.on('roomJoined', ({ roomId, isAdmin, persistent, playerId, username }) => {
       setError(null);
       setRoomState(null); // clear stale state from any previous room
+      if (persistent) return;
       if (!isAdmin && playerId) {
         try {
           localStorage.setItem(`m4s_player_${roomId}`, playerId);
@@ -143,9 +145,8 @@ export function MultiplayerProvider({ children }) {
 
   // Navigation is performed immediately when the provider receives events
 
-  const createRoom = (roomName) => {
-    // roomName is the name of the room being created (not the admin's username)
-    socket?.emit('createRoom', roomName);
+  const createRoom = (settings = {}) => {
+    socket?.emit('createRoom', { settings });
   };
 
   const joinRoom = (roomId, username) => {
@@ -162,6 +163,28 @@ export function MultiplayerProvider({ children }) {
       playerId = createPlayerId();
     }
     socket?.emit('joinRoom', { roomId: rid, username, playerId });
+  };
+
+  // Session cookies may have changed since the lobby opened its socket.
+  // Refresh once per exam/role; subsequent reconnect effects only rejoin.
+  const refreshPersistentConnection = key => {
+    if (!socket || persistentConnection.current === key) return;
+    persistentConnection.current = key;
+    setError(null);
+    setRoomState(null);
+    socket.disconnect().connect();
+  };
+
+  const openPersistentRoom = (roomId) => {
+    if (!roomId) return;
+    refreshPersistentConnection(`teacher:${roomId}`);
+    socket?.emit('openPersistentRoom', { roomId });
+  };
+
+  const joinPersistentRoom = (roomId, token) => {
+    if (!roomId || !token) return;
+    refreshPersistentConnection(`student:${roomId}:${token}`);
+    socket?.emit('joinPersistentRoom', { roomId, token });
   };
 
   const attemptPlayerRejoin = (roomId) => {
@@ -214,6 +237,11 @@ export function MultiplayerProvider({ children }) {
     socket?.emit('updateProgress', { roomId, progress, solved });
   };
 
+  const recordExamAnswer = (roomId, position, entry) => {
+    if (!roomId || !Number.isInteger(position)) return;
+    socket?.emit('recordExamAnswer', { roomId, position, entry });
+  };
+
   const finishGame = (roomId, score, wrongCount) => {
     if (!roomId) return;
     socket?.emit('finishGame', { roomId, score, wrongCount });
@@ -238,10 +266,13 @@ export function MultiplayerProvider({ children }) {
       isConnected,
       checkRoom,
       createRoom,
+      openPersistentRoom,
+      joinPersistentRoom,
       joinRoom,
       startGame,
       updateSettings,
       updateProgress,
+      recordExamAnswer,
       finishGame,
       attemptAdminRejoin,
       attemptPlayerRejoin,

@@ -5,6 +5,7 @@
     "problemCount": 50,
     "durationMinutes": 2,
     "performanceScore": [20, 40],
+    "attemptRatingThresholds": [20, 27, 34, 40],
     "settings": [
       {
         "key": "einmaleins_base",
@@ -37,6 +38,7 @@
     "durationMinutes": 5,
     "settings": [],
     "performanceScore": [3, 8],
+    "attemptRatingThresholds": [3, 5, 7, 8],
     "performance": {
       "default": [20, 55]
     }
@@ -51,6 +53,7 @@
     "durationMinutes": 5,
     "settings": [],
     "performanceScore": [3, 8],
+    "attemptRatingThresholds": [3, 5, 7, 8],
     "performance": {
       "default": [20, 55]
     }
@@ -65,6 +68,7 @@
     "durationMinutes": 5,
     "settings": [],
     "performanceScore": [3, 8],
+    "attemptRatingThresholds": [3, 5, 7, 8],
     "performance": {
       "default": [60, 200]
     }
@@ -83,6 +87,7 @@
       { "key": "schriftlichDivideLarge", "label": "Divisoren 21–99", "defaultValue": false }
     ],
     "performanceScore": [3, 8],
+    "attemptRatingThresholds": [3, 5, 7, 8],
     "performance": {
       "default": [35, 90]
     }
@@ -100,6 +105,7 @@
       { "key": "negativeExplicitPlus", "label": "Vorzeichen bei positiven Zahlen anzeigen (z.B. (+2))", "defaultValue": true }
     ],
     "performanceScore": [10, 25],
+    "attemptRatingThresholds": [10, 15, 20, 25],
     "performance": {
       "default": [8.0, 18.0]
     }
@@ -111,10 +117,34 @@
     "durationMinutes": 3,
     "settings": [],
     "performanceScore": [10, 22],
+    "attemptRatingThresholds": [10, 14, 18, 22],
     "performance": {
       "easy": [10, 30],
       "hard": [20, 60],
       "default": [20, 60]
+    }
+  },
+  "hauptnenner": {
+    "label": "Hauptnenner finden",
+    "grade": "6. Klasse",
+    "problemCount": 10,
+    "durationMinutes": 5,
+    "settings": [],
+    "performanceScore": [
+      4,
+      10
+    ],
+    "attemptRatingThresholds": [
+      4,
+      6,
+      8,
+      10
+    ],
+    "performance": {
+      "default": [
+        30,
+        90
+      ]
     }
   },
   "gemischte-zahlen": {
@@ -127,6 +157,7 @@
       { "key": "improperToMixed", "label": "Bruch in gemischte Zahl umwandeln", "defaultValue": true }
     ],
     "performanceScore": [10, 22],
+    "attemptRatingThresholds": [10, 14, 18, 22],
     "performance": {
       "default": [18, 45]
     }
@@ -143,6 +174,7 @@
       { "key": "decimalExpandableFractions", "label": "Im Kopf auf 10, 100 oder 1 000 erweitern", "defaultValue": true }
     ],
     "performanceScore": [10, 22],
+    "attemptRatingThresholds": [10, 14, 18, 22],
     "performance": {
       "default": [18, 45]
     }
@@ -157,6 +189,7 @@
       { "key": "binomische_hard", "label": "Schwer (Dezimalzahlen)", "defaultValue": true }
     ],
     "performanceScore": [3, 8],
+    "attemptRatingThresholds": [3, 5, 7, 8],
     "performance": {
       "simple": [15.0, 30.0],
       "hard": [20.0, 40.0],
@@ -181,6 +214,7 @@
       }
     ],
     "performanceScore": [5, 12],
+    "attemptRatingThresholds": [5, 8, 10, 12],
     "performance": {
       "default": [40.0, 90.0]
     }

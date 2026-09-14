@@ -4,6 +4,7 @@ set -eu
 IMAGE_URI="${1:?Usage: remote-deploy.sh IMAGE_URI}"
 APP_NAME="math4speed"
 DATA_DIR="/opt/math4speed/data"
+APP_ENV_FILE="/opt/math4speed/app.env"
 CANDIDATE_NAME="${APP_NAME}-candidate"
 LEGACY_SERVICE="math4speed"
 LEGACY_WAS_ACTIVE=0
@@ -16,7 +17,9 @@ run_container() {
     --name "$name" \
     --restart unless-stopped \
     -p "127.0.0.1:${host_port}:3000" \
+    --add-host=host.docker.internal:host-gateway \
     -v "${DATA_DIR}:/app/data" \
+    --env-file "${APP_ENV_FILE}" \
     -e LEADERBOARD_FILE=/app/data/leaderboard.json \
     "$image"
 }
@@ -35,6 +38,10 @@ wait_for_health() {
 }
 
 mkdir -p "$DATA_DIR"
+if [ ! -r "$APP_ENV_FILE" ]; then
+  echo "Missing required environment file: $APP_ENV_FILE" >&2
+  exit 1
+fi
 docker pull "$IMAGE_URI"
 
 # Verify the pulled image without interrupting the currently running version.

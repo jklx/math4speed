@@ -1,14 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { InlineSubmitButton, TickMark } from './components/AnswerControls'
 
-export default function Negative({ a, b, operator, value = '', onChange, onEnter, explicitPlus, showTick = false, crossedOut = false, mistakeFeedback = null }) {
+export default function Negative({ a, b, operator, value = '', onChange, onEnter, explicitPlus, showTick = false, crossedOut = false, mistakeFeedback = null, readOnly = false }) {
   const ref = useRef(null)
   const [focused, setFocused] = useState(false)
 
-  useEffect(() => { ref.current?.focus() }, [])
+  useEffect(() => { if (!readOnly) ref.current?.focus() }, [readOnly])
 
   useEffect(() => {
-    if (mistakeFeedback) return
+    if (readOnly || mistakeFeedback) return
     const activeElement = document.activeElement
     if (activeElement === document.body || activeElement === null) {
       const frame = requestAnimationFrame(() => ref.current?.focus())
@@ -17,7 +17,7 @@ export default function Negative({ a, b, operator, value = '', onChange, onEnter
   }, [value, mistakeFeedback])
 
   const handleKey = (e) => {
-    if (mistakeFeedback) { e.preventDefault(); return }
+    if (readOnly || mistakeFeedback) { e.preventDefault(); return }
     if (e.key === 'Enter') { e.preventDefault(); onEnter?.(); return }
     if (e.key === 'Backspace') { e.preventDefault(); onChange?.(value.slice(0, -1)); return }
     if (/^[0-9]$/.test(e.key)) { e.preventDefault(); onChange?.(value + e.key); return }
@@ -62,7 +62,7 @@ export default function Negative({ a, b, operator, value = '', onChange, onEnter
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <div
             ref={ref}
-            tabIndex={mistakeFeedback ? -1 : 0}
+            tabIndex={readOnly || mistakeFeedback ? -1 : 0}
             className={`math-input fake-input answer-input${focused ? ' fake-input--focused' : ''}${mistakeFeedback ? ' fake-input--disabled' : ''}`}
             style={{ color: mistakeFeedback || crossedOut ? '#b91c1c' : undefined }}
             onKeyDown={handleKey}
@@ -71,9 +71,9 @@ export default function Negative({ a, b, operator, value = '', onChange, onEnter
             aria-disabled={mistakeFeedback ? 'true' : 'false'}
           >
             {value}
-            {!mistakeFeedback && focused && <span className="fake-input__cursor" aria-hidden />}
+            {!readOnly && !mistakeFeedback && focused && <span className="fake-input__cursor" aria-hidden />}
           </div>
-          {!mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.()} />}
+          {!readOnly && !mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.()} />}
         </div>
       </div>
       {mistakeFeedback?.correctAnswerDisplay && (
