@@ -71,6 +71,21 @@ function CodeLogin({ onLogin }) {
   </section>
 }
 
+function LoginPlaceholder() {
+  return <section className="tile student-home student-home-login" aria-labelledby="student-login-placeholder-title">
+    <div className="tile-body">
+      <h2 id="student-login-placeholder-title" className="title">Für deine Klasse</h2>
+      <div className="student-login-placeholder">
+        <div className="management-form student-login-form" aria-hidden="true">
+          <label>Meine Kennung<input className="app-input" tabIndex="-1" /></label>
+          <button type="button" className="big" tabIndex="-1">Anmelden</button>
+        </div>
+        <p role="status">Anmeldung wird geprüft…</p>
+      </div>
+    </div>
+  </section>
+}
+
 export default function StudentTraining() {
   const [student, setStudent] = useState(undefined)
   const [assignments, setAssignments] = useState(null)
@@ -101,7 +116,7 @@ export default function StudentTraining() {
     } catch (error) { setError(error.message) }
     finally { setLoggingOut(false) }
   }
-  if (student === undefined) return <section className="tile student-home"><p role="status">Anmeldung wird geprüft…</p></section>
+  if (student === undefined) return <LoginPlaceholder />
   if (!student) return <CodeLogin onLogin={setStudent} />
   return <section className="tile student-home" aria-labelledby="student-class-title">
     <div className="tile-body">
