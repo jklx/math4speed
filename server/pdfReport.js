@@ -48,6 +48,9 @@ function formatProblem(problem, includeUserAnswer = true) {
         question += `\n${problem.a} = ${formatFactorString(steps.first)}; ${problem.b} = ${formatFactorString(steps.second)}; Hauptnenner = ${formatFactorString(steps.lcm)}`;
       }
       break;
+    case 'anteile-bruchteile':
+      question = `${text(problem.expression)} = ${text(problem.correct)}${problem.variant === 'anteil' ? '' : ` ${text(problem.answerUnit || problem.unit)}`}`;
+      break;
     case 'primfaktorisierung':
       question = `Primfaktorzerlegung: ${text(problem.number)} = ${formatFactorString(problem.correct)}`;
       break;
@@ -75,7 +78,8 @@ function formatProblem(problem, includeUserAnswer = true) {
 
   if (!includeUserAnswer) return question;
   const userAnswer = problem.user === '(Gleichung falsch)' ? 'Gleichung falsch' : text(problem.user, '-');
-  return `${question}\nAntwort: ${userAnswer}${problem.unit ? ` ${text(problem.unit)}` : ''}`;
+  const answerUnit = problem.answerUnit || problem.unit;
+  return `${question}\nAntwort: ${userAnswer}${answerUnit ? ` ${text(answerUnit)}` : ''}`;
 }
 
 function addPageHeader(doc, room, title, subtitle = '') {

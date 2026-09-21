@@ -1861,6 +1861,153 @@ export function generateHauptnennerProblems(count) {
   });
 }
 
+export function getAnteileVariantPool(settings = {}) {
+  const definitions = [
+    { variant: 'bruchteile', enabled: settings.anteileBruchteil !== false, weight: 2 },
+    { variant: 'anteil', enabled: settings.anteileAnteil !== false, weight: 1 },
+    { variant: 'ganzes', enabled: settings.anteileGanzes !== false, weight: 2 },
+  ]
+  const enabled = definitions.filter(definition => definition.enabled)
+  return (enabled.length ? enabled : definitions).flatMap(definition => Array(definition.weight).fill(definition.variant))
+}
+
+export function generateAnteileBruchteileProblems(count, settings = {}) {
+  const variantPool = getAnteileVariantPool(settings)
+  const nonAnteilVariantPool = variantPool.filter(variant => variant !== 'anteil')
+  const familiarFractions = [[1, 2], [1, 3], [2, 3], [1, 4], [3, 4], [1, 5], [2, 5], [3, 5], [4, 5], [1, 6], [5, 6], [2, 7], [3, 8], [5, 8]]
+  const harderFractions = [
+    [1, 7], [3, 7], [4, 7], [5, 7], [6, 7], [1, 8], [7, 8],
+    [1, 9], [2, 9], [4, 9], [5, 9], [7, 9], [8, 9],
+    [1, 10], [3, 10], [7, 10], [9, 10],
+    [1, 12], [5, 12], [7, 12], [11, 12],
+    [1, 15], [2, 15], [4, 15], [7, 15], [8, 15], [11, 15], [13, 15], [14, 15],
+    [1, 20], [3, 20], [7, 20], [9, 20], [11, 20], [13, 20], [17, 20], [19, 20],
+  ]
+  const conversionOnlyFractions = [
+    [1, 24], [5, 24], [7, 24], [11, 24], [13, 24], [17, 24], [19, 24], [23, 24],
+    [1, 25], [3, 25], [7, 25], [11, 25], [13, 25], [17, 25], [19, 25], [23, 25],
+    [1, 50], [3, 50], [7, 50], [9, 50], [11, 50], [13, 50], [17, 50], [19, 50],
+    [1, 100], [3, 100], [7, 100], [9, 100], [11, 100], [13, 100], [17, 100], [19, 100],
+  ]
+  // Familiar fractions are duplicated so that the expanded pool does not crowd them out.
+  const fractions = [...familiarFractions, ...familiarFractions, ...harderFractions]
+  const conversionFractions = [...fractions, ...conversionOnlyFractions]
+  const quantities = [
+    { unit: 'km', noun: 'Strecke', scales: [2, 3, 4, 5, 6, 8, 10, 12, 20, 50], maxWhole: 1000 },
+    { unit: 'm', noun: 'Länge', scales: [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 50], maxWhole: 1000 },
+    { unit: 'min', noun: 'Zeitspanne', scales: [5, 10, 12, 15, 20, 30], maxWhole: 600 },
+    { unit: '€', noun: 'Geldbetrag', scales: [2, 3, 4, 5, 10, 20, 25, 50], maxWhole: 1000 },
+    { unit: 'kg', noun: 'Masse', scales: [2, 3, 4, 5, 6, 8, 10, 20, 25], maxWhole: 500 },
+    { unit: 'l', noun: 'Flüssigkeitsmenge', scales: [2, 3, 4, 5, 6, 8, 10, 20, 25], maxWhole: 500 },
+    { unit: '°', noun: 'Winkel', scales: [15, 30, 45, 60, 90], maxWhole: 360 },
+  ]
+  const conversions = [
+    // Zeit
+    { group: 'zeit', wholeUnit: 'min', partUnit: 's', factor: 60 },
+    { group: 'zeit', wholeUnit: 'h', partUnit: 'min', factor: 60 },
+    { group: 'zeit', wholeUnit: 'd', partUnit: 'h', factor: 24 },
+    // Hohlmaße
+    { group: 'hohlmasse', wholeUnit: 'l', partUnit: 'ml', factor: 1000 },
+    // Längen
+    { group: 'laenge', wholeUnit: 'cm', partUnit: 'mm', factor: 10 },
+    { group: 'laenge', wholeUnit: 'dm', partUnit: 'cm', factor: 10 },
+    { group: 'laenge', wholeUnit: 'm', partUnit: 'dm', factor: 10 },
+    { group: 'laenge', wholeUnit: 'm', partUnit: 'cm', factor: 100 },
+    { group: 'laenge', wholeUnit: 'm', partUnit: 'mm', factor: 1000 },
+    { group: 'laenge', wholeUnit: 'km', partUnit: 'm', factor: 1000 },
+    // Geld und Gewicht
+    { group: 'geld', wholeUnit: '€', partUnit: 'ct', factor: 100 },
+    { group: 'gewicht', wholeUnit: 'kg', partUnit: 'g', factor: 1000 },
+    { group: 'gewicht', wholeUnit: 't', partUnit: 'kg', factor: 1000 },
+    // Flächen
+    { group: 'flaeche', wholeUnit: 'cm²', partUnit: 'mm²', factor: 100 },
+    { group: 'flaeche', wholeUnit: 'dm²', partUnit: 'cm²', factor: 100 },
+    { group: 'flaeche', wholeUnit: 'm²', partUnit: 'dm²', factor: 100 },
+    { group: 'flaeche', wholeUnit: 'a', partUnit: 'm²', factor: 100 },
+    { group: 'flaeche', wholeUnit: 'ha', partUnit: 'a', factor: 100 },
+    { group: 'flaeche', wholeUnit: 'km²', partUnit: 'ha', factor: 100 },
+  ]
+  const conversionSettings = {
+    anteileUmrechnungZeit: 'zeit',
+    anteileUmrechnungHohlmasse: 'hohlmasse',
+    anteileUmrechnungLaenge: 'laenge',
+    anteileUmrechnungGeld: 'geld',
+    anteileUmrechnungGewicht: 'gewicht',
+    anteileUmrechnungFlaeche: 'flaeche',
+  }
+  const selectedConversionGroups = Object.entries(conversionSettings)
+    .filter(([key]) => settings[key] !== false)
+    .map(([, group]) => group)
+  const enabledConversions = selectedConversionGroups.length
+    ? conversions.filter(conversion => selectedConversionGroups.includes(conversion.group))
+    : settings.anteileUmrechnungen === true ? conversions : []
+
+  const createConversionProblem = (index, variant) => {
+    const conversion = enabledConversions[Math.floor(Math.random() * enabledConversions.length)]
+    const possibleWholes = variant === 'bruchteile' ? [1] : [1, 2, 3, 4, 5]
+    const combinations = conversionFractions.flatMap(([numerator, denominator]) => possibleWholes
+      .filter(whole => (conversion.factor * whole * numerator) % denominator === 0)
+      .map(whole => ({ numerator, denominator, whole })))
+    const { numerator, denominator, whole } = combinations[Math.floor(Math.random() * combinations.length)]
+    const part = conversion.factor * whole * numerator / denominator
+    const answerUnit = variant === 'ganzes' ? conversion.wholeUnit : variant === 'bruchteile' ? conversion.partUnit : ''
+    const prompt = variant === 'bruchteile'
+      ? 'Rechne in die kleinere Einheit um.'
+      : variant === 'anteil'
+        ? 'Bestimme den Anteil.'
+        : `Berechne das Ganze und gib es in ${conversion.wholeUnit} an.`
+    const expression = variant === 'bruchteile'
+      ? `${numerator}/${denominator} ${conversion.wholeUnit}`
+      : variant === 'anteil'
+        ? `${part} ${conversion.partUnit} von ${whole} ${conversion.wholeUnit}`
+        : `${numerator}/${denominator} von ? ${conversion.wholeUnit} = ${part} ${conversion.partUnit}`
+    return {
+      id: index + 1, type: 'anteile-bruchteile', variant, numerator, denominator, whole, part,
+      unit: answerUnit, wholeUnit: conversion.wholeUnit, partUnit: conversion.partUnit, answerUnit,
+      prompt, expression, isConversion: true,
+      correct: variant === 'anteil' ? `${numerator}/${denominator}` : variant === 'bruchteile' ? part : whole,
+    }
+  }
+
+  return Array.from({ length: count }, (_, index) => {
+    let variant = variantPool[Math.floor(Math.random() * variantPool.length)]
+    if (enabledConversions.length > 0 && variant !== 'ganzes' && Math.random() < 0.5) return createConversionProblem(index, variant)
+    // Reine Anteilsaufgaben sind vergleichsweise leicht. Wenn weitere Typen aktiviert sind,
+    // wird ein Teil davon ersetzt; Anteilsaufgaben mit Umrechnung bleiben davon unberührt.
+    if (variant === 'anteil' && nonAnteilVariantPool.length && Math.random() < 0.4) {
+      variant = nonAnteilVariantPool[Math.floor(Math.random() * nonAnteilVariantPool.length)]
+    }
+    const [numerator, denominator] = fractions[Math.floor(Math.random() * fractions.length)]
+    const quantity = quantities[Math.floor(Math.random() * quantities.length)]
+    const availableScales = quantity.maxWhole
+      ? quantity.scales.filter(candidate => denominator * candidate <= quantity.maxWhole)
+      : quantity.scales
+    const roundWholes = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+      .filter(whole => whole <= quantity.maxWhole && whole % denominator === 0)
+    const useRoundWhole = roundWholes.length > 0 && Math.random() < 0.3
+    const scale = useRoundWhole
+      ? roundWholes[Math.floor(Math.random() * roundWholes.length)] / denominator
+      : availableScales[Math.floor(Math.random() * availableScales.length)]
+    const whole = denominator * scale
+    const part = numerator * scale
+    const prompt = variant === 'bruchteile'
+      ? 'Berechne den Bruchteil.'
+      : variant === 'anteil'
+        ? 'Bestimme den Anteil.'
+        : 'Berechne das Ganze.'
+    const expression = variant === 'bruchteile'
+      ? `${numerator}/${denominator} von ${whole} ${quantity.unit}`
+      : variant === 'anteil'
+        ? `${part} ${quantity.unit} von ${whole} ${quantity.unit}`
+        : `${numerator}/${denominator} von ? = ${part} ${quantity.unit}`
+    return {
+      id: index + 1, type: 'anteile-bruchteile', variant, numerator, denominator,
+      whole, part, unit: quantity.unit, quantityNoun: quantity.noun, prompt, expression,
+      correct: variant === 'anteil' ? `${numerator}/${denominator}` : variant === 'bruchteile' ? part : whole,
+    }
+  })
+}
+
 export function generateProblems(count, category, settings = {}) {
   if (category === 'einmaleins') return generateEinmaleinsProblems(count, settings);
   if (category === 'schriftlich') return generateSchriftlichProblems(count, settings);
@@ -1869,6 +2016,7 @@ export function generateProblems(count, category, settings = {}) {
   if (category === 'schriftlich-multiply') return generateSchriftlichProblems(count, { schriftlichAdd: false, schriftlichSubtract: false, schriftlichMultiply: true });
   if (category === 'schriftlich-divide') return generateSchriftlichDivisionProblems(count, settings);
   if (category === 'hauptnenner') return generateHauptnennerProblems(count);
+  if (category === 'anteile-bruchteile') return generateAnteileBruchteileProblems(count, settings);
   if (category === 'primfaktorisierung') return generatePrimfaktorisierungProblems(count, settings);
   if (category === 'negative') return generateNegativeProblems(count, settings);
   if (category === 'gemischte-zahlen') return generateGemischteZahlenProblems(count, settings);

@@ -6,6 +6,8 @@ export const getCategoryLabel = (category) => CATEGORIES[category]?.label || 'Ei
 
 export const getCategoryDuration = (category) => (CATEGORIES[category]?.durationMinutes ?? 5) * 60
 
+export const getCategoryTrainingErrorLimit = category => CATEGORIES[category]?.maxTrainingErrors ?? null
+
 export const getCategoryPerformanceScore = (category) => CATEGORIES[category]?.performanceScore || [10, 30]
 
 // Minimum correct answers for 2, 3, 4 and 5 stars respectively.

@@ -27,6 +27,19 @@ export function validateHauptnenner(input, problem) {
   return { valid, isCorrect, parsed: snapshot.result, snapshot, fieldCorrect };
 }
 
+export function validateAnteilFraction(input, problem) {
+  const candidate = String(input ?? '').trim()
+  const match = candidate.match(/^(\d+)\s*\/\s*(\d+)$/)
+  if (!match || Number(match[2]) === 0) return { valid: false, isCorrect: false, parsed: candidate }
+  const numerator = Number(match[1])
+  const denominator = Number(match[2])
+  return {
+    valid: true,
+    isCorrect: numerator * problem.denominator === problem.numerator * denominator,
+    parsed: `${numerator}/${denominator}`,
+  }
+}
+
 export function validateSchriftlich(answerDigits, correctDigits) {
   // Normalize user's digits: join provided digits without injecting zeros
   const userStrRaw = answerDigits.map(d => (d === '' ? '' : String(d))).join('');

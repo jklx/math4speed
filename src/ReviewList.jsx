@@ -2,6 +2,7 @@ import React from 'react'
 import { getOperator } from './utils/getOperator'
 import { formatFactors } from './utils/formatFactors'
 import { formatDecimal } from './utils/formatNumber'
+import FormattedFractionText from './components/FormattedFractionText'
 
 /**
  * ReviewList displays a list of answers (correct or incorrect).
@@ -47,14 +48,19 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich, on
         const selectionProps = onSelectAnswer || (q.type === 'schriftlich' && onSelectSchriftlich) ? {
           role: 'button', tabIndex: 0, onClick: handleClick,
           onKeyDown: event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); handleClick() } },
-          title: 'Aufgabe in der Schülerdarstellung ansehen'
-        } : {}
+          title: 'Aufgabe in der Schülerdarstellung ansehen',
+          className: q.assisted ? 'review-item--assisted' : undefined
+        } : { className: q.assisted ? 'review-item--assisted' : undefined }
         const renderCorrection = (correctValue) => {
           if (isCorrect) return null
           return <span style={{ color: 'var(--ok)', marginLeft: '10px', fontWeight: 'bold' }}>{correctValue}</span>
         }
 
         if (q.type === 'hauptnenner') return <li key={q.id} {...selectionProps}>Hauptnenner von {q.a} und {q.b}: {q.user || '—'}{renderCorrection(q.correct)}</li>
+        if (q.type === 'anteile-bruchteile') {
+          const answerUnit = q.answerUnit || q.unit
+          return <li key={q.id} {...selectionProps}><FormattedFractionText>{q.expression}</FormattedFractionText>: {q.user ?? '—'}{q.variant !== 'anteil' && q.user != null ? ` ${answerUnit}` : ''}{renderCorrection(`${q.correct}${q.variant === 'anteil' ? '' : ` ${answerUnit}`}`)}</li>
+        }
         if (q.type === 'primfaktorisierung') {
           const displayValue = isCorrect ? formatFactors(q.correct) : formatFactors(q.user)
           return (

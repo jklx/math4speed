@@ -9,6 +9,7 @@ import Dezimalbrueche from './Dezimalbrueche'
 import ProzentGleichung from './ProzentGleichung'
 import Schriftlich from './Schriftlich'
 import SchriftlicheDivision from './SchriftlicheDivision'
+import AnteileBruchteile from './AnteileBruchteile'
 
 const displayValue = value => value == null || value === '' ? '' : String(value).replace(/(\d)\.(?=\d)/g, '$1,').replace(/-/g, '−')
 
@@ -24,6 +25,7 @@ function ReviewedProblem({ answer, solution }) {
     case 'primfaktorisierung': return <Primfaktorisierung {...props} number={answer.number} />
     case 'gemischte-zahlen': return <GemischteZahlen {...props} problem={answer} />
     case 'dezimalbrueche': return <Dezimalbrueche {...props} problem={answer} />
+    case 'anteile-bruchteile': return <AnteileBruchteile {...props} problem={answer} />
     case 'prozent-gleichung': return <>
       <ProzentGleichung problem={answer} readOnly reviewValue={value} reviewEquation={solution ? answer.exampleEquation : answer.equationSnapshot?.equationValue} />
       {!solution && !answer.equationSnapshot && <p className="review-note">Der eingegebene Rechenansatz wurde nicht gespeichert.</p>}
@@ -45,9 +47,9 @@ function ReviewedProblem({ answer, solution }) {
 
 export default function AnswerReview({ answer, inputLabel = 'Eingabe' }) {
   return <div className={`answer-review-grid${answer.type === 'schriftlich' ? ' answer-review-grid--written' : ''}`}>
-    <section className={`answer-review-panel ${answer.isCorrect ? 'answer-review-panel--correct' : 'answer-review-panel--wrong'}`}>
+    <section className={`answer-review-panel ${answer.assisted ? 'answer-review-panel--assisted' : answer.isCorrect ? 'answer-review-panel--correct' : 'answer-review-panel--wrong'}`}>
       <h3>{inputLabel}</h3>
-      <p className="answer-review-verdict">{answer.assisted ? (answer.type === 'hauptnenner' ? 'Teilweise gelöst – nach Verbesserung' : 'Mit Hilfe gelöst') : answer.isCorrect ? '✓ Richtig gelöst' : '✗ Falsch gelöst'}</p>
+      <p className="answer-review-verdict">{answer.assisted ? (answer.type === 'hauptnenner' || answer.type === 'schriftlich' ? 'Teilweise gelöst – nach Verbesserung' : 'Mit Hilfe gelöst') : answer.isCorrect ? '✓ Richtig gelöst' : '✗ Falsch gelöst'}</p>
       <div className="question answer-review-question"><ReviewedProblem answer={answer} solution={false} /></div>
     </section>
     <section className="answer-review-panel">

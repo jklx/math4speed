@@ -166,9 +166,10 @@ import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
 // Refactored imports
 import { generateProblems } from './problems/generators'
-import { validateSchriftlich, validatePrimfaktorisierung, validatePolynomial } from './problems/validate'
+import { validateSchriftlich, validatePrimfaktorisierung, validatePolynomial, validateAnteilFraction } from './problems/validate'
 import { getScoreComment, getScoreMarkerPosition } from './utils/performanceFeedback'
-import { getCategoryLabel, CATEGORIES, getDefaultSettings, getCategoryPerformanceScore, getCategoryDuration, getCategoryAttemptRating, getCategoryRatingThresholds } from './utils/categories'
+import { getCategoryLabel, CATEGORIES, getDefaultSettings, getCategoryPerformanceScore, getCategoryDuration, getCategoryAttemptRating, getCategoryRatingThresholds, getCategoryTrainingErrorLimit } from './utils/categories'
+import { formatTrainingErrorPoints, getTrainingErrorWeight, isSchriftlichCorrectionAttempt } from './utils/trainingErrors'
 import Schriftlich from './Schriftlich'
 import SchriftlicheDivision from './SchriftlicheDivision'
 import Einmaleins from './Einmaleins'
@@ -180,9 +181,11 @@ import Binomische from './Binomische'
 import ProzentGleichung from './ProzentGleichung'
 import GemischteZahlen from './GemischteZahlen'
 import Dezimalbrueche from './Dezimalbrueche'
+import AnteileBruchteile, { formatAnteileBruchteileAnswer } from './AnteileBruchteile'
 import ReviewList from './ReviewList'
 import AnswerReview from './AnswerReview'
 import { CategoryConfigurator } from './CategoryConfigurator'
+import FormattedFractionText from './components/FormattedFractionText'
 
 const BATCH_SIZE = 100
 export default function Game({ isSinglePlayer, examContext = null, onExamFinished = null, persistentToken = null, persistentSession = null, assignmentContext = null }) {
@@ -268,6 +271,10 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
   const [toast, setToast] = useState(null)
   const [flashResult, setFlashResult] = useState(null) // 'correct' | null
   const [mistakeState, setMistakeState] = useState(null) // null | { userAnswerDisplay, correctAnswerDisplay }
+  const [trainingErrorPoints, setTrainingErrorPoints] = useState(0)
+  const [trainingAbortPending, setTrainingAbortPending] = useState(false)
+  const [trainingAborted, setTrainingAborted] = useState(false)
+  const trainingErrorPointsRef = useRef(0)
   const trainingReportedRef = useRef(false)
   const [connectionLost, setConnectionLost] = useState(false)
 
@@ -341,6 +348,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
       )
     }
     if (cat === 'hauptnenner') return <><p>Du hast {mins} Minuten Zeit. Zerlege beide Nenner in Primfaktoren und bestimme damit den Hauptnenner.</p><p>Übernimm jeden Primfaktor so oft, wie er in einer der beiden Zerlegungen höchstens vorkommt. Multipliziere diese Faktoren, um den Hauptnenner zu erhalten.</p><p>Beispiel: 12 = 2 · 2 · 3 und 18 = 2 · 3 · 3 → Hauptnenner = 2 · 2 · 3 · 3 = 36.</p><PrimfaktorDemo /></>
+    if (cat === 'anteile-bruchteile') return <><p>Du hast {mins} Minuten Zeit, Bruchteile, Anteile und das Ganze zu bestimmen.</p><p>Die Aufgaben verwenden verschiedene Größen wie Länge, Zeit, Geld, Masse und Winkel.</p><p>Wenn der Anteil gesucht ist, gib ihn als Bruch ein. Du musst den Bruch noch nicht kürzen.</p></>
     if (cat === 'primfaktorisierung') {
       return (
         <>
@@ -362,7 +370,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
       return (
         <>
           <p>Du hast {mins} Minuten Zeit, gemischte Zahlen und unechte Brüche ineinander umzuwandeln.</p>
-          <p>Gib einen Bruch als <kbd>11/4</kbd> und eine gemischte Zahl als <kbd>2 3/4</kbd> ein.</p>
+          <p>Gib einen Bruch als <kbd><FormattedFractionText>11/4</FormattedFractionText></kbd> und eine gemischte Zahl als <kbd>2 <FormattedFractionText>3/4</FormattedFractionText></kbd> ein.</p>
         </>
       )
     }
@@ -484,6 +492,10 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     setTimeLeft(savedPlan ? resumedTime : gameDurationRef.current)
     setMistakeState(null)
     setSchriftlichCheckMode(false)
+    trainingErrorPointsRef.current = 0
+    setTrainingErrorPoints(0)
+    setTrainingAbortPending(false)
+    setTrainingAborted(false)
     trainingReportedRef.current = false
     pauseTimerRef.current = false
     // clear any existing countdown and game timers before starting a new one
@@ -619,6 +631,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     }
     if (prob.type === 'gemischte-zahlen') return prob.correct
     if (prob.type === 'dezimalbrueche') return prob.correct
+    if (prob.type === 'anteile-bruchteile') return formatAnteileBruchteileAnswer(prob)
     return String(prob.correct)
   }
 
@@ -633,15 +646,41 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     return [formatCorrectAnswer(prob)]
   }
 
+  const trainingErrorLimit = getCategoryTrainingErrorLimit(activeCategory)
+  const usesTrainingErrorLimit = Boolean(
+    isSinglePlayer && !examContext && !persistentToken && trainingErrorLimit
+  )
+
+  const registerTrainingError = problem => {
+    if (!usesTrainingErrorLimit) return false
+    const nextPoints = trainingErrorPointsRef.current + getTrainingErrorWeight(problem)
+    trainingErrorPointsRef.current = nextPoints
+    setTrainingErrorPoints(nextPoints)
+    const limitReached = nextPoints >= trainingErrorLimit
+    if (limitReached) setTrainingAbortPending(true)
+    return limitReached
+  }
+
+  const finishTrainingAfterErrorLimit = () => {
+    pauseTimerRef.current = false
+    setMistakeState(null)
+    setSchriftlichCheckMode(false)
+    setTrainingAbortPending(false)
+    setTrainingAborted(true)
+    setFinished(true)
+  }
+
   const recordEquationError = (userEquation) => {
     const prob = problems[current]
+    const limitReached = registerTrainingError(prob)
     const newEntry = { ...prob, user: '(Gleichung falsch)', isCorrect: false, equationSnapshot: { equationValue: userEquation, resultValue: '', equationRevealed: true } }
     const newAnswers = [...answers, newEntry]
     setAnswers(newAnswers)
     // Show inline mistake: display student's equation and the correct example equation
     const userDisplay = userEquation ? String(userEquation).replace(/\./g, ',') : '(Gleichung falsch)'
     const correctDisplay = prob.exampleEquation || formatCorrectAnswer(prob)
-    setMistakeState({ userAnswerDisplay: userDisplay, correctAnswerDisplay: correctDisplay, field: 'equation' })
+    setMistakeState({ userAnswerDisplay: userDisplay, correctAnswerDisplay: correctDisplay, field: 'equation', trainingLimitReached: limitReached })
+    pauseTimerRef.current = true
   }
 
   const submitAnswer = (overrideValueOrEvent, equationSnapshot = null) => {
@@ -749,6 +788,16 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
         parsed = candidateValue
         isCorrect = Number.isFinite(decimal) && Math.abs(decimal - prob.numerator / prob.denominator) < 0.000001
       }
+    } else if (prob.type === 'anteile-bruchteile') {
+      const candidateValue = String(overrideValue ?? inputValue ?? '').trim()
+      if (prob.variant === 'anteil') {
+        const result = validateAnteilFraction(candidateValue, prob)
+        parsed = result.parsed
+        isCorrect = result.isCorrect
+      } else {
+        parsed = Number(candidateValue.replace(',', '.'))
+        isCorrect = Number.isFinite(parsed) && parsed === prob.correct
+      }
     } else {
       const candidateValue = overrideValue ?? inputValue
       const sanitized = String(candidateValue).replace(/−/g, '-')
@@ -762,6 +811,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     const previousAnswer = answers[answers.length - 1]
     const canBeCorrected = prob.type === 'schriftlich' || prob.type === 'prozent-gleichung' || prob.type === 'hauptnenner'
     const isHauptnennerRetry = prob.type === 'hauptnenner' && previousAnswer?.id === prob.id && previousAnswer.isCorrect === false
+    const isSchriftlichRetry = isSchriftlichCorrectionAttempt(prob, previousAnswer)
     const wasCorrected = canBeCorrected && isCorrect && previousAnswer?.id === prob.id && previousAnswer.isCorrect === false
     const newEntry = {
       ...prob,
@@ -770,10 +820,12 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
       hauptnennerFirstAttempt: isHauptnennerRetry ? previousAnswer.hauptnennerSnapshot : undefined,
       isCorrect,
       assisted: wasCorrected,
+      correctionPending: prob.type === 'schriftlich' && !isCorrect && !isSchriftlichRetry,
       equationSnapshot: prob.type === 'prozent-gleichung' ? equationSnapshot : undefined,
       schriftlichSnapshot: prob.type === 'schriftlich' ? schriftlichInput : undefined
     }
-    const replacesAnswer = wasCorrected || isHauptnennerRetry
+    const isRepeatedSchriftlichAttempt = prob.type === 'schriftlich' && previousAnswer?.id === prob.id
+    const replacesAnswer = wasCorrected || isHauptnennerRetry || isRepeatedSchriftlichAttempt
     const newAnswers = replacesAnswer
       ? [...answers.slice(0, -1), newEntry]
       : [...answers, newEntry]
@@ -815,12 +867,25 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
         }
       }, 250)
     } else if (prob.type === 'schriftlich') {
-      // For schriftlich: record the strike, mark wrong cells in-place
+      // One correction is allowed. Each of the two failed submissions counts
+      // as half an error, but both belong to the same progress entry.
+      const limitReached = registerTrainingError(prob)
       setAnswers(newAnswers)
       pauseTimerRef.current = true
-      setSchriftlichCheckMode(true)
+      if (isSchriftlichRetry || limitReached) {
+        setSchriftlichCheckMode(false)
+        setMistakeState({
+          field: 'schriftlich',
+          trainingLimitReached: limitReached,
+          userAnswerDisplay: String(parsed ?? ''),
+          correctAnswerDisplay: formatCorrectAnswer(prob)
+        })
+      } else {
+        setSchriftlichCheckMode(true)
+      }
     } else {
       // Wrong answer: show mistake panel and pause timer
+      const limitReached = registerTrainingError(prob)
       setAnswers(newAnswers)
       const rawUserAnswer = String(overrideValue ?? inputValue ?? '').trim() || String(parsed ?? '?')
       const userAnswerDisplay = prob.type === 'primfaktorisierung'
@@ -835,18 +900,25 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
               ? rawUserAnswer
             : prob.type === 'dezimalbrueche'
               ? rawUserAnswer
+            : prob.type === 'anteile-bruchteile'
+              ? prob.variant === 'anteil' ? rawUserAnswer : `${rawUserAnswer} ${prob.answerUnit || prob.unit}`
             : rawUserAnswer
       setMistakeState({
-        canRetry: prob.type === 'hauptnenner' && !isHauptnennerRetry,
+        canRetry: prob.type === 'hauptnenner' && !isHauptnennerRetry && !limitReached,
         userAnswerDisplay,
         correctAnswerDisplay: formatCorrectAnswerOptions(prob).join('\n'),
-        field: prob.type === 'prozent-gleichung' ? 'result' : 'other'
+        field: prob.type === 'prozent-gleichung' ? 'result' : 'other',
+        trainingLimitReached: limitReached
       })
       pauseTimerRef.current = true
     }
   }
 
   const dismissMistake = () => {
+    if (mistakeState?.trainingLimitReached || trainingAbortPending) {
+      finishTrainingAfterErrorLimit()
+      return
+    }
     if (problems[current].type === 'hauptnenner' && mistakeState?.canRetry) {
       setMistakeState(null)
       pauseTimerRef.current = false
@@ -875,13 +947,14 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
 
   const correctCount = answers.filter(a => a.isCorrect).length
   const wrongCount = answers.filter(a => !a.isCorrect).length
-  const assignmentThresholds = assignmentContext?.policy?.ratingThresholds || getCategoryRatingThresholds(activeCategory)
-  const assignmentRating = getCategoryAttemptRating(activeCategory, correctCount, assignmentThresholds)
-  const scoreRange = assignmentContext ? [assignmentThresholds[0], assignmentThresholds[3]] : getCategoryPerformanceScore(activeCategory)
+  const ratingThresholds = assignmentContext?.policy?.ratingThresholds || getCategoryRatingThresholds(activeCategory)
+  const resultRating = getCategoryAttemptRating(activeCategory, correctCount, ratingThresholds)
+  const scoreRange = assignmentContext ? [ratingThresholds[0], ratingThresholds[3]] : getCategoryPerformanceScore(activeCategory)
   // bump key changes every time a correct answer is added, triggering re-animation
   const scoreBumpKey = correctCount
 
   const reviewAnswers = answers
+  const schriftlichSolutionRevealed = trainingAbortPending || mistakeState?.field === 'schriftlich'
   const selectedAnswer = selectedAnswerId == null
     ? null
     : reviewAnswers.find(a => a.id === selectedAnswerId) || null
@@ -1081,9 +1154,9 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
                 {answers.map((answer, index) => (
                   <span
                     key={`${answer.id}-${index}`}
-                    className={`progress-segment ${answer.assisted ? 'assisted' : answer.isCorrect ? 'correct' : 'incorrect'}`}
-                    aria-label={`Aufgabe ${index + 1}: ${answer.assisted ? (answer.type === 'hauptnenner' ? 'teilweise gelöst' : 'mit Hilfe gelöst') : answer.isCorrect ? 'richtig' : 'falsch'}`}
-                    title={answer.assisted ? (answer.type === 'hauptnenner' ? 'Teilweise gelöst' : 'Mit Hilfe gelöst') : answer.isCorrect ? 'Richtig' : 'Falsch'}
+                    className={`progress-segment ${answer.assisted || answer.correctionPending ? 'assisted' : answer.isCorrect ? 'correct' : 'incorrect'}`}
+                    aria-label={`Aufgabe ${index + 1}: ${answer.correctionPending ? 'wird verbessert' : answer.assisted ? (answer.type === 'hauptnenner' || answer.type === 'schriftlich' ? 'teilweise gelöst' : 'mit Hilfe gelöst') : answer.isCorrect ? 'richtig' : 'falsch'}`}
+                    title={answer.correctionPending ? 'Wird verbessert' : answer.assisted ? (answer.type === 'hauptnenner' || answer.type === 'schriftlich' ? 'Teilweise gelöst' : 'Mit Hilfe gelöst') : answer.isCorrect ? 'Richtig' : 'Falsch'}
                   />
                 ))}
                 {!mistakeState && (
@@ -1095,6 +1168,14 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
           </div>
           {isSinglePlayer && !examContext && !persistentToken && (
             <div className="training-attempt-actions">
+              {usesTrainingErrorLimit && (
+                <span
+                  className={`training-error-status${trainingErrorPoints >= trainingErrorLimit - 1 ? ' training-error-status--warning' : ''}`}
+                  title={activeCategory.startsWith('schriftlich-') ? 'Bei schriftlichen Aufgaben zählt jeder Fehlversuch als halber Fehler.' : undefined}
+                >
+                  Fehler: <strong>{formatTrainingErrorPoints(trainingErrorPoints)} von {trainingErrorLimit}</strong>
+                </span>
+              )}
               <button type="button" className="management-link-button" onClick={restartTraining}>Versuch neu starten</button>
             </div>
           )}
@@ -1134,6 +1215,8 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
                     onChange={setSchriftlichInput}
                     onEnter={handleSchriftlichSubmit}
                     checkMode={schriftlichCheckMode}
+                    review={schriftlichSolutionRevealed}
+                    showCorrect={schriftlichSolutionRevealed}
                   /> : <Schriftlich
                     key={problems[current].id}
                       aDigits={problems[current].aDigits}
@@ -1145,18 +1228,24 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
                       onChange={setSchriftlichInput}
                     onEnter={handleSchriftlichSubmit}
                     checkMode={schriftlichCheckMode}
+                    review={schriftlichSolutionRevealed}
+                    showCorrect={schriftlichSolutionRevealed}
                   />}
-                    {schriftlichCheckMode && (
+                    {trainingAbortPending ? (
+                      <p className="schriftlich-correction-hint">Du hast die Fehlergrenze erreicht. Hier siehst du die richtige Lösung.</p>
+                    ) : mistakeState?.field === 'schriftlich' ? (
+                      <p className="schriftlich-correction-hint">Auch nach der Verbesserung ist noch ein Fehler enthalten. Hier siehst du die richtige Lösung.</p>
+                    ) : schriftlichCheckMode && (
                       <p className="schriftlich-correction-hint">Noch nicht ganz richtig — bitte korrigiere die falschen Zahlen.</p>
                     )}
                     <div className="question-bottom-actions">
                       <button
                         type="button"
                         className="big schriftlich-check-button"
-                        onClick={handleSchriftlichSubmit}
-                        disabled={!schriftlichInput?.valid || flashResult === 'correct'}
+                        onClick={schriftlichSolutionRevealed ? dismissMistake : handleSchriftlichSubmit}
+                        disabled={!schriftlichSolutionRevealed && (!schriftlichInput?.valid || flashResult === 'correct')}
                       >
-                        Prüfen
+                        {trainingAbortPending ? 'Ergebnis ansehen' : schriftlichSolutionRevealed ? 'Weiter' : 'Prüfen'}
                       </button>
                     </div>
                   </>
@@ -1208,6 +1297,17 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
                     crossedOut={Boolean(mistakeState)}
                     mistakeFeedback={mistakeState}
                   />
+                ) : problems[current].type === 'anteile-bruchteile' ? (
+                  <AnteileBruchteile
+                    key={problems[current].id}
+                    problem={problems[current]}
+                    value={inputValue}
+                    onChange={setInputValue}
+                    onEnter={submitAnswer}
+                    showTick={flashResult === 'correct'}
+                    crossedOut={Boolean(mistakeState)}
+                    mistakeFeedback={mistakeState}
+                  />
                 ) : problems[current].type === 'binomische' ? (
                   <Binomische
                     key={problems[current].id}
@@ -1232,9 +1332,9 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
                     continueButtonRef={weiterButtonRef}
                   />
                 ) : null}
-                {mistakeState && problems[current].type !== 'prozent-gleichung' && (
+                {mistakeState && problems[current].type !== 'prozent-gleichung' && problems[current].type !== 'schriftlich' && (
                   <div className="question-bottom-actions">
-                    <button ref={weiterButtonRef} onClick={dismissMistake} className="big">{mistakeState.canRetry ? 'Verbessern' : 'Weiter'}</button>
+                    <button ref={weiterButtonRef} onClick={dismissMistake} className="big">{mistakeState.trainingLimitReached ? 'Ergebnis ansehen' : mistakeState.canRetry ? 'Verbessern' : 'Weiter'}</button>
                   </div>
                 )}
               </div>
@@ -1276,7 +1376,13 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
 
       {finished && (
         <main>
-          <h2>Ergebnis</h2>
+          <h2>{trainingAborted ? 'Versuch beendet' : 'Ergebnis'}</h2>
+          {trainingAborted && (
+            <div className="training-abort-message" role="status">
+              <strong>Du hast die Fehlergrenze erreicht.</strong>
+              <span>Das ist nicht schlimm – übe die schwierigen Aufgaben noch einmal und versuche es doch gleich nochmal!</span>
+            </div>
+          )}
           {persistentToken && <div role="status" aria-live="polite">
             {submissionStatus === 'saved' ? <p>✓ Deine Abgabe ist gespeichert.</p> : submissionStatus === 'error' ? <><p className="error">Die Abgabe ist noch nicht gespeichert. {submissionError}</p><button className="big" onClick={submitPersistentExam}>Abgabe erneut senden</button></> : <p>Deine Abgabe wird gespeichert. Bitte lasse dieses Fenster geöffnet.</p>}
           </div>}
@@ -1306,7 +1412,13 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
                 </span>
               </div>
               <div className="performance-comment">
-                {assignmentContext ? <span aria-label={`${assignmentRating.label}, ${assignmentRating.stars} von 5 Sternen`}>{assignmentRating.label} {'★'.repeat(assignmentRating.stars)}{'☆'.repeat(5 - assignmentRating.stars)}</span> : getScoreComment(correctCount, scoreRange)}
+                <div className="result-rating">
+                  <strong>{resultRating.label}</strong>
+                  <span className="result-rating-stars" role="img" aria-label={`${resultRating.stars} von 5 Sternen`}>
+                    <span aria-hidden="true">{'★'.repeat(resultRating.stars)}<span className="result-rating-stars-empty">{'☆'.repeat(5 - resultRating.stars)}</span></span>
+                  </span>
+                </div>
+                {!assignmentContext && <div className="result-performance-message">{getScoreComment(correctCount, scoreRange)}</div>}
               </div>
             </div>
           </div>

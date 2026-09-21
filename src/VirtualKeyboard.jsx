@@ -75,6 +75,7 @@ const KEY_LAYOUTS = {
 }
 KEY_LAYOUTS.hauptnenner = KEY_LAYOUTS.primfaktorisierung
 KEY_LAYOUTS.schriftlich = KEY_LAYOUTS.multiplication
+KEY_LAYOUTS['anteile-bruchteile'] = KEY_LAYOUTS['gemischte-zahlen']
 
 function getBinomischeLayout(variable) {
   const v = variable || 'x'
