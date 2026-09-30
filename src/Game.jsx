@@ -254,6 +254,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
 
   const [started, setStarted] = useState(false)
   const [countdown, setCountdown] = useState(null)
+  const [timerVisible, setTimerVisible] = useState(true)
   const [current, setCurrent] = useState(0)
   const [answers, setAnswers] = useState([])
   const [inputValue, setInputValue] = useState('')
@@ -1163,7 +1164,28 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
                 )}
               </div>
             </div>
-            <div className="score-timer">Zeit: {formatTime(timeLeft)}</div>
+            <div className="score-timer">
+              {timerVisible && <span>Zeit: {formatTime(timeLeft)}</span>}
+              <button
+                type="button"
+                className="timer-visibility-button"
+                onClick={() => setTimerVisible(visible => !visible)}
+                aria-label={timerVisible ? 'Timer ausblenden' : 'Timer einblenden'}
+                aria-pressed={!timerVisible}
+                title={timerVisible ? 'Timer ausblenden' : 'Timer einblenden'}
+              >
+                {timerVisible ? (
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                    <circle cx="12" cy="12" r="2.75" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 3l18 18M10.6 6.1A8.5 8.5 0 0 1 12 6c6 0 9.5 6 9.5 6a15.8 15.8 0 0 1-2.1 2.8M6.2 6.3C3.8 8 2.5 12 2.5 12s3.5 6 9.5 6a9.8 9.8 0 0 0 3.1-.5M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
           {isSinglePlayer && !examContext && !persistentToken && (
             <div className="training-attempt-actions">
