@@ -400,7 +400,7 @@ export function generateBinomischeProblems(count, settings) {
     let expanded;
     
     // Generate coefficients
-    // Simple: integers 1-12
+    // Simple: integers 1-10, with an occasional square from 11-20
     // Hard: one is a decimal 1.1 - 1.9 (requiring 11^2 - 19^2)
     
     let val1, val2;
@@ -423,8 +423,24 @@ export function generateBinomischeProblems(count, settings) {
         [val1, val2] = [val2, val1];
       }
     } else {
-      val1 = Math.floor(Math.random() * 12) + 1;
-      val2 = Math.floor(Math.random() * 12) + 1;
+      val1 = Math.floor(Math.random() * 10) + 1;
+      val2 = Math.floor(Math.random() * 10) + 1;
+
+      // In about one out of five integer problems, one term deliberately
+      // revises a square from 11² to 20². The other term is limited to an
+      // easy partner so that the middle term remains manageable mentally.
+      if (Math.random() < 0.2) {
+        const largerSquareBase = Math.floor(Math.random() * 10) + 11;
+        const easyPartners = [1, 2, 5];
+        const easyPartner = easyPartners[Math.floor(Math.random() * easyPartners.length)];
+        if (Math.random() < 0.5) {
+          val1 = largerSquareBase;
+          val2 = easyPartner;
+        } else {
+          val1 = easyPartner;
+          val2 = largerSquareBase;
+        }
+      }
       // Avoid 1x, just x
     }
 
