@@ -1,8 +1,23 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import Logo from './Logo'
 import { AttemptCards, AssignmentGoal } from './AssignmentAttempts'
+import AnswerDetailDialog from './AnswerDetailDialog'
 import { getAssignmentGoalProgress, getCategoryLabel } from './utils/categories'
+
+function AttemptUnavailableDialog({ onClose }) {
+  const dialogRef = useRef(null)
+  useEffect(() => {
+    dialogRef.current.showModal()
+    return () => dialogRef.current?.close()
+  }, [])
+  return createPortal(<dialog ref={dialogRef} className="attempt-empty-dialog" aria-labelledby="attempt-empty-title" onCancel={event => { event.preventDefault(); onClose() }} onClick={event => { if (event.target === event.currentTarget) onClose() }}>
+    <h2 id="attempt-empty-title">Keine Einzelaufgaben gespeichert</h2>
+    <p>Dieser Versuch wurde abgeschlossen, bevor die Aufgabenspeicherung verfügbar war.</p>
+    <button type="button" className="big" autoFocus onClick={onClose}>Schließen</button>
+  </dialog>, document.body)
+}
 
 export default function AssignmentProgress() {
   const { classId, assignmentId } = useParams()
@@ -11,6 +26,7 @@ export default function AssignmentProgress() {
   const [refresh, setRefresh] = useState(0)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [selectedAttempt, setSelectedAttempt] = useState(null)
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true); setError(null); setData(null)
@@ -39,11 +55,21 @@ export default function AssignmentProgress() {
         <label className="assignment-progress-filter">Anzeigen <select value={filter} onChange={event => setFilter(event.target.value)}><option value="all">Alle Schüler:innen</option>{hasGoal && <><option value="open">Ziel noch offen</option><option value="achieved">Ziel erfüllt</option></>}<option value="none">Noch kein Versuch</option></select></label>
         <div className="student-category-grid">{visible.map(student => <article className="student-category student-category--assignment" key={student.id}>
           <strong>{student.displayName}</strong>
-          <AttemptCards assignment={data.assignment} attempts={student.attempts} />
+          <AttemptCards assignment={data.assignment} attempts={student.attempts} onSelect={attempt => setSelectedAttempt({ attempt, studentName: student.displayName, position: 0 })} />
           <AssignmentGoal assignment={data.assignment} attempts={student.attempts} />
         </article>)}</div>
         {visible.length === 0 && <p>{students.length === 0 ? 'In dieser Klasse sind noch keine Schüler:innen.' : 'Keine Schüler:innen für diesen Filter.'}</p>}
       </>}
     </section>
+    {selectedAttempt && (selectedAttempt.attempt.answers || []).length > 0 && <AnswerDetailDialog
+      answer={selectedAttempt.attempt.answers[selectedAttempt.position]}
+      studentName={selectedAttempt.studentName}
+      position={selectedAttempt.position}
+      total={selectedAttempt.attempt.answers.length}
+      onClose={() => setSelectedAttempt(null)}
+      onPrevious={() => setSelectedAttempt(value => ({ ...value, position: value.position - 1 }))}
+      onNext={() => setSelectedAttempt(value => ({ ...value, position: value.position + 1 }))}
+    />}
+    {selectedAttempt && (selectedAttempt.attempt.answers || []).length === 0 && <AttemptUnavailableDialog onClose={() => setSelectedAttempt(null)} />}
   </main>
 }

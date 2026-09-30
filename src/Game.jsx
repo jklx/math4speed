@@ -987,11 +987,10 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
         category: activeCategory,
         assignmentId: assignmentContext?.id || null,
         durationSeconds: gameDurationRef.current,
-        correctCount,
-        wrongCount
+        answers
       })
     }).catch(() => {})
-  }, [finished, isSinglePlayer, examContext, activeCategory, correctCount, wrongCount])
+  }, [finished, isSinglePlayer, examContext, activeCategory, answers])
 
   // The visible continue button receives focus after an error, so Enter activates it.
   useEffect(() => {

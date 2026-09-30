@@ -25,6 +25,7 @@ const {
 } = require('./database');
 const { createStudentCode, normalizeStudentCode } = require('./studentCodes');
 const { validateAssignmentPolicy } = require('./assignmentPolicy');
+const { normalizePracticeAnswers } = require('./practiceAnswers');
 const { PROFILES: BOT_PROFILES, createRehearsalBots } = require('./rehearsalBots');
 
 const app = express();
@@ -265,29 +266,51 @@ app.post('/api/student/logout', requireStudent, async (request, response, next) 
 app.get('/api/student/me', requireStudent, (request, response) => response.json({ student: request.student }));
 
 app.post('/api/student/practice-sessions', requireStudent, async (request, response, next) => {
+  let normalized;
   try {
     const category = String(request.body?.category || '');
     const durationSeconds = Number(request.body?.durationSeconds);
-    const correctCount = Number(request.body?.correctCount);
-    const wrongCount = Number(request.body?.wrongCount);
     const assignmentId = request.body?.assignmentId ? String(request.body.assignmentId) : null;
-    if (!VALID_CATEGORIES.includes(category) || !Number.isInteger(durationSeconds) || durationSeconds < 0 || durationSeconds > 7200 ||
-      !Number.isInteger(correctCount) || correctCount < 0 || !Number.isInteger(wrongCount) || wrongCount < 0) {
+    if (!VALID_CATEGORIES.includes(category) || !Number.isInteger(durationSeconds) || durationSeconds < 0 || durationSeconds > 7200) {
       return response.status(400).json({ error: 'Ungültiges Trainingsergebnis.' });
     }
-    if (assignmentId) {
-      const assignment = await getPool().query(
-        `SELECT 1 FROM assignments WHERE id = $1 AND class_id = $2 AND category = $3 AND archived_at IS NULL`,
-        [assignmentId, request.student.classId, category]
+    try { normalized = normalizePracticeAnswers(request.body?.answers); }
+    catch (error) { return response.status(400).json({ error: error.message }); }
+
+    const db = await getPool().connect();
+    const sessionId = newId();
+    try {
+      await db.query('BEGIN');
+      if (assignmentId) {
+        const assignment = await db.query(
+          `SELECT 1 FROM assignments WHERE id = $1 AND class_id = $2 AND category = $3 AND archived_at IS NULL`,
+          [assignmentId, request.student.classId, category]
+        );
+        if (!assignment.rowCount) {
+          await db.query('ROLLBACK');
+          return response.status(400).json({ error: 'Diese Übung ist nicht verfügbar.' });
+        }
+      }
+      await db.query(
+        `INSERT INTO practice_sessions (id, student_id, assignment_id, category, completed_at, duration_seconds, correct_count, wrong_count)
+         VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7)`,
+        [sessionId, request.student.id, assignmentId, category, durationSeconds, normalized.correctCount, normalized.wrongCount]
       );
-      if (!assignment.rowCount) return response.status(400).json({ error: 'Diese Übung ist nicht verfügbar.' });
-    }
-    await getPool().query(
-      `INSERT INTO practice_sessions (id, student_id, assignment_id, category, completed_at, duration_seconds, correct_count, wrong_count)
-       VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7)`,
-      [newId(), request.student.id, assignmentId, category, durationSeconds, correctCount, wrongCount]
-    );
-    return response.status(201).json({ ok: true });
+      if (normalized.answers.length) {
+        await db.query(
+          `INSERT INTO practice_answers (session_id, position, task, submitted_answer, is_correct, assisted)
+           SELECT $1, answer.position, answer.task, answer."submittedAnswer", answer."isCorrect", answer.assisted
+             FROM jsonb_to_recordset($2::jsonb)
+               AS answer(position integer, task jsonb, "submittedAnswer" jsonb, "isCorrect" boolean, assisted boolean)`,
+          [sessionId, JSON.stringify(normalized.answers)]
+        );
+      }
+      await db.query('COMMIT');
+      return response.status(201).json({ session: { id: sessionId, correctCount: normalized.correctCount, wrongCount: normalized.wrongCount } });
+    } catch (error) {
+      await db.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally { db.release(); }
   } catch (error) {
     return next(error);
   }
@@ -448,7 +471,18 @@ app.get('/api/classes/:classId/assignments/:assignmentId/progress', requireUser,
        LEFT JOIN LATERAL (
          SELECT json_agg(json_build_object(
            'id', p.id, 'completedAt', p.completed_at, 'durationSeconds', p.duration_seconds,
-           'correctCount', p.correct_count, 'wrongCount', p.wrong_count
+           'correctCount', p.correct_count, 'wrongCount', p.wrong_count,
+           'answers', COALESCE((
+             SELECT jsonb_agg(pa.task || jsonb_build_object(
+               'user', pa.submitted_answer->'value',
+               'schriftlichSnapshot', pa.submitted_answer->'schriftlichSnapshot',
+               'hauptnennerSnapshot', pa.submitted_answer->'hauptnennerSnapshot',
+               'hauptnennerFirstAttempt', pa.submitted_answer->'hauptnennerFirstAttempt',
+               'equationSnapshot', pa.submitted_answer->'equationSnapshot',
+               'isCorrect', pa.is_correct, 'assisted', pa.assisted
+             ) ORDER BY pa.position)
+             FROM practice_answers pa WHERE pa.session_id = p.id
+           ), '[]'::jsonb)
          ) ORDER BY p.completed_at DESC, p.id DESC) AS attempts
          FROM practice_sessions p
          WHERE p.student_id = s.id AND p.assignment_id = $1 AND p.completed_at IS NOT NULL

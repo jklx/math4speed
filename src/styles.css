@@ -48,6 +48,13 @@ math,
 .student-category .student-attempt-stars,.student-category .student-attempt-stars>span{color:#a66b08;font-size:1.15rem;letter-spacing:.08em;line-height:1}
 .student-category .student-attempt-stars-empty{color:#9aa8b6}
 .student-attempt--5{background:#f2faf5;border-color:#b9dcc8}
+.student-attempt--selectable{font:inherit;text-align:left;color:inherit;cursor:pointer}
+.student-attempt--selectable:hover{border-color:var(--accent);box-shadow:0 4px 12px rgba(30,58,95,.14)}
+.student-attempt--selectable:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.student-attempt-open{margin-top:.15rem;color:var(--accent);font-size:.8rem;font-weight:700}
+.attempt-empty-dialog{position:fixed;inset:0;margin:auto;width:min(440px,calc(100vw - 2rem));padding:1.5rem;border:1px solid #d6dde8;border-radius:16px;box-shadow:0 24px 80px #0004}
+.attempt-empty-dialog::backdrop{background:#10182799}
+.attempt-empty-dialog h2{margin-top:0}
 .student-category .student-assignment-action{margin-top:.3rem;font-size:.9rem;font-weight:650;color:var(--accent)}
 .student-category:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 .assignment-progress-filter{display:flex;align-items:center;gap:.6rem;margin:1rem 0;flex-wrap:wrap}

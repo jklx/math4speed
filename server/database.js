@@ -170,6 +170,16 @@ async function initializeDatabase() {
       wrong_count INTEGER NOT NULL DEFAULT 0 CHECK (wrong_count >= 0)
     );
 
+    CREATE TABLE IF NOT EXISTS practice_answers (
+      session_id UUID NOT NULL REFERENCES practice_sessions(id) ON DELETE CASCADE,
+      position INTEGER NOT NULL CHECK (position >= 0),
+      task JSONB NOT NULL,
+      submitted_answer JSONB NOT NULL,
+      is_correct BOOLEAN NOT NULL,
+      assisted BOOLEAN NOT NULL DEFAULT FALSE,
+      PRIMARY KEY (session_id, position)
+    );
+
     CREATE TABLE IF NOT EXISTS student_sessions (
       id UUID PRIMARY KEY,
       student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -198,6 +208,7 @@ async function initializeDatabase() {
     ALTER TABLE exam_room_students ADD COLUMN IF NOT EXISTS remaining_seconds INTEGER CHECK (remaining_seconds >= 0);
     ALTER TABLE exam_room_students ADD COLUMN IF NOT EXISTS last_progress_at TIMESTAMPTZ;
     CREATE INDEX IF NOT EXISTS exam_answers_by_student ON exam_answers (room_id, student_id, position);
+    CREATE INDEX IF NOT EXISTS practice_answers_by_session ON practice_answers (session_id, position);
     UPDATE students
        SET access_code = REPLACE(access_code, '-', ''),
            access_code_normalized = LOWER(REPLACE(access_code, '-', ''))
