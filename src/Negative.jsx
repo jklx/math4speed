@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { InlineSubmitButton, TickMark } from './components/AnswerControls'
+import NegativeExpression from './components/NegativeExpression'
 
 export default function Negative({ a, b, operator, value = '', onChange, onEnter, explicitPlus, showTick = false, crossedOut = false, mistakeFeedback = null, readOnly = false }) {
   const ref = useRef(null)
@@ -24,27 +25,6 @@ export default function Negative({ a, b, operator, value = '', onChange, onEnter
     if ((e.key === '-' || e.key === '\u2212') && value === '') { e.preventDefault(); onChange?.('\u2212') }
   }
 
-  const renderOperand = (val) => {
-    if (val < 0) {
-      return (
-        <mrow>
-          <mo>(</mo>
-          <mn>{String(val).replace('-', '−')}</mn>
-          <mo>)</mo>
-        </mrow>
-      )
-    }
-    if (explicitPlus && val > 0) {
-      return (
-        <mrow>
-          <mo>(</mo>
-          <mn>+{val}</mn>
-          <mo>)</mo>
-        </mrow>
-      )
-    }
-    return <mn>{val}</mn>
-  }
 
   return (
     <div className="question-centered">
@@ -52,9 +32,7 @@ export default function Negative({ a, b, operator, value = '', onChange, onEnter
         <div className="expression">
           <math display="inline" style={{ fontSize: '2rem' }}>
             <mrow>
-              {renderOperand(a)}
-              <mo style={{ margin: '0 0.2em' }}>{operator}</mo>
-              {renderOperand(b)}
+              <NegativeExpression a={a} b={b} operator={operator} explicitPlus={explicitPlus} />
               <mo style={{ margin: '0 0.2em' }}>=</mo>
             </mrow>
           </math>

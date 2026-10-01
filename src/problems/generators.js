@@ -1,4 +1,5 @@
 // Problem generators extracted from Game.jsx
+import { formatNegativeExpression } from '../utils/negativeNotation.js';
 
 export function generateEinmaleinsProblems(count, settings) {
   const { includeSquares11_20 = false, includeSquares21_25 = false } = settings;
@@ -371,11 +372,7 @@ export function generateNegativeProblems(count, settings) {
       // We allow it occasionally (15% chance) to keep some variety
     } while (a >= 0 && b >= 0 && correct >= 0 && Math.random() > 0.15 && attempts < 10);
 
-    // Update expression if explicit plus is requested
-    if (negativeExplicitPlus) {
-      const formatOperand = (val) => val < 0 ? `(${val})` : `(+${val})`;
-      expression = `${formatOperand(a)} ${operator} ${formatOperand(b)}`;
-    }
+    expression = formatNegativeExpression(a, b, operator, negativeExplicitPlus);
 
     problems.push({ id: i + 1, expression, a, b, operator, correct, type: 'negative', explicitPlus: negativeExplicitPlus });
   }

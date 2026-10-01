@@ -1,3 +1,4 @@
+import NegativeExpression from './components/NegativeExpression'
 import React from 'react'
 import { getOperator } from './utils/getOperator'
 import { formatFactors } from './utils/formatFactors'
@@ -71,35 +72,12 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich, on
           )
         }
         if (q.type === 'negative') {
-          const renderOperand = (val) => {
-            if (val < 0) {
-              return (
-                <mrow>
-                  <mo>(</mo>
-                  <mn>{String(val).replace('-', '−')}</mn>
-                  <mo>)</mo>
-                </mrow>
-              )
-            }
-            if (q.explicitPlus && val > 0) {
-              return (
-                <mrow>
-                  <mo>(</mo>
-                  <mn>+{val}</mn>
-                  <mo>)</mo>
-                </mrow>
-              )
-            }
-            return <mn>{val}</mn>
-          }
           const displayValue = isCorrect ? q.correct : (isNaN(q.user) ? '—' : normalizeNumberString(q.user))
           return (
             <li key={q.id} {...selectionProps} onClick={handleClick} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <math display="inline">
                 <mrow>
-                  {renderOperand(q.a)}
-                  <mo style={{ margin: '0 0.2em' }}>{q.operator}</mo>
-                  {renderOperand(q.b)}
+                  <NegativeExpression a={q.a} b={q.b} operator={q.operator} explicitPlus={q.explicitPlus} />
                   <mo style={{ margin: '0 0.2em' }}>=</mo>
                   <mn>{displayValue}</mn>
                 </mrow>
