@@ -167,7 +167,7 @@ import ProgressBar from './ProgressBar'
 // Refactored imports
 import { generateProblems } from './problems/generators'
 import { validateSchriftlich, validatePrimfaktorisierung, validatePolynomial, validateAnteilFraction } from './problems/validate'
-import { getScoreComment, getScoreMarkerPosition } from './utils/performanceFeedback'
+import { getScoreComment } from './utils/performanceFeedback'
 import { getCategoryLabel, CATEGORIES, getDefaultSettings, getCategoryPerformanceScore, getCategoryDuration, getCategoryAttemptRating, getCategoryRatingThresholds, getCategoryTrainingErrorLimit } from './utils/categories'
 import { formatTrainingErrorPoints, getTrainingErrorWeight, isSchriftlichCorrectionAttempt } from './utils/trainingErrors'
 import Schriftlich from './Schriftlich'
@@ -1418,20 +1418,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
             </div>
 
             <div className="performance">
-              <ProgressBar finalTime={correctCount} range={scoreRange} getMarkerPosition={getScoreMarkerPosition} scoreMode />
-              <div className="performance-labels">
-                <span className="performance-label performance-label-left">
-                  <span>Üben</span>
-                  <span>{scoreRange[0]}</span>
-                </span>
-                <span className="performance-label performance-label-center">
-                  <span>Gut</span>
-                </span>
-                <span className="performance-label performance-label-right">
-                  <span>Hervorragend</span>
-                  <span>{scoreRange[1]}</span>
-                </span>
-              </div>
+              <ProgressBar correctCount={correctCount} ratingThresholds={ratingThresholds} />
               <div className="performance-comment">
                 <div className="result-rating">
                   <strong>{resultRating.label}</strong>
