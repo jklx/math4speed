@@ -70,7 +70,7 @@ function createRehearsalBots({ getPool, createStudentSession, origin, intervalMs
           if (controller.signal.aborted) return;
           bots.push({ ...pupil, cookie: `math4speed_student=${await createStudentSession(pupil.id)}` });
         }
-        async function request(bot, suffix, body) {
+        const request = async (bot, suffix, body) => {
           const response = await fetch(`${origin()}/api/exam-rooms/${roomId}/${suffix}${body === undefined ? `?token=${encodeURIComponent(room.token)}` : ''}`, {
             method: body === undefined ? 'GET' : 'POST',
             headers: { 'Content-Type': 'application/json', Cookie: bot.cookie },

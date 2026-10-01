@@ -31,12 +31,12 @@ async function main() {
     let ready = false;
     for (let i=0;i<80;i++) { if (logs.includes('Server running')) {ready=true;break;} if(child.exitCode!==null)throw Error(logs); await new Promise(r=>setTimeout(r,100)); }
     assert.ok(ready, logs);
-    async function call(path, cookie='', body, expected=200, method=body===undefined?'GET':'POST') {
+    const call = async (path, cookie='', body, expected=200, method=body===undefined?'GET':'POST') => {
       const response = await fetch(base+path,{ method, headers:{'Content-Type':'application/json',Cookie:cookie},body:body===undefined?undefined:JSON.stringify(body) });
       const text = await response.text(); assert.equal(response.status,expected,path+' '+text);
       return {data:text?JSON.parse(text):null,cookie:response.headers.get('set-cookie')?.split(';')[0]};
     }
-    function event(socket, name, predicate = () => true) {
+    const event = (socket, name, predicate = () => true) => {
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => { socket.off(name, handler); reject(Error('Timed out: ' + name)); }, 5000);
         function handler(value) { if (!predicate(value)) return; clearTimeout(timer); socket.off(name, handler); resolve(value); }
@@ -149,7 +149,7 @@ async function main() {
       await call(root+'/bots',other,{},409);
       await call(root+'/reset-rehearsal',owner,{},204);
       await Promise.all([call(root+'/bots',owner,{},204),call(root+'/bots',owner,{},204)]);
-      async function waitUntil(predicate, timeout=10000) {
+      const waitUntil = async (predicate, timeout=10000) => {
         const deadline=Date.now()+timeout;
         while(Date.now()<deadline) { const state=(await call(root,owner)).data; if(predicate(state)) return state; if(state.automation.error)throw Error(state.automation.error); await new Promise(r=>setTimeout(r,300)); }
         throw Error('Timed out waiting for automatic pupils');

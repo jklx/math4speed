@@ -584,7 +584,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     submissionBusy.current = true
     setSubmissionStatus('saving'); setSubmissionError(null)
     try {
-      async function post(suffix, body) {
+      const post = async (suffix, body) => {
         const response = await fetch(`/api/exam-rooms/${roomId}/${suffix}`, {
           method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: persistentToken, ...body })

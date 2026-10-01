@@ -121,7 +121,7 @@ function publicOrigin(request) {
 }
 
 function xmlEscape(value) {
-  return String(value).replace(/[<>&'\"]/g, character => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[character]));
+  return String(value).replace(/[<>&'"]/g, character => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[character]));
 }
 
 function sebExamSettings(startUrl) {
@@ -1314,7 +1314,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('finishGame', ({ roomId, score, wrongCount }) => {
+  socket.on('finishGame', ({ roomId }) => {
     const rid = String(roomId).toLowerCase();
     const room = rooms.get(rid);
     if (!room || room.status === 'finished') return;
@@ -1417,9 +1417,10 @@ if (fs.existsSync(frontendDir)) {
 
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use((error, _request, response, _next) => {
+app.use((error, _request, response, next) => {
   console.error('Request failed:', error);
-  response.status(500).json({ error: 'Unerwarteter Serverfehler.' });
+  if (response.headersSent) return next(error);
+  return response.status(500).json({ error: 'Unerwarteter Serverfehler.' });
 });
 
 async function startServer() {
