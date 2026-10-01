@@ -81,11 +81,25 @@ function TeacherAdmin() {
   </>
 }
 
-function ClassDetail({ selectedClass, onBack }) {
+function StudentCodeStyleSelect({ value, onChange, disabled = false }) {
+  return <label>Art der Schülerkennungen<select className="app-input" value={value || 'animals'} disabled={disabled} onChange={event => onChange(event.target.value)}><option value="animals">Tiere · z. B. flinkerFuchs7</option><option value="personalities">Bekannte Persönlichkeiten · z. B. MarieCurie4827</option></select></label>
+}
+
+function ClassDetail({ selectedClass, onBack, onClassUpdated }) {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [students, setStudents] = useState([])
   const [regeneratingCodes, setRegeneratingCodes] = useState(new Set())
+  const [codeStyleSaving, setCodeStyleSaving] = useState(false)
+  const [importingNames, setImportingNames] = useState(false)
+  async function saveCodeStyle(studentCodeStyle) {
+    setCodeStyleSaving(true); setError(null)
+    try {
+      const result = await api(`/api/classes/${selectedClass.id}`, { method: 'PATCH', body: JSON.stringify({ studentCodeStyle }) })
+      onClassUpdated(result.class)
+    } catch (requestError) { setError(requestError.message) }
+    finally { setCodeStyleSaving(false) }
+  }
   const [progress, setProgress] = useState(new Map())
   const [assignments, setAssignments] = useState([])
   const [assignmentTitle, setAssignmentTitle] = useState('')
@@ -120,12 +134,15 @@ function ClassDetail({ selectedClass, onBack }) {
   }, [selectedClass.id])
   async function importNames(event) {
     event.preventDefault(); setError(null)
+    if (codeStyleSaving || importingNames) return
+    setImportingNames(true)
     const parsed = names.split(/\r?\n/).map(name => name.trim()).filter(Boolean)
     try {
       const result = await api(`/api/classes/${selectedClass.id}/students/import`, { method: 'POST', body: JSON.stringify({ names: parsed }) })
       setStudents(current => [...current, ...result.students].sort((a, b) => a.displayName.localeCompare(b.displayName, 'de')))
       setNames('')
     } catch (requestError) { setError(requestError.message) }
+    finally { setImportingNames(false) }
   }
   async function createAssignment(event) {
     event.preventDefault(); setError(null)
@@ -232,7 +249,8 @@ function ClassDetail({ selectedClass, onBack }) {
     <section className="management-card class-header"><div><h1>{selectedClass.name}</h1><p>Klasse, Übungen und Tests verwalten.</p></div><button className="management-danger-button" onClick={deleteClass}>Klasse löschen</button></section>
     <nav className="class-tabs" aria-label="Klassenverwaltung"><button className={tab === 'assignments' ? 'active' : ''} onClick={() => setTab('assignments')}>Übungen</button><button className={tab === 'tests' ? 'active' : ''} onClick={() => setTab('tests')}>Tests</button><button className={tab === 'configuration' ? 'active' : ''} onClick={() => setTab('configuration')}>Klassenkonfiguration</button></nav>
     {error && <p className="error">{error}</p>}
-    {tab === 'configuration' && <section className="management-card"><h2>Schüler:innen ({students.length})</h2><p>Füge Namen zeilenweise ein. Für jede Person entsteht eine merkbare Kennung.</p><form onSubmit={importNames} className="management-form"><label>Schülernamen<textarea value={names} onChange={event => setNames(event.target.value)} rows="7" placeholder={'Mia Muster\nNoah Beispiel'} required /></label><button className="big">Kennungen erzeugen</button></form><ul className="management-list management-list--codes">{students.map(student => { const stats = progress.get(student.id); const minutes = Math.floor((stats?.durationSeconds || 0) / 60); return <li key={student.id}><div><strong>{student.displayName}</strong><span className="management-stat">{stats?.sessionCount || 0} Trainings · {minutes} Min. · {stats?.correctCount || 0} richtig</span></div><div className="student-code-actions"><code aria-live="polite">{student.accessCode}</code><button type="button" className="management-link-button student-code-reset" disabled={regeneratingCodes.has(student.id)} onClick={() => regenerateStudentCode(student.id)} aria-label={`Zugangscode für ${student.displayName} neu vergeben`} title="Neue Kennung erzeugen – die bisherige wird ungültig">{regeneratingCodes.has(student.id) ? '…' : '↻'}</button></div><button className="management-danger-button" onClick={() => deleteStudent(student.id)}>Löschen</button></li> })}</ul></section>}
+    {tab === 'configuration' && <section className="management-card"><h2>Schülerkennungen</h2><div className="management-form"><StudentCodeStyleSelect value={selectedClass.studentCodeStyle} onChange={saveCodeStyle} disabled={codeStyleSaving || importingNames || regeneratingCodes.size > 0} /></div><p>Die Auswahl gilt für neue und einzeln erneuerte Kennungen. Bestehende Kennungen bleiben gültig.</p>{selectedClass.studentCodeStyle === 'personalities' && <p>Ausgewählte Namen aus Wissenschaft, Kultur und gesellschaftlichem Engagement, ergänzt um vier zufällige Ziffern.</p>}<span role="status">{codeStyleSaving ? 'Auswahl wird gespeichert…' : ''}</span></section>}
+    {tab === 'configuration' && <section className="management-card"><h2>Schüler:innen ({students.length})</h2><p>Füge Namen zeilenweise ein. Für jede Person entsteht eine merkbare Kennung.</p><form onSubmit={importNames} className="management-form"><label>Schülernamen<textarea value={names} onChange={event => setNames(event.target.value)} rows="7" placeholder={'Mia Muster\nNoah Beispiel'} required /></label><button className="big" disabled={codeStyleSaving || importingNames}>{importingNames ? 'Kennungen werden erzeugt…' : 'Kennungen erzeugen'}</button></form><ul className="management-list management-list--codes">{students.map(student => { const stats = progress.get(student.id); const minutes = Math.floor((stats?.durationSeconds || 0) / 60); return <li key={student.id}><div><strong>{student.displayName}</strong><span className="management-stat">{stats?.sessionCount || 0} Trainings · {minutes} Min. · {stats?.correctCount || 0} richtig</span></div><div className="student-code-actions"><code aria-live="polite">{student.accessCode}</code><button type="button" className="management-link-button student-code-reset" disabled={codeStyleSaving || regeneratingCodes.has(student.id)} onClick={() => regenerateStudentCode(student.id)} aria-label={`Zugangscode für ${student.displayName} neu vergeben`} title="Neue Kennung erzeugen – die bisherige wird ungültig">{regeneratingCodes.has(student.id) ? '…' : '↻'}</button></div><button className="management-danger-button" onClick={() => deleteStudent(student.id)}>Löschen</button></li> })}</ul></section>}
     {tab === 'assignments' && <section className="management-card"><div className="section-toolbar"><div><h2>Übungen</h2><p>Aktive Übungen erscheinen im persönlichen Training der Klasse.</p></div><button className="big" onClick={() => setDialog('assignment')}>+ Übung hinzufügen</button></div><label className="archive-toggle"><input type="checkbox" checked={showArchivedAssignments} onChange={event => setShowArchivedAssignments(event.target.checked)} /> Archivierte Übungen einblenden</label><ul className="management-list">{assignments.filter(item => showArchivedAssignments || !item.archivedAt).map(assignment => <li key={assignment.id}><div><strong>{assignment.title}</strong><span className="management-stat">{getCategoryLabel(assignment.category)}{assignment.archivedAt ? ' · archiviert' : ''}</span></div><div><Link className="management-link-button" to={`/verwaltung/klasse/${selectedClass.id}/uebung/${assignment.id}`}>Versuche ansehen</Link><button className="management-link-button" onClick={() => { setEditingPolicy({ ...assignment, policy: assignment.policy || {} }); setPolicyError(null) }}>Einstellungen</button>{assignment.archivedAt ? <button className="management-link-button" onClick={() => restoreAssignment(assignment.id)}>Reaktivieren</button> : <button className="management-link-button" onClick={() => archiveAssignment(assignment.id)}>Archivieren</button>}<button className="management-danger-button" onClick={() => deleteAssignment(assignment.id)}>Löschen</button></div></li>)}{!assignments.some(item => showArchivedAssignments || !item.archivedAt) && <li>{showArchivedAssignments ? 'Noch keine Übung erstellt.' : 'Keine aktive Übung. Archivierte Übungen kannst du oben einblenden.'}</li>}</ul></section>}
     {tab === 'tests' && <section className="management-card"><div className="section-toolbar"><div><h2>Tests</h2><p>Erstelle einen Test und öffne ihn für die beaufsichtigte Durchführung.</p></div><button className="big" onClick={() => { if (!examTitle) setExamTitle(suggestedExamTitle()); setExamMinutes(getCategoryDuration(examCategory) / 60); setDialog('exam') }}>+ Test hinzufügen</button></div><label className="archive-toggle"><input type="checkbox" checked={showArchivedExams} onChange={event => setShowArchivedExams(event.target.checked)} /> Archivierte Tests einblenden</label><ul className="management-list">{exams.filter(item => showArchivedExams || !item.archivedAt).map(exam => <li key={exam.id}><div><strong>{exam.title}</strong><span className="management-stat">{getCategoryLabel(exam.category)} · {Math.round(exam.durationSeconds / 60)} Min.{exam.sebRequired ? ' · Safe Exam Browser' : ''}{exam.roomStatus === 'finished' ? ' · abgeschlossen' : ''}{exam.archivedAt ? ' · archiviert' : ''}</span></div><div>{exam.archivedAt ? <button className="management-link-button" onClick={() => restoreExam(exam.id)}>Reaktivieren</button> : <><button className="management-link-button" onClick={() => openRoom(exam.id)}>Test öffnen</button><button className="management-link-button" disabled={rehearsalBusy} onClick={() => openRehearsal(exam.id)}>Probedurchlauf</button>{exam.sebRequired && <button className="management-link-button" disabled={rehearsalBusy} onClick={() => openRehearsal(exam.id, 'seb')}>SEB-Geräteprobe</button>}{exam.roomStatus === 'finished' && <button className="management-link-button" onClick={() => observeResults(exam.id)}>Ergebnisse ansehen</button>}<button className="management-link-button" onClick={() => archiveExam(exam.id)}>Archivieren</button></>}<button className="management-danger-button" onClick={() => deleteExam(exam.id)}>Löschen</button></div></li>)}{!exams.some(item => showArchivedExams || !item.archivedAt) && <li>{showArchivedExams ? 'Noch kein Test erstellt.' : 'Kein aktiver Test. Archivierte Tests kannst du oben einblenden.'}</li>}</ul></section>}
     {editingPolicy && <div className="dialog-backdrop"><section className="activity-dialog" role="dialog" aria-modal="true" aria-label="Übungseinstellungen bearbeiten"><button className="dialog-close" type="button" aria-label="Dialog schließen" disabled={policySaving} onClick={() => setEditingPolicy(null)}>×</button><h2>Übungseinstellungen</h2><form className="activity-editor" onSubmit={saveAssignmentPolicy}><label>Titel<input className="app-input" value={editingPolicy.title} maxLength={120} required onChange={event => setEditingPolicy(value => ({ ...value, title: event.target.value }))} /></label><p className="management-stat">{getCategoryLabel(editingPolicy.category)}</p><CategoryConfigurator category={editingPolicy.category} values={editingPolicy.settings || defaultCategorySettings(editingPolicy.category)} onChange={settings => setEditingPolicy(value => ({ ...value, settings }))} compact /><AssignmentPolicyEditor category={editingPolicy.category} value={editingPolicy.policy} onChange={policy => setEditingPolicy(value => ({ ...value, policy }))} />{policyError && <p role="alert" className="error">{policyError}</p>}<button className="big" disabled={policySaving}>{policySaving ? 'Speichern…' : 'Speichern'}</button></form></section></div>}
@@ -246,13 +264,14 @@ function TeacherClasses() {
   const navigate = useNavigate()
   const [classes, setClasses] = useState([])
   const [name, setName] = useState('')
+  const [studentCodeStyle, setStudentCodeStyle] = useState('animals')
   const [error, setError] = useState(null)
   const load = () => api('/api/classes').then(result => setClasses(result.classes)).catch(requestError => setError(requestError.message))
   useEffect(() => { load() }, [])
   async function createClass(event) {
     event.preventDefault(); setError(null)
     try {
-      const result = await api('/api/classes', { method: 'POST', body: JSON.stringify({ name }) })
+      const result = await api('/api/classes', { method: 'POST', body: JSON.stringify({ name, studentCodeStyle }) })
       setClasses(current => [result.class, ...current]); setName('')
     } catch (requestError) { setError(requestError.message) }
   }
@@ -263,9 +282,9 @@ function TeacherClasses() {
   }
   const selectedClass = classId ? classes.find(item => item.id === classId) : null
   useEffect(() => { if (classId && classes.length && !selectedClass) navigate('/verwaltung', { replace: true }) }, [classId, classes, selectedClass, navigate])
-  if (selectedClass) return <ClassDetail selectedClass={selectedClass} onBack={() => navigate('/verwaltung')} />
+  if (selectedClass) return <ClassDetail key={selectedClass.id} selectedClass={selectedClass} onBack={() => navigate('/verwaltung')} onClassUpdated={updated => setClasses(current => current.map(item => item.id === updated.id ? { ...item, ...updated } : item))} />
   return <>
-    <section className="management-card"><h1>Meine Klassen</h1><form onSubmit={createClass} className="management-form management-form--inline"><label>Klassenname<input className="app-input" value={name} onChange={event => setName(event.target.value)} required /></label><button className="big">Klasse anlegen</button></form>{error && <p className="error">{error}</p>}</section>
+    <section className="management-card"><h1>Meine Klassen</h1><form onSubmit={createClass} className="management-form management-form--inline"><label>Klassenname<input className="app-input" value={name} onChange={event => setName(event.target.value)} required /></label><StudentCodeStyleSelect value={studentCodeStyle} onChange={setStudentCodeStyle} /><button className="big">Klasse anlegen</button></form>{error && <p className="error">{error}</p>}</section>
     <section className="management-card"><ul className="management-list">{classes.map(item => <li key={item.id}><button className="management-class" onClick={() => navigate(`/verwaltung/klasse/${item.id}`)}><strong>{item.name}</strong><span>{item.studentCount} Schüler:innen</span></button><button className="management-danger-button" onClick={() => deleteClass(item.id)}>Löschen</button></li>)}{!classes.length && <li>Noch keine Klasse angelegt.</li>}</ul></section>
   </>
 }

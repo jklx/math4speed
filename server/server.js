@@ -23,7 +23,7 @@ const {
   newId,
   verifyPassword
 } = require('./database');
-const { createStudentCode, normalizeStudentCode } = require('./studentCodes');
+const { createStudentCode, normalizeStudentCode, validateStudentCodeStyle } = require('./studentCodes');
 const { validateAssignmentPolicy } = require('./assignmentPolicy');
 const { normalizePracticeAnswers } = require('./practiceAnswers');
 const { PROFILES: BOT_PROFILES, createRehearsalBots } = require('./rehearsalBots');
@@ -197,10 +197,10 @@ async function examResumeState(roomId, studentId, durationSeconds, startedAt) {
   return { ...state, remainingSeconds: Math.max(0, savedRemaining - sinceCheckpoint) };
 }
 
-async function uniqueStudentCode() {
+async function uniqueStudentCode(style = 'animals') {
   const db = getPool();
   for (let attempt = 0; attempt < 20; attempt += 1) {
-    const code = createStudentCode();
+    const code = createStudentCode(style);
     const normalized = normalizeStudentCode(code);
     const existing = await db.query('SELECT 1 FROM students WHERE access_code_normalized = $1', [normalized]);
     if (existing.rowCount === 0) return { code, normalized };
@@ -358,7 +358,7 @@ app.post('/api/admin/teachers', requireUser, requireRole('admin'), async (reques
 app.get('/api/classes', requireUser, requireRole('teacher'), async (request, response, next) => {
   try {
     const result = await getPool().query(
-      `SELECT c.id, c.name, c.created_at AS "createdAt", c.archived_at AS "archivedAt", COUNT(s.id)::int AS "studentCount"
+      `SELECT c.id, c.name, c.student_code_style AS "studentCodeStyle", c.created_at AS "createdAt", c.archived_at AS "archivedAt", COUNT(s.id)::int AS "studentCount"
        FROM classes c LEFT JOIN students s ON s.class_id = c.id
        WHERE c.teacher_id = $1 AND c.archived_at IS NULL AND c.is_rehearsal = FALSE
        GROUP BY c.id ORDER BY c.created_at DESC`, [request.user.id]
@@ -381,9 +381,12 @@ app.post('/api/classes', requireUser, requireRole('teacher'), async (request, re
   try {
     const name = String(request.body?.name || '').trim();
     if (!name || name.length > 120) return response.status(400).json({ error: 'Bitte einen Klassennamen mit höchstens 120 Zeichen angeben.' });
+    let studentCodeStyle;
+    try { studentCodeStyle = validateStudentCodeStyle(request.body?.studentCodeStyle); }
+    catch (error) { return response.status(400).json({ error: error.message }); }
     const result = await getPool().query(
-      `INSERT INTO classes (id, teacher_id, name) VALUES ($1, $2, $3)
-       RETURNING id, name, created_at AS "createdAt"`, [newId(), request.user.id, name]
+      `INSERT INTO classes (id, teacher_id, name, student_code_style) VALUES ($1, $2, $3, $4)
+       RETURNING id, name, student_code_style AS "studentCodeStyle", created_at AS "createdAt"`, [newId(), request.user.id, name, studentCodeStyle]
     );
     return response.status(201).json({ class: { ...result.rows[0], studentCount: 0 } });
   } catch (error) {
@@ -392,9 +395,25 @@ app.post('/api/classes', requireUser, requireRole('teacher'), async (request, re
   }
 });
 
+app.patch('/api/classes/:classId', requireUser, requireRole('teacher'), async (request, response, next) => {
+  try {
+    if (request.body?.studentCodeStyle === undefined) return response.status(400).json({ error: 'Bitte die Art der Schülerkennungen angeben.' });
+    let style;
+    try { style = validateStudentCodeStyle(request.body.studentCodeStyle); }
+    catch (error) { return response.status(400).json({ error: error.message }); }
+    const result = await getPool().query(
+      `UPDATE classes SET student_code_style = $3
+       WHERE id = $1 AND teacher_id = $2 AND archived_at IS NULL AND is_rehearsal = FALSE
+       RETURNING id, name, student_code_style AS "studentCodeStyle"`, [request.params.classId, request.user.id, style]
+    );
+    if (!result.rowCount) return response.status(404).json({ error: 'Aktive Klasse nicht gefunden.' });
+    return response.json({ class: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
 app.get('/api/classes/:classId/students', requireUser, requireRole('teacher'), async (request, response, next) => {
   try {
-    const classResult = await getPool().query('SELECT id, name FROM classes WHERE id = $1 AND teacher_id = $2', [request.params.classId, request.user.id]);
+    const classResult = await getPool().query('SELECT id, name, student_code_style AS "studentCodeStyle" FROM classes WHERE id = $1 AND teacher_id = $2', [request.params.classId, request.user.id]);
     if (!classResult.rowCount) return response.status(404).json({ error: 'Klasse nicht gefunden.' });
     const students = await getPool().query(
       `SELECT id, display_name AS "displayName", access_code AS "accessCode", created_at AS "createdAt"
@@ -977,9 +996,9 @@ app.post('/api/classes/:classId/students', requireUser, requireRole('teacher'), 
   try {
     const displayName = String(request.body?.displayName || '').trim();
     if (!displayName || displayName.length > 120) return response.status(400).json({ error: 'Bitte einen Schülernamen mit höchstens 120 Zeichen angeben.' });
-    const ownership = await getPool().query('SELECT 1 FROM classes WHERE id = $1 AND teacher_id = $2 AND archived_at IS NULL', [request.params.classId, request.user.id]);
+    const ownership = await getPool().query('SELECT student_code_style AS "studentCodeStyle" FROM classes WHERE id = $1 AND teacher_id = $2 AND archived_at IS NULL', [request.params.classId, request.user.id]);
     if (!ownership.rowCount) return response.status(404).json({ error: 'Aktive Klasse nicht gefunden.' });
-    const { code, normalized } = await uniqueStudentCode();
+    const { code, normalized } = await uniqueStudentCode(ownership.rows[0].studentCodeStyle);
     const result = await getPool().query(
       `INSERT INTO students (id, class_id, display_name, access_code, access_code_normalized)
        VALUES ($1, $2, $3, $4, $5)
@@ -997,13 +1016,13 @@ app.post('/api/classes/:classId/students/:studentId/regenerate-code', requireUse
     const db = getPool();
     const params = [request.params.studentId, request.params.classId, request.user.id];
     const ownership = await db.query(
-      `SELECT 1 FROM students s JOIN classes c ON c.id = s.class_id
+      `SELECT c.student_code_style AS "studentCodeStyle" FROM students s JOIN classes c ON c.id = s.class_id
        WHERE s.id = $1 AND c.id = $2 AND c.teacher_id = $3
          AND s.archived_at IS NULL AND c.archived_at IS NULL`, params
     );
     if (!ownership.rowCount) return response.status(404).json({ error: 'Schüler:in nicht gefunden.' });
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const { code, normalized } = await uniqueStudentCode();
+      const { code, normalized } = await uniqueStudentCode(ownership.rows[0].studentCodeStyle);
       try {
         const result = await db.query(
           `UPDATE students s SET access_code = $4, access_code_normalized = $5
@@ -1041,11 +1060,11 @@ app.post('/api/classes/:classId/students/import', requireUser, requireRole('teac
   }
   try {
     const db = getPool();
-    const ownership = await db.query('SELECT 1 FROM classes WHERE id = $1 AND teacher_id = $2 AND archived_at IS NULL', [request.params.classId, request.user.id]);
+    const ownership = await db.query('SELECT student_code_style AS "studentCodeStyle" FROM classes WHERE id = $1 AND teacher_id = $2 AND archived_at IS NULL', [request.params.classId, request.user.id]);
     if (!ownership.rowCount) return response.status(404).json({ error: 'Aktive Klasse nicht gefunden.' });
     const students = [];
     for (const displayName of names) {
-      const { code, normalized } = await uniqueStudentCode();
+      const { code, normalized } = await uniqueStudentCode(ownership.rows[0].studentCodeStyle);
       const result = await db.query(
         `INSERT INTO students (id, class_id, display_name, access_code, access_code_normalized)
          VALUES ($1, $2, $3, $4, $5)

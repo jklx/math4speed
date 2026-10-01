@@ -189,6 +189,8 @@ async function initializeDatabase() {
     );
 
     ALTER TABLE classes ADD COLUMN IF NOT EXISTS is_rehearsal BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE classes ADD COLUMN IF NOT EXISTS student_code_style TEXT NOT NULL DEFAULT 'animals'
+      CHECK (student_code_style IN ('animals', 'personalities'));
     ALTER TABLE exams ADD COLUMN IF NOT EXISTS rehearsal_source_id UUID REFERENCES exams(id) ON DELETE CASCADE;
     ALTER TABLE classes ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
     ALTER TABLE students ADD COLUMN IF NOT EXISTS rehearsal_bot_profile TEXT CHECK (rehearsal_bot_profile IN ('fast', 'steady'));
