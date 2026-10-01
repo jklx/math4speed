@@ -174,6 +174,7 @@ import Schriftlich from './Schriftlich'
 import SchriftlicheDivision from './SchriftlicheDivision'
 import Einmaleins from './Einmaleins'
 import Primfaktorisierung from './Primfaktorisierung'
+import PrimeFactorExamples from './components/PrimeFactorExamples'
 import Hauptnenner from './Hauptnenner'
 import { validateHauptnenner, parseHauptnennerInput } from './problems/validate'
 import Negative from './Negative'
@@ -354,6 +355,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
       return (
         <>
           <p>Du hast {mins} Minuten Zeit, so viele Zahlen wie möglich in ihre Primfaktoren zu zerlegen.</p>
+          <PrimeFactorExamples />
           <p>Erst 10 Einmaleins-Zahlen, dann 5 Zahlen bis 100, danach bis 200.</p>
           <p>Gib die Primfaktoren durch Leerzeichen getrennt ein (z.&nbsp;B. „2 2 3" für 12).</p>
           <PrimfaktorDemo />

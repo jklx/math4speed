@@ -288,6 +288,17 @@ input[type=number], .math-input{padding:0.6rem 0.8rem;font-size:1.5rem;width:120
 .leaderboard-table tbody tr:hover td{background:rgba(43,108,176,0.04)}
 
 /* Primfaktorisierung animated demo */
+.prime-factor-examples{max-width:760px;margin:1.25rem auto;text-align:left}
+.prime-factor-examples>p{color:#526170;line-height:1.5}
+.prime-factor-examples__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:1rem}
+.prime-factor-example{margin:0;padding:1rem;border:1px solid #d8e5f2;border-radius:10px;background:#f8fbff;text-align:center}
+.prime-factor-example figcaption{font-weight:700;color:#1e3a5f}
+.prime-factor-example svg{display:block;width:100%;max-width:310px;height:250px;margin:.5rem auto}
+.prime-factor-example text{font-size:20px;fill:#1e3a5f}
+.prime-factor-example__branch{stroke:#526170;stroke-width:1.5}
+.prime-factor-example__prime{fill:#edf6ff;stroke:var(--accent);stroke-width:1.5}
+.prime-factor-example .prime-factor-example__result{margin:.5rem 0 0;font-weight:650;color:#1e3a5f}
+.prime-factor-examples .prime-factor-examples__hint{font-size:.9rem}
 .primfaktor-demo{margin:1rem auto;max-width:420px;background:var(--card);border:1px solid #e6e9ef;border-radius:10px;padding:1rem 1.25rem;display:flex;flex-direction:column;gap:0.85rem}
 .primfaktor-demo__display{display:flex;align-items:center;gap:0.75rem}
 .primfaktor-demo__draft{display:inline-flex;align-items:center;font-size:1rem;padding:0.15rem 0.2rem;color:#222;min-width:1ch}
