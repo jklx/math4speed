@@ -13,6 +13,7 @@ output/
 
 # Local package-manager cache and visual test artifacts
 .pnpm-store/
+tmp/
 tmp-pdf-render-*.png
 
 # OS files
