@@ -1,5 +1,5 @@
 import React from 'react'
-import { CATEGORIES, getCategoryLabel } from './utils/categories'
+import { CATEGORIES } from './utils/categories'
 import FormattedFractionText from './components/FormattedFractionText'
 
 const CATEGORY_INTROS = {
@@ -34,10 +34,10 @@ export function CategoryConfigurator({ category, values = {}, onChange, compact 
   const config = CATEGORIES[category]
   if (!config) return null
   const options = (config.settings || []).filter(option => !option.hidden)
+  if (!options.some(option => !option.disabled)) return null
   const tileOptions = options.filter(option => option.control !== 'checkbox')
   const checkboxOptions = options.filter(option => option.control === 'checkbox')
   const [heading, description] = CATEGORY_INTROS[category] || ['Einstellungen', 'Diese Kategorie verwendet die Standardzusammenstellung der Aufgaben.']
-  if (!options.length) return <section className={`category-configurator${compact ? ' category-configurator--compact' : ''}`}><div className="category-configurator__intro"><span>{getCategoryLabel(category)}</span><h3>{heading}</h3><p>{description}</p></div><div className="category-configurator__empty">Für diese Kategorie sind keine zusätzlichen Einstellungen nötig.</div></section>
   const hasExplicitConversionSelection = checkboxOptions.some(option => values[option.key] === true)
   const useLegacyConversions = values.anteileUmrechnungen === true && !hasExplicitConversionSelection
   const toggleCheckbox = (option, active) => {
@@ -46,7 +46,7 @@ export function CategoryConfigurator({ category, values = {}, onChange, compact 
     nextValues[option.key] = !active
     onChange(nextValues)
   }
-  return <section className={`category-configurator${compact ? ' category-configurator--compact' : ''}`}><div className="category-configurator__intro"><span>{getCategoryLabel(category)}</span><h3>{heading}</h3><p>{description}</p></div><div className="category-option-grid">{tileOptions.map(option => {
+  return <section className={`category-configurator${compact ? ' category-configurator--compact' : ''}`}><div className="category-configurator__intro"><h3>{heading}</h3><p>{description}</p></div><div className="category-option-grid">{tileOptions.map(option => {
     const active = values[option.key] ?? option.defaultValue
     return <button key={option.key} type="button" className={`category-option${active ? ' category-option--active' : ''}${option.disabled || readOnly ? ' category-option--locked' : ''}`} onClick={() => !option.disabled && !readOnly && onChange({ ...values, [option.key]: !active })} aria-pressed={active} disabled={option.disabled || readOnly}><span className="category-option__state">{active ? 'Ausgewählt' : 'Nicht ausgewählt'}</span><strong><FormattedFractionText>{option.label}</FormattedFractionText></strong><small><FormattedFractionText>{optionDescription(option.key)}</FormattedFractionText></small></button>
   })}</div>{checkboxOptions.length > 0 && <fieldset className="category-conversion-settings" disabled={readOnly}><legend>Umrechnungen von Größen</legend><p>Wähle die Größen aus, bei denen Umrechnungen vorkommen dürfen.</p><div className="category-conversion-options">{checkboxOptions.map(option => {
