@@ -14,6 +14,14 @@
   --ok:#38a169;
 }
 *{box-sizing:border-box}
+.root-expression{display:inline-block;position:relative;padding-left:0.75em;vertical-align:baseline}
+.root-expression__sign{display:block;position:absolute;top:0;left:0;width:0.75em;height:1.25em;overflow:visible}
+.root-expression__radicand{display:inline-block;border-top:0.0625em solid currentColor;padding:0.12em 0.08em 0;line-height:1.15}
+.root-input-cursor{display:inline-block;position:relative;width:0;height:1.15em;vertical-align:-0.15em}
+.root-input-cursor::after{content:"";position:absolute;left:0;top:0;height:100%;border-left:2px solid var(--accent);animation:blink 1s step-end infinite}
+.root-insert-button{position:absolute;right:0.25rem;top:50%;transform:translateY(-50%);width:1.8rem;height:1.8rem;padding:0;border:0;border-radius:4px;background:transparent;color:#64748b;font-size:1.15rem;cursor:pointer}
+.root-insert-button:hover{background:#eef5ff;color:var(--accent)}
+.root-insert-button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 body{font-family:Inter,Segoe UI,Arial,Helvetica,sans-serif;background:var(--bg);margin:0;padding:1rem}
 
 /* Use Noto Sans for numbers */

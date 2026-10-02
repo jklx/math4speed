@@ -254,5 +254,55 @@
     "performance": {
       "default": [40.0, 90.0]
     }
+  },
+  "wurzeln": {
+    "label": "Wurzeln",
+    "grade": "9. Klasse",
+    "problemCount": 15,
+    "durationMinutes": 5,
+    "maxTrainingErrors": 3,
+    "settings": [
+      {
+        "key": "wurzelnTeilweise",
+        "label": "Teilweise radizieren",
+        "defaultValue": true
+      },
+      {
+        "key": "wurzelnProdukte",
+        "label": "Wurzeln multiplizieren und dividieren",
+        "defaultValue": true
+      },
+      {
+        "key": "wurzelnQuadrate",
+        "label": "Wurzeln aus Quadraten und Zahlentermen",
+        "defaultValue": true
+      },
+      {
+        "key": "wurzelnTerme",
+        "label": "Gleichartige Wurzelterme zusammenfassen",
+        "defaultValue": true
+      },
+      {
+        "key": "wurzelnVariablen",
+        "label": "Wurzeln mit Variablen (x > 0)",
+        "defaultValue": true
+      }
+    ],
+    "performanceScore": [
+      5,
+      12
+    ],
+    "attemptRatingThresholds": [
+      5,
+      8,
+      10,
+      12
+    ],
+    "performance": {
+      "default": [
+        15,
+        45
+      ]
+    }
   }
 }

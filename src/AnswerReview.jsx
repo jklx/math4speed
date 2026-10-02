@@ -3,6 +3,7 @@ import Hauptnenner from './Hauptnenner'
 import Einmaleins from './Einmaleins'
 import Negative from './Negative'
 import Binomische from './Binomische'
+import Wurzeln from './Wurzeln'
 import Primfaktorisierung from './Primfaktorisierung'
 import GemischteZahlen from './GemischteZahlen'
 import Dezimalbrueche from './Dezimalbrueche'
@@ -21,6 +22,7 @@ function ReviewedProblem({ answer, solution }) {
     case 'hauptnenner': return <Hauptnenner problem={answer} readOnly value={JSON.stringify(solution ? { first: answer.factorsA.join(' '), second: answer.factorsB.join(' '), lcm: answer.lcmFactors.join(' '), result: String(answer.correct) } : answer.hauptnennerSnapshot ?? { result: String(answer.user ?? '') })} />
     case 'multiplication': return <Einmaleins {...props} a={answer.a} b={answer.b} />
     case 'negative': return <Negative {...props} a={answer.a} b={answer.b} operator={answer.operator} explicitPlus={answer.explicitPlus} />
+    case 'wurzeln': return <Wurzeln {...props} problem={answer} />
     case 'binomische': return <Binomische {...props} expression={answer.expression} />
     case 'primfaktorisierung': return <Primfaktorisierung {...props} number={answer.number} />
     case 'gemischte-zahlen': return <GemischteZahlen {...props} problem={answer} />

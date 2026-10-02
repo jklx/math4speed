@@ -86,6 +86,7 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich, on
             </li>
           )
         }
+        if (q.type === 'wurzeln') return <li key={q.id} {...selectionProps}>{q.expression}{q.variable ? ' (x > 0)' : ''} = {isCorrect ? q.correct : q.user || '—'}{renderCorrection(q.correct)}</li>
         if (q.type === 'binomische') {
           const displayValue = isCorrect ? formatGermanDecimalString(q.correct) : formatGermanDecimalString(q.user)
           return (

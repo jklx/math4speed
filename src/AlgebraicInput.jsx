@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { moveRootCursor, deleteRootAtCursor } from './utils/rootInput'
 
-export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, placeholder, className, style, readOnly, crossedOut }) {
+export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, placeholder, className, style, readOnly, crossedOut, renderValue, enableRoots = false }) {
   const inputRef = useRef(null)
   const [cursorPos, setCursorPos] = useState(String(value).length)
   const showError = crossedOut && String(value).trim().length > 0
@@ -22,9 +23,29 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
     }
   }, [])
 
+  const insertRoot = () => {
+    const cp = Math.min(cursorPosRef.current, value.length)
+    onChange(value.slice(0, cp) + '√()' + value.slice(cp))
+    setCursorPos(cp + 2)
+    deadCharRef.current = null
+    inputRef.current?.focus()
+  }
+
   const insertChar = (char) => {
+    if (enableRoots && char === '√') { insertRoot(); return }
     const mapped = char === '*' ? '·' : char
     const cp = cursorPosRef.current
+    if (enableRoots && mapped === ')' && value[cp] === ')') {
+      setCursorPos(cp + 1)
+      return
+    }
+    // Convert the typed shortcut as soon as its opening parenthesis is entered.
+    if (enableRoots && mapped === '(' && value.slice(Math.max(0, cp - 4), cp).toLowerCase() === 'sqrt') {
+      const start = cp - 4
+      onChange(value.slice(0, start) + '√(' + (value[cp] === ')' ? '' : ')') + value.slice(cp))
+      setCursorPos(start + 2)
+      return
+    }
     onChange(value.slice(0, cp) + mapped + value.slice(cp))
     setCursorPos(cp + mapped.length)
   }
@@ -69,12 +90,24 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
 
     if (e.key === 'Enter') { onEnter?.(); e.preventDefault(); return }
     if (e.key === 'ArrowLeft') {
-      setCursorPos(p => Math.max(0, p - 1))
+      setCursorPos(p => enableRoots ? moveRootCursor(value, p, -1) : Math.max(0, p - 1))
       e.preventDefault(); return
     }
     if (e.key === 'ArrowRight') {
-      setCursorPos(p => Math.min(value.length, p + 1))
+      setCursorPos(p => enableRoots ? moveRootCursor(value, p, 1) : Math.min(value.length, p + 1))
       e.preventDefault(); return
+    }
+    if (e.key === 'Home' || e.key === 'End') {
+      setCursorPos(e.key === 'Home' ? 0 : value.length)
+      e.preventDefault(); return
+    }
+    if (enableRoots && (e.key === 'Backspace' || e.key === 'Delete')) {
+      const edit = deleteRootAtCursor(value, cursorPos, e.key)
+      if (edit) {
+        onChange(edit.value)
+        setCursorPos(edit.cursor)
+        e.preventDefault(); return
+      }
     }
     if (e.key === 'Backspace') {
       if (cursorPos > 0) {
@@ -270,7 +303,7 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
     <div 
       ref={inputRef}
       tabIndex={readOnly ? -1 : 0}
-      className={`algebraic-input-container ${className || ''}`}
+      className={`algebraic-input-container ${enableRoots ? 'algebraic-input-container--roots' : ''} ${className || ''}`}
       onMouseDown={readOnly ? undefined : (e => { e.preventDefault(); inputRef.current?.focus() })}
       onKeyDown={readOnly ? undefined : handleKeyDown}
       onKeyPress={readOnly ? undefined : handleKeyPress}
@@ -283,12 +316,17 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
         outline: (!readOnly && isFocused) ? '2px solid var(--accent)' : 'none',
         outlineOffset: '2px',
         borderRadius: '4px',
-        ...style
+        ...style,
+        ...(enableRoots && !readOnly ? { paddingRight: '2.4rem' } : {})
       }}
     >
       {/* Visual MathML Rendering */}
       <div className="algebraic-display" style={{ pointerEvents: 'none', display: 'flex', alignItems: 'center', height: '100%', minHeight: '2.5rem', color: showError ? 'var(--bad)' : undefined }}>
-        <math display="inline">
+        {renderValue ? (
+          String(value).length === 0 && !isFocused && placeholder
+            ? <span style={{ color: '#ccc', fontSize: '1rem' }}>{placeholder}</span>
+            : renderValue(value, cursorPos, isFocused && !readOnly)
+        ) : <math display="inline">
           <mrow>
             {String(value).length === 0 && !isFocused && placeholder ? (
               <mtext style={{ color: '#ccc', fontSize: '1rem' }}>{placeholder}</mtext>
@@ -296,8 +334,13 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
               renderTokens(value, cursorPos, isFocused)
             )}
           </mrow>
-        </math>
+        </math>}
       </div>
+      {enableRoots && !readOnly && <button type="button" className="root-insert-button"
+        title="Wurzel einfügen" aria-label="Wurzel einfügen"
+        onMouseDown={event => { event.preventDefault(); event.stopPropagation() }}
+        onKeyDown={event => event.stopPropagation()}
+        onClick={event => { event.stopPropagation(); insertRoot() }}>√</button>}
       
       <style>{`
         .blinking-cursor {

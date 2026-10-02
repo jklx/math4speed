@@ -179,6 +179,9 @@ import Hauptnenner from './Hauptnenner'
 import { validateHauptnenner, parseHauptnennerInput } from './problems/validate'
 import Negative from './Negative'
 import Binomische from './Binomische'
+import Wurzeln from './Wurzeln'
+import { validateWurzeln } from './problems/wurzeln'
+import { displayPowers } from './utils/powers'
 import ProzentGleichung from './ProzentGleichung'
 import GemischteZahlen from './GemischteZahlen'
 import Dezimalbrueche from './Dezimalbrueche'
@@ -385,6 +388,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
         </>
       )
     }
+    if (cat === 'wurzeln') return <><p>Du hast {mins} Minuten Zeit, Wurzelterme vollständig zu vereinfachen.</p><p>Gib exakte Ergebnisse ein: z. B. <kbd>3√5</kbd> oder <kbd>3sqrt(5)</kbd>, Hochzahlen als <kbd>x^2</kbd>. Für alle Aufgaben mit Variablen gilt <strong>x &gt; 0</strong>.</p><p>Beispiele: √3 · √48 = 12; 8√5 + 2√5 = 10√5; √((−7)²) = 7.</p></>
     if (cat === 'binomische') {
       return (
         <>
@@ -625,6 +629,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
 
   const formatCorrectAnswer = (prob) => {
     if (prob.type === 'primfaktorisierung') return prob.factors.join(' · ')
+    if (prob.type === 'wurzeln') return displayPowers(prob.correct).replace(/-/g, '−')
     if (prob.type === 'binomische') return prob.correct.replace(/\^2/g, '²')
     if (prob.type === 'prozent-gleichung') {
       if (prob.variant === 'findeFaktor' || prob.variant === 'findeProzentsatz') {
@@ -718,6 +723,10 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
       const { isCorrect: ok, parsed: p } = validatePrimfaktorisierung(candidateValue, prob.factors)
       parsed = p
       isCorrect = ok
+    } else if (prob.type === 'wurzeln') {
+      const result = validateWurzeln(overrideValue ?? inputValue, prob)
+      parsed = result.parsed
+      isCorrect = result.isCorrect
     } else if (prob.type === 'binomische') {
       const candidateValue = (overrideValue ?? inputValue)
       const { isCorrect: ok, parsed: p } = validatePolynomial(candidateValue, prob.correct)
@@ -1331,6 +1340,8 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
                     crossedOut={Boolean(mistakeState)}
                     mistakeFeedback={mistakeState}
                   />
+                ) : problems[current].type === 'wurzeln' ? (
+                  <Wurzeln key={problems[current].id} problem={problems[current]} value={inputValue} onChange={setInputValue} onEnter={submitAnswer} showTick={flashResult === 'correct'} mistakeFeedback={mistakeState} />
                 ) : problems[current].type === 'binomische' ? (
                   <Binomische
                     key={problems[current].id}

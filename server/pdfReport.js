@@ -1,5 +1,6 @@
 const PDFDocument = require('pdfkit');
 const { formatDecimal } = require('../src/utils/formatNumber');
+const { normalizePowers } = require('../src/utils/powers');
 
 const CATEGORIES = require('../shared/categories.json');
 const COLORS = {
@@ -19,9 +20,10 @@ const COLORS = {
 
 const text = (value, fallback = '-') => {
   if (value === undefined || value === null || value === '') return fallback;
-  return String(value)
-    .replace(/\^2/g, '²')
-    .replace(/\^3/g, '³')
+  return normalizePowers(value)
+    .replace(/√/g, 'sqrt')
+    .replace(/\^2\b/g, '²')
+    .replace(/\^3\b/g, '³')
     .replace(/[−–—]/g, '-');
 };
 
@@ -63,6 +65,9 @@ function formatProblem(problem, includeUserAnswer = true) {
     }
     case 'negative':
       question = `${text(problem.expression, `${text(problem.a)} ${text(problem.operator)} ${text(problem.b)}`)} = ${formatNumber(problem.correct)}`;
+      break;
+    case 'wurzeln':
+      question = `${text(problem.expression)}${problem.variable ? ' (x > 0)' : ''} = ${text(problem.correct)}`;
       break;
     case 'binomische':
       question = `${text(problem.expression)} = ${text(problem.correct)}`;

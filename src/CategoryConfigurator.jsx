@@ -3,6 +3,7 @@ import { CATEGORIES } from './utils/categories'
 import FormattedFractionText from './components/FormattedFractionText'
 
 const CATEGORY_INTROS = {
+  wurzeln: ['Aufgabenarten', 'Kombiniere teilweises Radizieren, Wurzelgesetze, Quadrate, Wurzelterme und positive Variablen.'],
   einmaleins: ['Zahlenraum', 'Wähle, ob Quadratzahlen über das klassische Einmaleins hinaus vorkommen sollen.'],
   'schriftlich-divide': ['Divisoren', 'Bestimme den Zahlenbereich der Divisoren.'],
   negative: ['Rechenarten', 'Kombiniere die Rechenarten, die geübt oder geprüft werden sollen.'],
@@ -15,6 +16,8 @@ const CATEGORY_INTROS = {
 
 function optionDescription(key) {
   const descriptions = {
+    wurzelnTeilweise: 'z. B. √72 = 6√2',
+    wurzelnTerme: 'Gleichartige Wurzeln zusammenfassen, auch nach teilweisem Radizieren',
     includeSquares11_20: 'Quadrate von 11 bis 20', includeSquares21_25: 'Quadrate von 21 bis 25',
     schriftlichDivideSingleDigit: 'Zahlen von 2 bis 9', schriftlichDivideTeens: 'Zahlen von 11 bis 19', schriftlichDivideLarge: 'Zahlen von 21 bis 99',
     negativeAdd: 'Plus und Minus mit negativen Zahlen', negativeSubtract: 'Differenzen mit negativen Zahlen', negativeMultiply: 'Produkte mit Vorzeichen', negativeDivide: 'Divisionen mit Vorzeichen',

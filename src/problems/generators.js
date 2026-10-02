@@ -1,3 +1,4 @@
+import { generateWurzelnProblems } from './wurzeln.js';
 // Problem generators extracted from Game.jsx
 import { formatNegativeExpression } from '../utils/negativeNotation.js';
 
@@ -2022,6 +2023,7 @@ export function generateAnteileBruchteileProblems(count, settings = {}) {
 }
 
 export function generateProblems(count, category, settings = {}) {
+  if (category === 'wurzeln') return generateWurzelnProblems(count, settings);
   if (category === 'einmaleins') return generateEinmaleinsProblems(count, settings);
   if (category === 'schriftlich') return generateSchriftlichProblems(count, settings);
   if (category === 'schriftlich-add') return generateSchriftlichProblems(count, { schriftlichAdd: true, schriftlichSubtract: false, schriftlichMultiply: false });

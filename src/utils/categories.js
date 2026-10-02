@@ -36,7 +36,7 @@ export const getAssignmentGoalProgress = (assignment, attempts) => {
 
 export const getCategoryProblemCount = (category) => CATEGORIES[category]?.problemCount || CATEGORIES.einmaleins.problemCount || 50
 
-export const CATEGORY_GRADE_ORDER = ['5. Klasse', '6. Klasse', '7. Klasse']
+export const CATEGORY_GRADE_ORDER = ['5. Klasse', '6. Klasse', '7. Klasse', '9. Klasse']
 
 export const getDefaultSettings = () => {
   const settings = {}

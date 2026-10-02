@@ -7,6 +7,8 @@ const KEY_VALUES = {
   '⋅': ' ',
   '␣': ' ',
   'mal': ' ',
+  '←': 'ArrowLeft',
+  '→': 'ArrowRight',
 }
 
 // Each key is a string or { label, colSpan?, rowSpan? }
@@ -73,6 +75,7 @@ const KEY_LAYOUTS = {
     ],
   },
 }
+KEY_LAYOUTS.wurzeln = { cols: 4, keys: ['7', '8', '9', '⌫', '4', '5', '6', '√', '1', '2', '3', '−', '0', ',', 'x', '^', '(', ')', '←', '→', { label: '↵', colSpan: 4 }] }
 KEY_LAYOUTS.hauptnenner = KEY_LAYOUTS.primfaktorisierung
 KEY_LAYOUTS.schriftlich = KEY_LAYOUTS.multiplication
 KEY_LAYOUTS['anteile-bruchteile'] = KEY_LAYOUTS['gemischte-zahlen']
@@ -122,6 +125,8 @@ export default function VirtualKeyboard({ category, variable, onKey }) {
     if (label === '−') return 'Minus'
     if (label === '^') return 'Hoch'
     if (label === ',') return 'Komma'
+    if (label === '←') return 'Cursor nach links'
+    if (label === '→') return 'Cursor nach rechts'
     return label
   }
 
