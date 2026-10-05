@@ -182,6 +182,7 @@ import Binomische from './Binomische'
 import Wurzeln from './Wurzeln'
 import { validateWurzeln } from './problems/wurzeln'
 import { displayPowers } from './utils/powers'
+import FormattedRootText from './components/FormattedRootText'
 import ProzentGleichung from './ProzentGleichung'
 import GemischteZahlen from './GemischteZahlen'
 import Dezimalbrueche from './Dezimalbrueche'
@@ -388,7 +389,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
         </>
       )
     }
-    if (cat === 'wurzeln') return <><p>Du hast {mins} Minuten Zeit, Wurzelterme vollständig zu vereinfachen.</p><p>Gib exakte Ergebnisse ein: z. B. <kbd>3√5</kbd> oder <kbd>3sqrt(5)</kbd>, Hochzahlen als <kbd>x^2</kbd>. Für alle Aufgaben mit Variablen gilt <strong>x &gt; 0</strong>.</p><p>Beispiele: √3 · √48 = 12; 8√5 + 2√5 = 10√5; √((−7)²) = 7.</p></>
+    if (cat === 'wurzeln') return <><p>Du hast {mins} Minuten Zeit, Wurzelterme vollständig zu vereinfachen.</p><p>Gib exakte Ergebnisse ein, z. B. <kbd><FormattedRootText>3√5</FormattedRootText></kbd>. Nutze dafür den √-Knopf. Alternativ kannst du <kbd>3sqrt(5)</kbd> tippen; Hochzahlen als <kbd>x^2</kbd>. Für alle Aufgaben mit Variablen gilt <strong>x &gt; 0</strong>.</p><p>Beispiele: <FormattedRootText>√3 · √48 = 12; 8√5 + 2√5 = 10√5; √((−7)²) = 7.</FormattedRootText></p></>
     if (cat === 'binomische') {
       return (
         <>

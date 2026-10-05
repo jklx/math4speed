@@ -1,6 +1,7 @@
 import React, { useId } from 'react'
 import { CATEGORIES } from './utils/categories'
 import FormattedFractionText from './components/FormattedFractionText'
+import FormattedRootText from './components/FormattedRootText'
 
 const CATEGORY_INTROS = {
   wurzeln: ['Aufgabenarten', 'Kombiniere teilweises Radizieren, Wurzelgesetze, Quadrate, Wurzelterme und positive Variablen.'],
@@ -53,7 +54,7 @@ export function CategoryConfigurator({ category, values = {}, onChange, compact 
   }
   return <section className={`category-configurator${compact ? ' category-configurator--compact' : ''}`}><div className="category-configurator__intro"><h3>{heading}</h3><p>{description}</p></div><div className="category-option-grid">{tileOptions.map(option => {
     const active = values[option.key] ?? option.defaultValue
-    return <button key={option.key} type="button" className={`category-option${active ? ' category-option--active' : ''}${option.disabled || readOnly ? ' category-option--locked' : ''}`} onClick={() => !option.disabled && !readOnly && onChange({ ...values, [option.key]: !active })} aria-pressed={active} disabled={option.disabled || readOnly}><span className="category-option__state">{active ? 'Ausgewählt' : 'Nicht ausgewählt'}</span><strong><FormattedFractionText>{option.label}</FormattedFractionText></strong><small><FormattedFractionText>{optionDescription(option.key)}</FormattedFractionText></small></button>
+    return <button key={option.key} type="button" className={`category-option${active ? ' category-option--active' : ''}${option.disabled || readOnly ? ' category-option--locked' : ''}`} onClick={() => !option.disabled && !readOnly && onChange({ ...values, [option.key]: !active })} aria-pressed={active} disabled={option.disabled || readOnly}><span className="category-option__state">{active ? 'Ausgewählt' : 'Nicht ausgewählt'}</span><strong><FormattedFractionText>{option.label}</FormattedFractionText></strong><small>{category === 'wurzeln' ? <FormattedRootText>{optionDescription(option.key)}</FormattedRootText> : <FormattedFractionText>{optionDescription(option.key)}</FormattedFractionText>}</small></button>
   })}</div>{notationOption && <fieldset className="category-notation-settings" disabled={readOnly || notationOption.disabled}>
     <legend>Schreibweise</legend>
     <div className="category-notation-options">{[

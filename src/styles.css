@@ -2349,3 +2349,9 @@ button.problem-entry:focus-visible, .review-list [role="button"]:focus-visible {
 .anteile-solution-line .fraction { margin: 0 .1rem; }
 .anteile-solution-result { display: inline-flex; align-items: center; gap: 0; }
 .student-code-actions{display:flex;align-items:center;gap:.35rem;flex-wrap:wrap}.student-code-reset{min-width:32px;min-height:32px;font-size:1.25rem;border-radius:4px}.student-code-reset:disabled{opacity:.5;cursor:wait}.management-list--codes li{flex-wrap:wrap}.student-code-actions code{overflow-wrap:anywhere}
+.wurzeln-solution{margin:1.25rem auto 0;padding:1rem 1.25rem;max-width:42rem;text-align:left;background:var(--card);border:1px solid #dce5ef;border-radius:12px}
+.wurzeln-solution h4{margin:0 0 0.75rem}
+.wurzeln-solution ol{margin:0;padding-left:1.4rem}
+.wurzeln-solution li+li{margin-top:1rem}
+.wurzeln-solution p{margin:0 0 0.4rem}
+.wurzeln-solution__expression{font-size:1.25rem;overflow-wrap:anywhere}

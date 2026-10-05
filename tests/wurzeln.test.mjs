@@ -15,6 +15,7 @@ function number(text, x) {
   const variable = normalizePowers(normalized).match(/^(\d+)x(?:\^(\d+))?$/)
   if (variable) return Number(variable[1]) * x ** Number(variable[2] ?? 1)
   if (normalized.includes(' - ')) return normalized.split(' - ').map(Number).reduce((a, b) => a - b)
+  if (normalized.includes(' + ')) return normalized.split(' + ').map(Number).reduce((a, b) => a + b)
   return Number(normalized)
 }
 function evaluate(node, x) {
@@ -55,6 +56,32 @@ test('group selection and empty-selection fallback', () => {
     assert.ok(generateProblems(200, 'wurzeln', { ...settings, [`wurzeln${group}`]: true }).every(p => p.variant === group))
   }
   assert.equal(generateProblems(100, 'wurzeln', settings).length, 100)
+})
+
+test('sums and differences include roots 11–20, and products need no square above 400', () => {
+  const sample = generateProblems(20000, 'wurzeln')
+  const sums = new Set(), differences = new Set()
+  let products = 0
+  for (const problem of sample) {
+    if (problem.variant === 'Produkte' && Array.isArray(problem.nodes)) {
+      products++
+      const radicand = Number(problem.nodes[0].root) * Number(problem.nodes[2].root)
+      assert.ok(radicand <= 400, problem.expression)
+      assert.equal(Math.sqrt(radicand), Number(problem.correct))
+      assert.ok(Number.isInteger(Math.sqrt(Number(problem.nodes[2].root) / Number(problem.nodes[0].root))))
+    }
+    if (problem.variant === 'Quadrate' && problem.nodes.root.match(/^\d+ [−+] \d+$/)) {
+      const answer = Number(problem.correct)
+      assert.ok(answer >= 2 && answer <= 20)
+      const operation = problem.nodes.root.includes(' + ') ? sums : differences
+      operation.add(answer)
+    }
+  }
+  assert.ok(products > 1000)
+  for (let answer = 11; answer <= 20; answer++) {
+    assert.ok(sums.has(answer), `sum with root ${answer}`)
+    assert.ok(differences.has(answer), `difference with root ${answer}`)
+  }
 })
 
 test('variable tasks include higher powers and halve even root exponents', () => {

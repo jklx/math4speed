@@ -43,8 +43,10 @@ export function generateWurzelnProblems(count, settings = {}) {
       correct = `${factor}√${remainder}`
     } else if (variant === 'Produkte') {
       if (Math.random() < 0.5) {
-        nodes = [root(r), ' · ', root(r * n * n)]
-        correct = String(r * n)
+        // The combined radicand must remain a familiar square (at most 20²).
+        const factor = integer(2, Math.floor(20 / r))
+        nodes = [root(r), ' · ', root(r * factor * factor)]
+        correct = String(r * factor)
       } else {
         nodes = quotient(root(r * n * n), root(r))
         correct = String(n)
@@ -55,9 +57,13 @@ export function generateWurzelnProblems(count, settings = {}) {
         nodes = { root: `(${String(value).replace('.', ',')})²` }
         correct = String(Math.abs(value)).replace('.', ',')
       } else {
-        const b = integer(1, 10)
-        nodes = root(`${n * n + b * b} − ${b * b}`)
-        correct = String(n)
+        const result = integer(2, 20)
+        const sum = Math.random() < 0.5
+        const b = integer(1, sum ? Math.min(10, result - 1) : 10)
+        nodes = root(sum
+          ? `${result * result - b * b} + ${b * b}`
+          : `${result * result + b * b} − ${b * b}`)
+        correct = String(result)
       }
     } else if (variant === 'Terme') {
       const partiallyRadicate = Math.random() < 0.5
