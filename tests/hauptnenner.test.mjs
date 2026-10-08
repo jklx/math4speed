@@ -12,10 +12,12 @@ const product = factors => factors.reduce((a, b) => a * b, 1)
 test('Hauptnenner: correct factorizations, bounded numbers and one coprime pair per ten tasks', () => {
   const tasks = generateProblems(1000, 'hauptnenner')
   assert.equal(tasks.length, 1000)
-  for (let i = 0; i < tasks.length; i += 10) {
-    assert.equal(tasks.slice(i, i + 10).filter(p => gcd(p.a, p.b) === 1).length, 1)
+  const pairs = tasks.filter(p => !p.c)
+  assert.equal(pairs.length, 500)
+  for (let i = 0; i < pairs.length; i += 10) {
+    assert.equal(pairs.slice(i, i + 10).filter(p => gcd(p.a, p.b) === 1).length, 1)
   }
-  for (const p of tasks) {
+  for (const p of pairs) {
     assert.equal(p.correct, p.a * p.b / gcd(p.a, p.b))
     assert.equal(product(p.factorsA), p.a)
     assert.equal(product(p.factorsB), p.b)
@@ -54,9 +56,12 @@ test('Easy tasks contain three divisible pairs and one coprime pair per ten task
   assert.equal(tasks.filter(p => p.b % p.a === 0).length / tasks.length, 0.3)
 })
 
-test('Hard tasks need every denominator and validate the third factorization', () => {
+test('Prime factorization alternates two and three denominators and validates every factorization', () => {
   const lcm = (a, b) => a * b / gcd(a, b)
-  const tasks = generateProblems(1000, 'hauptnenner', { hauptnennerDifficulty: 'hard' })
+  const mixed = generateProblems(1000, 'hauptnenner', { hauptnennerDifficulty: 'medium' })
+  mixed.forEach((p, index) => assert.equal(Boolean(p.c), index % 2 === 1))
+  const tasks = mixed.filter(p => p.c)
+  assert.equal(tasks.length, 500)
   assert.ok(new Set(tasks.map(p => `${p.a},${p.b},${p.c}`)).size > 20)
   for (const p of tasks) {
     assert.ok(p.a < p.b && p.b < p.c && p.c <= 36)
@@ -95,7 +100,7 @@ test('All intermediate steps are required; order is arbitrary but multiplicities
 })
 
 test('Practice persistence keeps the third denominator and both submitted factorizations', () => {
-  const problem = generateProblems(1, 'hauptnenner', { hauptnennerDifficulty: 'hard' })[0]
+  const problem = generateProblems(2, 'hauptnenner', { hauptnennerDifficulty: 'medium' })[1]
   const snapshot = { first: problem.factorsA.join(' '), second: problem.factorsB.join(' '), third: problem.factorsC.join(' '), lcm: problem.lcmFactors.join(' '), result: String(problem.correct) }
   const firstAttempt = { ...snapshot, third: '2' }
   const saved = normalizePracticeAnswers([{ ...problem, user: String(problem.correct), hauptnennerSnapshot: snapshot, hauptnennerFirstAttempt: firstAttempt, isCorrect: true, assisted: true }]).answers[0]
@@ -106,14 +111,16 @@ test('Practice persistence keeps the third denominator and both submitted factor
   assert.equal(saved.assisted, true)
 })
 
-test('Difficulty settings survive server validation and reject unknown choices', () => {
-  for (const difficulty of ['easy', 'medium', 'hard']) {
+test('Method settings survive server validation and migrate the previous third-denominator setting', () => {
+  for (const difficulty of ['easy', 'medium']) {
     assert.deepEqual(sanitizeActivitySettings('hauptnenner', { hauptnennerDifficulty: difficulty }), { hauptnennerDifficulty: difficulty })
   }
-  for (const invalid of [undefined, true, false, 3, 'unknown']) {
+  for (const invalid of [undefined, true, false, 3, 'unknown', 'hard']) {
     const settings = sanitizeActivitySettings('hauptnenner', { hauptnennerDifficulty: invalid })
     assert.deepEqual(settings, { hauptnennerDifficulty: 'medium' })
-    assert.ok(generateProblems(10, 'hauptnenner', settings).every(p => !p.mental && !p.c))
+    const tasks = generateProblems(10, 'hauptnenner', settings)
+    assert.ok(tasks.every(p => !p.mental))
+    tasks.forEach((p, index) => assert.equal(Boolean(p.c), index % 2 === 1))
   }
   assert.equal(sanitizeActivitySettings('einmaleins', { includeSquares11_20: true }).includeSquares11_20, true)
 })

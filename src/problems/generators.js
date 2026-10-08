@@ -1852,7 +1852,7 @@ export function generateHauptnennerProblems(count, difficulty = 'medium') {
     : [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 24, 25, 27, 28, 30, 36];
   const lcm = (a, b) => a * b / gcd(a, b);
   const triples = [];
-  if (difficulty === 'hard') denominators.forEach((a, i) => denominators.slice(i + 1).forEach((b, j) => denominators.slice(i + j + 2).forEach(c => {
+  if (difficulty !== 'easy') denominators.forEach((a, i) => denominators.slice(i + 1).forEach((b, j) => denominators.slice(i + j + 2).forEach(c => {
     const correct = lcm(lcm(a, b), c);
     // Every denominator contributes factors; no redundant third denominator.
     if (c >= 10 && correct <= 360 && factorize(correct).length <= 6 && [lcm(a, b), lcm(a, c), lcm(b, c)].every(pair => pair < correct)) triples.push({ a, b, c, correct });
@@ -1879,8 +1879,10 @@ export function generateHauptnennerProblems(count, difficulty = 'medium') {
   };
   let commonQueue = [], coprimeQueue = [], multipleQueue = [], tripleQueue = [], rarePosition, multiplePositions = [];
   return Array.from({ length: count }, (_, index) => {
-    // One coprime pair per ten tasks, at a varying position in each block.
-    if (index % 10 === 0) {
+    const isTriple = difficulty !== 'easy' && index % 2 === 1;
+    const pairIndex = difficulty === 'easy' ? index : Math.floor(index / 2);
+    // One coprime pair per ten two-denominator tasks, at a varying position.
+    if (!isTriple && pairIndex % 10 === 0) {
       rarePosition = Math.floor(Math.random() * 10);
       // Easy: three divisible pairs per block; keep the coprime slot separate.
       if (difficulty === 'easy') multiplePositions = shuffle(Array.from({ length: 10 }, (_, position) => position).filter(position => position !== rarePosition)).slice(0, 3);
@@ -1888,8 +1890,8 @@ export function generateHauptnennerProblems(count, difficulty = 'medium') {
     if (!commonQueue.length) commonQueue = shuffle(common);
     if (!coprimeQueue.length) coprimeQueue = shuffle(coprime);
     if (!multipleQueue.length && difficulty === 'easy') multipleQueue = shuffle(multiples);
-    if (!tripleQueue.length && difficulty === 'hard') tripleQueue = shuffle(triples);
-    const queue = difficulty === 'hard' ? tripleQueue : index % 10 === rarePosition ? coprimeQueue : multiplePositions.includes(index % 10) ? multipleQueue : commonQueue;
+    if (!tripleQueue.length && difficulty !== 'easy') tripleQueue = shuffle(triples);
+    const queue = isTriple ? tripleQueue : pairIndex % 10 === rarePosition ? coprimeQueue : multiplePositions.includes(pairIndex % 10) ? multipleQueue : commonQueue;
     const pair = queue.pop();
     const { a, b, c, correct } = pair;
     return { id: index + 1, type: 'hauptnenner', ...pair,

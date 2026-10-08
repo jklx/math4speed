@@ -164,24 +164,19 @@
     "settings": [
       {
         "key": "hauptnennerDifficulty",
-        "label": "Schwierigkeitsgrad",
+        "label": "Verfahren",
         "defaultValue": "medium",
         "control": "radio",
         "options": [
           {
             "value": "easy",
-            "label": "Leicht",
+            "label": "Durch Überlegung",
             "description": "Zwei kleine Nenner; kgV im Kopf bestimmen und nur das Ergebnis eingeben."
           },
           {
             "value": "medium",
-            "label": "Mittel",
-            "description": "Zwei anspruchsvollere Nenner mit Primfaktorzerlegung."
-          },
-          {
-            "value": "hard",
-            "label": "Schwer",
-            "description": "Drei Nenner mit Primfaktorzerlegung."
+            "label": "Durch Primfaktorzerlegung",
+            "description": "Zwei und drei Nenner abwechselnd in Primfaktoren zerlegen."
           }
         ]
       }

@@ -4,7 +4,7 @@ import FormattedFractionText from './components/FormattedFractionText'
 import FormattedRootText from './components/FormattedRootText'
 
 const CATEGORY_INTROS = {
-  hauptnenner: ['Schwierigkeitsgrad', 'Wähle, wie du den Hauptnenner bestimmen möchtest.'],
+  hauptnenner: ['Verfahren', 'Wähle, wie du den Hauptnenner bestimmen möchtest.'],
   wurzeln: ['Aufgabenarten', 'Kombiniere teilweises Radizieren, Wurzelgesetze, Quadrate, Wurzelterme und positive Variablen.'],
   einmaleins: ['Zahlenraum', 'Wähle, ob Quadratzahlen über das klassische Einmaleins hinaus vorkommen sollen.'],
   'schriftlich-divide': ['Divisoren', 'Bestimme den Zahlenbereich der Divisoren.'],
@@ -57,13 +57,15 @@ export function CategoryConfigurator({ category, values = {}, onChange, compact 
   return <section className={`category-configurator${compact ? ' category-configurator--compact' : ''}`}><div className="category-configurator__intro"><h3>{heading}</h3><p>{description}</p></div><div className="category-option-grid">{tileOptions.map(option => {
     const active = values[option.key] ?? option.defaultValue
     return <button key={option.key} type="button" className={`category-option${active ? ' category-option--active' : ''}${option.disabled || readOnly ? ' category-option--locked' : ''}`} onClick={() => !option.disabled && !readOnly && onChange({ ...values, [option.key]: !active })} aria-pressed={active} disabled={option.disabled || readOnly}><span className="category-option__state">{active ? 'Ausgewählt' : 'Nicht ausgewählt'}</span><strong><FormattedFractionText>{option.label}</FormattedFractionText></strong><small>{category === 'wurzeln' ? <FormattedRootText>{optionDescription(option.key)}</FormattedRootText> : <FormattedFractionText>{optionDescription(option.key)}</FormattedFractionText>}</small></button>
-  })}</div>{choiceOptions.map(option => <fieldset key={option.key} className="category-choice-settings" disabled={readOnly || option.disabled}>
+  })}</div>{choiceOptions.map(option => {
+    const selectedValue = option.options.some(choice => choice.value === values[option.key]) ? values[option.key] : option.defaultValue
+    return <fieldset key={option.key} className="category-choice-settings" disabled={readOnly || option.disabled}>
     <legend className="sr-only">{option.label}</legend>
-    <div className="category-notation-options">{option.options.map(choice => <label key={choice.value} className={`category-notation-option${(values[option.key] ?? option.defaultValue) === choice.value ? ' category-notation-option--active' : ''}`}>
-      <input type="radio" name={`${notationId}-${option.key}`} value={choice.value} checked={(values[option.key] ?? option.defaultValue) === choice.value} onChange={() => onChange({ ...values, [option.key]: choice.value })} />
+    <div className="category-notation-options">{option.options.map(choice => <label key={choice.value} className={`category-notation-option${selectedValue === choice.value ? ' category-notation-option--active' : ''}`}>
+      <input type="radio" name={`${notationId}-${option.key}`} value={choice.value} checked={selectedValue === choice.value} onChange={() => onChange({ ...values, [option.key]: choice.value })} />
       <span><strong>{choice.label}</strong><small>{choice.description}</small></span>
     </label>)}</div>
-  </fieldset>)}{notationOption && <fieldset className="category-notation-settings" disabled={readOnly || notationOption.disabled}>
+  </fieldset>})}{notationOption && <fieldset className="category-notation-settings" disabled={readOnly || notationOption.disabled}>
     <legend>Schreibweise</legend>
     <div className="category-notation-options">{[
       { value: true, label: 'Vorzeichen immer angeben', description: 'Positive und negative Zahlen stehen mit Vorzeichen in Klammern.', example: '(−3) + (+5) = 2' },

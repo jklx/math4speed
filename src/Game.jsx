@@ -355,8 +355,8 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
       )
     }
     if (cat === 'hauptnenner') {
-      const difficulty = settings.hauptnennerDifficulty ?? 'medium'
-      return <><p>Du hast {mins} Minuten Zeit. {difficulty === 'easy' ? 'Bestimme den Hauptnenner im Kopf.' : `Zerlege ${difficulty === 'hard' ? 'alle drei' : 'beide'} Nenner in Primfaktoren und bestimme damit den Hauptnenner.`}</p><HauptnennerExamples mental={difficulty === 'easy'} three={difficulty === 'hard'} /></>
+      const mental = settings.hauptnennerDifficulty === 'easy'
+      return <><p>Du hast {mins} Minuten Zeit. {mental ? 'Bestimme den Hauptnenner im Kopf.' : 'Zerlege die Nenner in Primfaktoren und bestimme damit den Hauptnenner. Aufgaben mit zwei und drei Nennern wechseln sich ab.'}</p><HauptnennerExamples mental={mental} /></>
     }
     if (cat === 'anteile-bruchteile') return <><p>Du hast {mins} Minuten Zeit, Bruchteile, Anteile und das Ganze zu bestimmen.</p><p>Die Aufgaben verwenden verschiedene Größen wie Länge, Zeit, Geld, Masse und Winkel.</p><p>Wenn der Anteil gesucht ist, gib ihn als Bruch ein. Du musst den Bruch noch nicht kürzen.</p></>
     if (cat === 'primfaktorisierung') {
