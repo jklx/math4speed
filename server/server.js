@@ -7,6 +7,7 @@ const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { generateReport } = require('./pdfReport');
+const { sanitizeActivitySettings } = require('./activitySettings');
 const {
   createSession,
   createStudentSession,
@@ -156,14 +157,6 @@ function validSebRequest(request, room, token, receivedHash) {
 
 function randomStartCode() {
   return String(crypto.randomInt(0, 1000000)).padStart(6, '0');
-}
-
-function sanitizeActivitySettings(category, input) {
-  const categoryConfig = require('../shared/categories.json')[category];
-  if (!categoryConfig) return {};
-  return Object.fromEntries((categoryConfig.settings || []).map(setting => [setting.key,
-    typeof input?.[setting.key] === 'boolean' ? input[setting.key] : setting.defaultValue
-  ]));
 }
 
 async function findStudentRoom(roomId, token, studentId) {

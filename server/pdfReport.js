@@ -44,10 +44,10 @@ function formatProblem(problem, includeUserAnswer = true) {
   let question;
   switch (problem.type) {
     case 'hauptnenner':
-      question = `Hauptnenner von ${problem.a} und ${problem.b}: ${problem.correct}`;
-      if (includeUserAnswer && problem.hauptnennerSnapshot) {
+      question = `Hauptnenner von ${[problem.a, problem.b, ...(problem.c ? [problem.c] : [])].join(' und ')}: ${problem.correct}`;
+      if (includeUserAnswer && problem.hauptnennerSnapshot && !problem.mental) {
         const steps = problem.hauptnennerSnapshot;
-        question += `\n${problem.a} = ${formatFactorString(steps.first)}; ${problem.b} = ${formatFactorString(steps.second)}; Hauptnenner = ${formatFactorString(steps.lcm)}`;
+        question += `\n${problem.a} = ${formatFactorString(steps.first)}; ${problem.b} = ${formatFactorString(steps.second)}; ${problem.c ? `${problem.c} = ${formatFactorString(steps.third)}; ` : ''}Hauptnenner = ${formatFactorString(steps.lcm)}`;
       }
       break;
     case 'anteile-bruchteile':

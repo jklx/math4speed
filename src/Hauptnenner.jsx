@@ -7,13 +7,15 @@ export default function Hauptnenner({ problem, value = '', onChange, onEnter, re
   const [stage, setStage] = useState(0)
   const [hint, setHint] = useState('')
   const [checkedFields, setCheckedFields] = useState(null)
+  const fieldsToFill = problem.mental ? ['result'] : ['first', 'second', ...(problem.c ? ['third'] : []), 'lcm', 'result']
+  const resultStage = fieldsToFill.length - 1
   const feedbackFields = mistakeFeedback ? validateHauptnenner(value, problem).fieldCorrect : checkedFields
   const hasError = field => !showTick && feedbackFields?.[field] === false
   useEffect(() => {
     if (!mistakeFeedback) return
     const fields = validateHauptnenner(value, problem).fieldCorrect
     setCheckedFields(fields)
-    const firstError = ['first', 'second', 'lcm', 'result'].findIndex(field => !fields[field])
+    const firstError = Object.keys(fields).findIndex(field => !fields[field])
     if (firstError !== -1) setStage(firstError)
   }, [mistakeFeedback, value, problem])
   const values = parseHauptnennerInput(value)
@@ -22,34 +24,35 @@ export default function Hauptnenner({ problem, value = '', onChange, onEnter, re
   const resultRef = useRef(null)
   const locked = readOnly || Boolean(mistakeFeedback) || showTick
   const revealSolution = Boolean(mistakeFeedback) && !mistakeFeedback.canRetry
-  useEffect(() => { if (stage === 3 && !locked) resultRef.current?.focus() }, [stage, locked])
+  useEffect(() => { if ((problem.mental || stage === resultStage) && !locked) resultRef.current?.focus() }, [stage, locked, resultStage, problem.mental])
   const update = (field, next) => {
     latest.current = { ...latest.current, [field]: next }
     onChange?.(JSON.stringify(latest.current))
   }
   const submit = () => {
-    const missing = ['first', 'second', 'lcm', 'result'].findIndex(field => !latest.current[field].trim())
+    const missing = fieldsToFill.findIndex(field => !(latest.current[field] ?? '').trim())
     if (missing !== -1) {
-      setHint('Bitte fülle alle vier Schritte aus.')
+      setHint(problem.mental ? 'Bitte gib den Hauptnenner ein.' : `Bitte fülle alle ${fieldsToFill.length} Schritte aus.`)
       setStage(missing)
       return
     }
     setHint('')
     onEnter?.(JSON.stringify(latest.current))
   }
-  const rows = [
+  const rows = problem.mental ? [] : [
     { field: 'first', number: problem.a, factors: problem.factorsA },
     { field: 'second', number: problem.b, factors: problem.factorsB },
+    ...(problem.c ? [{ field: 'third', number: problem.c, factors: problem.factorsC }] : []),
     { field: 'lcm', number: problem.correct, factors: problem.lcmFactors, label: '' },
   ]
   return <div className="hauptnenner-training">
-    <div className="instruction">Finde den Hauptnenner der beiden Brüche.</div>
+    <div className="instruction">{problem.mental ? 'Bestimme den Hauptnenner im Kopf.' : `Finde den Hauptnenner der ${problem.c ? 'drei' : 'beiden'} Brüche, also das kgV ihrer Nenner.`}</div>
     <div className="hauptnenner-fractions">
-      <math aria-label={`1 durch ${problem.a} und 1 durch ${problem.b}`}><mfrac><mn>1</mn><mn>{problem.a}</mn></mfrac><mspace width="0.5em" /><mtext>und</mtext><mspace width="0.5em" /><mfrac><mn>1</mn><mn>{problem.b}</mn></mfrac></math>
+      <math aria-label={[problem.a, problem.b, ...(problem.c ? [problem.c] : [])].map(n => `1 durch ${n}`).join(' und ')}>{[problem.a, problem.b, ...(problem.c ? [problem.c] : [])].map((n, index) => <React.Fragment key={n}>{index > 0 && <><mspace width="0.5em" /><mtext>und</mtext><mspace width="0.5em" /></>}<mfrac><mn>1</mn><mn>{n}</mn></mfrac></React.Fragment>)}</math>
     </div>
-    <p className="instruction">Zerlege beide Nenner. Übernimm dann jeden Primfaktor in seiner höchsten vorkommenden Anzahl.</p>
+    {!problem.mental && <p className="instruction">Zerlege {problem.c ? 'alle drei' : 'beide'} Nenner. Übernimm dann jeden Primfaktor in seiner höchsten vorkommenden Anzahl.</p>}
     {rows.map((row, index) => <section className={`hauptnenner-step${hasError(row.field) ? ' hauptnenner-step--error' : ''}`} key={row.field}>
-      <div className="hauptnenner-step-heading"><span>{index + 1}. {index < 2 ? 'Nenner zerlegen' : 'Primfaktoren für den Hauptnenner'}</span>
+      <div className="hauptnenner-step-heading"><span>{index + 1}. {row.field !== 'lcm' ? 'Nenner zerlegen' : 'Primfaktoren für den Hauptnenner'}</span>
       </div>
       {hasError(row.field) && <p className="hauptnenner-step-error" role="status">{mistakeFeedback ? 'Hier liegt ein Fehler.' : 'Bitte überprüfe diesen Schritt.'}</p>}
       <Primfaktorisierung number={row.number} expressionLabel={row.label}
@@ -60,11 +63,11 @@ export default function Hauptnenner({ problem, value = '', onChange, onEnter, re
         mistakeFeedback={revealSolution && hasError(row.field) ? { userAnswerDisplay: values[row.field], correctAnswerDisplay: row.factors.join(' · ') } : null} />
     </section>)}
     <section className={`hauptnenner-step${hasError('result') ? ' hauptnenner-step--error' : ''}`}>
-      <div className="hauptnenner-step-heading">4. Faktoren multiplizieren</div>
+      {!problem.mental && <div className="hauptnenner-step-heading">{fieldsToFill.length}. Faktoren multiplizieren</div>}
       {hasError('result') && <p className="hauptnenner-step-error" role="status">{mistakeFeedback ? 'Hier liegt ein Fehler.' : 'Bitte überprüfe diesen Schritt.'}</p>}
       <div className="factor-row"><label htmlFor={`hauptnenner-${problem.id}`}>Hauptnenner =</label>
         <input id={`hauptnenner-${problem.id}`} ref={resultRef} className="math-input answer-input hauptnenner-result" inputMode="numeric" value={values.result} readOnly={locked}
-          onFocus={() => { if (!locked) setStage(3) }}
+          onFocus={() => { if (!locked) setStage(resultStage) }}
           onChange={event => update('result', event.target.value.replace(/[^0-9]/g, ''))}
           onKeyDown={event => {
             if (locked) return

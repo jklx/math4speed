@@ -1838,7 +1838,7 @@ export function generateDezimalbruecheProblems(count, settings = {}) {
   return problems
 }
 
-export function generateHauptnennerProblems(count) {
+export function generateHauptnennerProblems(count, difficulty = 'medium') {
   const gcd = (a, b) => b ? gcd(b, a % b) : a;
   const factorize = number => {
     const factors = [];
@@ -1847,11 +1847,27 @@ export function generateHauptnennerProblems(count) {
     }
     return factors;
   };
-  const denominators = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 24, 25, 27, 28, 30, 32, 36];
-  const common = [], coprime = [];
+  const denominators = difficulty === 'easy'
+    ? [2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 16, 18, 20]
+    : [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 24, 25, 27, 28, 30, 36];
+  const lcm = (a, b) => a * b / gcd(a, b);
+  const triples = [];
+  if (difficulty === 'hard') denominators.forEach((a, i) => denominators.slice(i + 1).forEach((b, j) => denominators.slice(i + j + 2).forEach(c => {
+    const correct = lcm(lcm(a, b), c);
+    // Every denominator contributes factors; no redundant third denominator.
+    if (c >= 10 && correct <= 360 && factorize(correct).length <= 6 && [lcm(a, b), lcm(a, c), lcm(b, c)].every(pair => pair < correct)) triples.push({ a, b, c, correct });
+  })));
+
+  const common = [], coprime = [], multiples = [];
   denominators.forEach((a, i) => denominators.slice(i + 1).forEach(b => {
     const correct = a * b / gcd(a, b);
-    if (correct <= 180) (gcd(a, b) === 1 ? coprime : common).push({ a, b, correct });
+    const suitable = difficulty === 'easy'
+      ? correct <= 60 && (b <= 12 || b % a === 0)
+      : b >= 12 && correct <= 180 && correct > b && factorize(correct).length <= 5;
+    if (suitable) {
+      const pool = difficulty === 'easy' && b % a === 0 ? multiples : gcd(a, b) === 1 ? coprime : common;
+      pool.push({ a, b, correct });
+    }
   }));
   const shuffle = pool => {
     const result = [...pool];
@@ -1861,17 +1877,25 @@ export function generateHauptnennerProblems(count) {
     }
     return result;
   };
-  let commonQueue = [], coprimeQueue = [], rarePosition;
+  let commonQueue = [], coprimeQueue = [], multipleQueue = [], tripleQueue = [], rarePosition, multiplePositions = [];
   return Array.from({ length: count }, (_, index) => {
     // One coprime pair per ten tasks, at a varying position in each block.
-    if (index % 10 === 0) rarePosition = Math.floor(Math.random() * 10);
+    if (index % 10 === 0) {
+      rarePosition = Math.floor(Math.random() * 10);
+      // Easy: three divisible pairs per block; keep the coprime slot separate.
+      if (difficulty === 'easy') multiplePositions = shuffle(Array.from({ length: 10 }, (_, position) => position).filter(position => position !== rarePosition)).slice(0, 3);
+    }
     if (!commonQueue.length) commonQueue = shuffle(common);
     if (!coprimeQueue.length) coprimeQueue = shuffle(coprime);
-    const pair = (index % 10 === rarePosition ? coprimeQueue : commonQueue).pop();
-    const { a, b, correct } = pair;
+    if (!multipleQueue.length && difficulty === 'easy') multipleQueue = shuffle(multiples);
+    if (!tripleQueue.length && difficulty === 'hard') tripleQueue = shuffle(triples);
+    const queue = difficulty === 'hard' ? tripleQueue : index % 10 === rarePosition ? coprimeQueue : multiplePositions.includes(index % 10) ? multipleQueue : commonQueue;
+    const pair = queue.pop();
+    const { a, b, c, correct } = pair;
     return { id: index + 1, type: 'hauptnenner', ...pair,
-      expression: `Hauptnenner von 1/${a} und 1/${b}`,
-      factorsA: factorize(a), factorsB: factorize(b), lcmFactors: factorize(correct) };
+      mental: difficulty === 'easy',
+      expression: 'Hauptnenner von ' + [a, b, ...(c ? [c] : [])].map(n => '1/' + n).join(' und '),
+      factorsA: factorize(a), factorsB: factorize(b), ...(c ? { factorsC: factorize(c) } : {}), lcmFactors: factorize(correct) };
   });
 }
 
@@ -2030,7 +2054,7 @@ export function generateProblems(count, category, settings = {}) {
   if (category === 'schriftlich-subtract') return generateSchriftlichProblems(count, { schriftlichAdd: false, schriftlichSubtract: true, schriftlichMultiply: false });
   if (category === 'schriftlich-multiply') return generateSchriftlichProblems(count, { schriftlichAdd: false, schriftlichSubtract: false, schriftlichMultiply: true });
   if (category === 'schriftlich-divide') return generateSchriftlichDivisionProblems(count, settings);
-  if (category === 'hauptnenner') return generateHauptnennerProblems(count);
+  if (category === 'hauptnenner') return generateHauptnennerProblems(count, ['easy', 'medium', 'hard'].includes(settings.hauptnennerDifficulty) ? settings.hauptnennerDifficulty : 'medium');
   if (category === 'anteile-bruchteile') return generateAnteileBruchteileProblems(count, settings);
   if (category === 'primfaktorisierung') return generatePrimfaktorisierungProblems(count, settings);
   if (category === 'negative') return generateNegativeProblems(count, settings);

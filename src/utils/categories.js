@@ -49,6 +49,10 @@ export const getDefaultSettings = () => {
 }
 
 export const getProblemRange = (problem) => {
+  if (problem.type === 'hauptnenner') {
+    const performance = CATEGORIES.hauptnenner.performance
+    return problem.mental ? performance.easy : problem.c ? performance.hard : performance.default
+  }
   const catConfig = problem.type === 'schriftlich' && problem.operation === 'divide'
     ? CATEGORIES['schriftlich-divide']
     : CATEGORIES[problem.type]

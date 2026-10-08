@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { formatDecimal, formatPercent } from './utils/formatNumber'
+import HauptnennerExamples from './components/HauptnennerExamples'
 
 // Animated demo for Primfaktorisierung input explanation
 // Shows: type "2", press SPACE → token appears, type "2", SPACE, type "3", ENTER
@@ -353,7 +354,10 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
         </>
       )
     }
-    if (cat === 'hauptnenner') return <><p>Du hast {mins} Minuten Zeit. Zerlege beide Nenner in Primfaktoren und bestimme damit den Hauptnenner.</p><p>Übernimm jeden Primfaktor so oft, wie er in einer der beiden Zerlegungen höchstens vorkommt. Multipliziere diese Faktoren, um den Hauptnenner zu erhalten.</p><p>Beispiel: 12 = 2 · 2 · 3 und 18 = 2 · 3 · 3 → Hauptnenner = 2 · 2 · 3 · 3 = 36.</p><PrimfaktorDemo /></>
+    if (cat === 'hauptnenner') {
+      const difficulty = settings.hauptnennerDifficulty ?? 'medium'
+      return <><p>Du hast {mins} Minuten Zeit. {difficulty === 'easy' ? 'Bestimme den Hauptnenner im Kopf.' : `Zerlege ${difficulty === 'hard' ? 'alle drei' : 'beide'} Nenner in Primfaktoren und bestimme damit den Hauptnenner.`}</p><HauptnennerExamples mental={difficulty === 'easy'} three={difficulty === 'hard'} /></>
+    }
     if (cat === 'anteile-bruchteile') return <><p>Du hast {mins} Minuten Zeit, Bruchteile, Anteile und das Ganze zu bestimmen.</p><p>Die Aufgaben verwenden verschiedene Größen wie Länge, Zeit, Geld, Masse und Winkel.</p><p>Wenn der Anteil gesucht ist, gib ihn als Bruch ein. Du musst den Bruch noch nicht kürzen.</p></>
     if (cat === 'primfaktorisierung') {
       return (
@@ -1103,8 +1107,9 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
               {isSinglePlayer && !examContext ? (
                 <>
                   <h2>{assignmentContext ? assignmentContext.title : 'Trainingsmodus'}</h2>
+                  {category === 'hauptnenner' && !assignmentContext && <CategoryConfigurator category={category} values={settings} onChange={setSettings} />}
                   {renderCategoryDescription(category)}
-                  {assignmentContext ? <p>Die Einstellungen für diese Übung wurden von deiner Lehrkraft festgelegt.</p> : <CategoryConfigurator category={category} values={settings} onChange={setSettings} />}
+                  {assignmentContext ? <p>Die Einstellungen für diese Übung wurden von deiner Lehrkraft festgelegt.</p> : category !== 'hauptnenner' && <CategoryConfigurator category={category} values={settings} onChange={setSettings} />}
                   
                   <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', justifyContent: 'center' }}>
                     <button onClick={handleStart} className="big">Starten</button>
@@ -1398,7 +1403,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
               </div>
               {showVirtualKB && !mistakeState && (
                 <VirtualKeyboard
-                  category={problems[current]?.type}
+                  category={problems[current]?.mental ? 'multiplication' : problems[current]?.type}
                   variable={problems[current]?.variable}
                   onKey={handleVirtualKey}
                 />

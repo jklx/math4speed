@@ -161,7 +161,31 @@
     "problemCount": 10,
     "durationMinutes": 5,
     "maxTrainingErrors": 3,
-    "settings": [],
+    "settings": [
+      {
+        "key": "hauptnennerDifficulty",
+        "label": "Schwierigkeitsgrad",
+        "defaultValue": "medium",
+        "control": "radio",
+        "options": [
+          {
+            "value": "easy",
+            "label": "Leicht",
+            "description": "Zwei kleine Nenner; kgV im Kopf bestimmen und nur das Ergebnis eingeben."
+          },
+          {
+            "value": "medium",
+            "label": "Mittel",
+            "description": "Zwei anspruchsvollere Nenner mit Primfaktorzerlegung."
+          },
+          {
+            "value": "hard",
+            "label": "Schwer",
+            "description": "Drei Nenner mit Primfaktorzerlegung."
+          }
+        ]
+      }
+    ],
     "performanceScore": [
       4,
       10
@@ -176,6 +200,14 @@
       "default": [
         30,
         90
+      ],
+      "easy": [
+        5,
+        20
+      ],
+      "hard": [
+        45,
+        120
       ]
     }
   },

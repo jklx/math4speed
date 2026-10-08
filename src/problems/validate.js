@@ -3,7 +3,9 @@
 export function parseHauptnennerInput(input) {
   try {
     const value = typeof input === 'string' ? JSON.parse(input) : input;
-    return Object.fromEntries(['first', 'second', 'lcm', 'result'].map(key => [key, typeof value?.[key] === 'string' ? value[key] : '']));
+    const keys = ['first', 'second', 'lcm', 'result'];
+    if (value && Object.hasOwn(value, 'third')) keys.push('third');
+    return Object.fromEntries(keys.map(key => [key, typeof value?.[key] === 'string' ? value[key] : '']));
   } catch { return { first: '', second: '', lcm: '', result: '' }; }
 }
 
@@ -16,11 +18,15 @@ export function validateHauptnenner(input, problem) {
     const expected = [...factors].sort((a, b) => a - b);
     return sorted.length === expected.length && sorted.every((factor, i) => factor === expected[i]);
   };
-  const valid = Object.values(snapshot).every(value => value.trim().length > 0);
+  const required = problem.mental ? ['result'] : ['first', 'second', ...(problem.c ? ['third'] : []), 'lcm', 'result'];
+  const valid = required.every(key => (snapshot[key] ?? '').trim().length > 0);
   const fieldCorrect = {
-    first: matches(snapshot.first, problem.factorsA),
-    second: matches(snapshot.second, problem.factorsB),
-    lcm: matches(snapshot.lcm, problem.lcmFactors),
+    ...(!problem.mental ? {
+      first: matches(snapshot.first, problem.factorsA),
+      second: matches(snapshot.second, problem.factorsB),
+      ...(problem.c ? { third: matches(snapshot.third ?? '', problem.factorsC) } : {}),
+      lcm: matches(snapshot.lcm, problem.lcmFactors),
+    } : {}),
     result: /^\d+$/.test(snapshot.result.trim()) && Number(snapshot.result) === problem.correct,
   };
   const isCorrect = Object.values(fieldCorrect).every(Boolean);

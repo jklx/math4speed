@@ -20,7 +20,7 @@ function ReviewedProblem({ answer, solution }) {
   const value = displayValue(solution ? answer.correct : answer.equationSnapshot?.resultValue ?? (answer.user === '(Gleichung falsch)' ? '' : answer.user))
   const props = { value, readOnly: true }
   switch (answer.type) {
-    case 'hauptnenner': return <Hauptnenner problem={answer} readOnly value={JSON.stringify(solution ? { first: answer.factorsA.join(' '), second: answer.factorsB.join(' '), lcm: answer.lcmFactors.join(' '), result: String(answer.correct) } : answer.hauptnennerSnapshot ?? { result: String(answer.user ?? '') })} />
+    case 'hauptnenner': return <Hauptnenner problem={answer} readOnly value={JSON.stringify(solution ? { first: answer.factorsA.join(' '), second: answer.factorsB.join(' '), ...(answer.c ? { third: answer.factorsC.join(' ') } : {}), lcm: answer.lcmFactors.join(' '), result: String(answer.correct) } : answer.hauptnennerSnapshot ?? { result: String(answer.user ?? '') })} />
     case 'multiplication': return <Einmaleins {...props} a={answer.a} b={answer.b} />
     case 'negative': return <Negative {...props} a={answer.a} b={answer.b} operator={answer.operator} explicitPlus={answer.explicitPlus} />
     case 'wurzeln': return <><Wurzeln {...props} problem={answer} />{solution && !answer.isCorrect && <WurzelnSolution problem={answer} />}</>

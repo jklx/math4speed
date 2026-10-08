@@ -59,7 +59,7 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich, on
           return <span style={{ color: 'var(--ok)', marginLeft: '10px', fontWeight: 'bold' }}>{correctValue}</span>
         }
 
-        if (q.type === 'hauptnenner') return <li key={q.id} {...selectionProps}>Hauptnenner von {q.a} und {q.b}: {q.user || '—'}{renderCorrection(q.correct)}</li>
+        if (q.type === 'hauptnenner') return <li key={q.id} {...selectionProps}>Hauptnenner von {[q.a, q.b, ...(q.c ? [q.c] : [])].join(' und ')}: {q.user || '—'}{renderCorrection(q.correct)}</li>
         if (q.type === 'anteile-bruchteile') {
           const answerUnit = q.answerUnit || q.unit
           return <li key={q.id} {...selectionProps}><FormattedFractionText>{q.expression}</FormattedFractionText>: {q.user ?? '—'}{q.variant !== 'anteil' && q.user != null ? ` ${answerUnit}` : ''}{renderCorrection(`${q.correct}${q.variant === 'anteil' ? '' : ` ${answerUnit}`}`)}</li>
