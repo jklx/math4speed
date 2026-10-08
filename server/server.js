@@ -390,18 +390,33 @@ app.post('/api/classes', requireUser, requireRole('teacher'), async (request, re
 
 app.patch('/api/classes/:classId', requireUser, requireRole('teacher'), async (request, response, next) => {
   try {
-    if (request.body?.studentCodeStyle === undefined) return response.status(400).json({ error: 'Bitte die Art der Schülerkennungen angeben.' });
-    let style;
-    try { style = validateStudentCodeStyle(request.body.studentCodeStyle); }
-    catch (error) { return response.status(400).json({ error: error.message }); }
+    const updates = [];
+    const values = [request.params.classId, request.user.id];
+    if (request.body?.name !== undefined) {
+      const name = typeof request.body.name === 'string' ? request.body.name.trim() : '';
+      if (!name || name.length > 120) return response.status(400).json({ error: 'Bitte einen Klassennamen mit höchstens 120 Zeichen angeben.' });
+      values.push(name);
+      updates.push(`name = $${values.length}`);
+    }
+    if (request.body?.studentCodeStyle !== undefined) {
+      let style;
+      try { style = validateStudentCodeStyle(request.body.studentCodeStyle); }
+      catch (error) { return response.status(400).json({ error: error.message }); }
+      values.push(style);
+      updates.push(`student_code_style = $${values.length}`);
+    }
+    if (!updates.length) return response.status(400).json({ error: 'Bitte einen Klassennamen oder die Art der Schülerkennungen angeben.' });
     const result = await getPool().query(
-      `UPDATE classes SET student_code_style = $3
+      `UPDATE classes SET ${updates.join(', ')}
        WHERE id = $1 AND teacher_id = $2 AND archived_at IS NULL AND is_rehearsal = FALSE
-       RETURNING id, name, student_code_style AS "studentCodeStyle"`, [request.params.classId, request.user.id, style]
+       RETURNING id, name, student_code_style AS "studentCodeStyle"`, values
     );
     if (!result.rowCount) return response.status(404).json({ error: 'Aktive Klasse nicht gefunden.' });
     return response.json({ class: result.rows[0] });
-  } catch (error) { return next(error); }
+  } catch (error) {
+    if (error.code === '23505') return response.status(409).json({ error: 'Eine Klasse mit diesem Namen gibt es bereits.' });
+    return next(error);
+  }
 });
 
 app.get('/api/classes/:classId/students', requireUser, requireRole('teacher'), async (request, response, next) => {

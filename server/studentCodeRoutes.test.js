@@ -53,6 +53,40 @@ test('style updates reject invalid input before querying and restrict changes to
   assert.equal((await invoke(success.get('patch /api/classes/:classId'), { studentCodeStyle: 'personalities' })).body.class.studentCodeStyle, 'personalities');
 });
 
+test('renaming validates and trims the name and only updates an owned active class', async () => {
+  const calls = [];
+  const handlers = routes(async (sql, params) => { calls.push({ sql, params }); return { rowCount: 1, rows: [{ id: 'class-id', name: params[2], studentCodeStyle: 'personalities' }] }; });
+  const handler = handlers.get('patch /api/classes/:classId');
+  for (const name of ['', '   ', null, 42, {}, 'x'.repeat(121)]) {
+    assert.equal((await invoke(handler, { name })).statusCode, 400);
+  }
+  assert.equal((await invoke(handler, { name: '7b', studentCodeStyle: 'invalid' })).statusCode, 400);
+  assert.equal(calls.length, 0);
+  const result = await invoke(handler, { name: ' 7b ' });
+  assert.equal(result.statusCode, 200);
+  assert.equal(result.body.class.name, '7b');
+  assert.equal(result.body.class.studentCodeStyle, 'personalities');
+  assert.deepEqual(Array.from(calls[0].params), ['class-id', 'teacher-id', '7b']);
+  assert.match(calls[0].sql, /UPDATE classes SET name = \$3\s+WHERE id = \$1 AND teacher_id = \$2 AND archived_at IS NULL AND is_rehearsal = FALSE/);
+  assert.doesNotMatch(calls[0].sql, /SET student_code_style|UPDATE students/);
+  const missing = routes(async () => ({ rowCount: 0, rows: [] }));
+  assert.equal((await invoke(missing.get('patch /api/classes/:classId'), { name: '7b' })).statusCode, 404);
+});
+
+test('class updates support both fields and return a useful error for duplicate names', async () => {
+  let values;
+  let statement;
+  const handlers = routes(async (sql, params) => { statement = sql; values = params; return { rowCount: 1, rows: [{ id: 'class-id', name: params[2], studentCodeStyle: params[3] }] }; });
+  const result = await invoke(handlers.get('patch /api/classes/:classId'), { name: '7b', studentCodeStyle: 'animals' });
+  assert.equal(result.statusCode, 200);
+  assert.deepEqual(Array.from(values), ['class-id', 'teacher-id', '7b', 'animals']);
+  assert.match(statement, /SET name = \$3, student_code_style = \$4/);
+  const duplicate = routes(async () => { throw Object.assign(new Error('duplicate'), { code: '23505' }); });
+  const conflict = await invoke(duplicate.get('patch /api/classes/:classId'), { name: '7b' });
+  assert.equal(conflict.statusCode, 409);
+  assert.equal(conflict.body.error, 'Eine Klasse mit diesem Namen gibt es bereits.');
+});
+
 test('single creation, import and regeneration all use the class style and reject missing ownership', async () => {
   for (const path of ['/api/classes/:classId/students', '/api/classes/:classId/students/import', '/api/classes/:classId/students/:studentId/regenerate-code']) {
     for (const owned of [true, false]) {
