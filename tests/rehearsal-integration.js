@@ -37,12 +37,37 @@ async function main() {
       return {data:text?JSON.parse(text):null,cookie:response.headers.get('set-cookie')?.split(';')[0]};
     }
     const event = (socket, name, predicate = () => true) => {
+      const timeoutError = Error('Timed out: ' + name);
       return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => { socket.off(name, handler); reject(Error('Timed out: ' + name)); }, 5000);
+        const timer = setTimeout(() => { socket.off(name, handler); reject(timeoutError); }, 5000);
         function handler(value) { if (!predicate(value)) return; clearTimeout(timer); socket.off(name, handler); resolve(value); }
         socket.on(name, handler);
       });
     }
+    const connectSocket = async cookie => {
+      const socket = io(base, { autoConnect: false, transports: ['websocket'], extraHeaders: { Cookie: cookie } });
+      sockets.push(socket);
+      const connected = event(socket, 'connect'); socket.connect(); await connected;
+      return socket;
+    };
+    const denyRoomState = async (socket, roomId) => {
+      const received = [];
+      const record = state => received.push(state);
+      socket.on('roomState', record);
+      const denied = event(socket, 'error'); socket.emit('getRoomState', roomId);
+      assert.match(await denied, /Berechtigung/);
+      assert.equal(received.length, 0);
+      socket.off('roomState', record);
+    };
+    const report = async (roomId, cookie, status) => {
+      const response = await fetch(`${base}/api/report/${roomId}`, { headers: { Cookie: cookie } });
+      assert.equal(response.status, status);
+      if (status === 200) {
+        assert.equal(response.headers.get('cache-control'), 'no-store');
+        assert.match(response.headers.get('content-type'), /application\/pdf/);
+        assert.equal(Buffer.from(await response.arrayBuffer()).subarray(0, 5).toString(), '%PDF-');
+      } else await response.text();
+    };
     const observer=io(base,{autoConnect:false,transports:['websocket']}); sockets.push(observer);
     let connected=event(observer,'connect'); observer.connect(); await connected;
     const login = username=>call('/api/auth/login','',{username,password:'local-test-password'});
@@ -65,6 +90,18 @@ async function main() {
     connected=event(observer,'connect'); observer.disconnect().connect(); await connected;
     let observed=event(observer,'roomState'); observer.emit('openPersistentRoom',{roomId:room.id});
     assert.equal((await observed).players.length,1);
+    const stranger = await connectSocket(''), foreignTeacher = await connectSocket(other);
+    for (const name of ['openPersistentRoom', 'joinPersistentRoom', 'getRoomState', 'updateProgress', 'recordExamAnswer', 'finishGame']) {
+      for (const payload of [undefined, null, { roomId: 'not-a-room' }]) {
+        const rejected = event(stranger, 'error'); stranger.emit(name, payload);
+        assert.match(await rejected, /Ungültig/);
+      }
+    }
+    await denyRoomState(stranger, room.id);
+    await denyRoomState(foreignTeacher, room.id);
+    await report(room.id, '', 401);
+    await report(room.id, student, 401);
+    await report(room.id, other, 404);
     await call(root+'/release-code',owner,{},409);
     await call(root+'/ready',student,{token},204);
     const code=(await call(root+'/release-code',owner,{})).data.code;
@@ -82,6 +119,7 @@ async function main() {
     assert.equal(resume.isRehearsal,true); assert.equal(resume.answers.length,1); assert.deepEqual(resume.settings,{maxFactor:12});
     await call(root+'/finish',student,{token,correctCount:1,wrongCount:0},204);
     assert.equal((await call(root,owner)).data.room.status,'finished');
+    await report(room.id, owner, 200);
     await call(root+'/reset-rehearsal',other,{},404);
     await call(root+'/reset-rehearsal',owner,{},204);
     assert.equal((await call(root,owner)).data.students[0].status,'pending');
@@ -121,6 +159,63 @@ async function main() {
     for(const pupil of group.slice(0,3)) await call(groupRoot+'/ready',pupil.cookie,{token:groupToken},204);
     const groupCode=(await call(groupRoot+'/release-code',owner,{})).data.code;
     for(const pupil of group.slice(0,2)) await call(groupRoot+'/start',pupil.cookie,{token:groupToken,code:groupCode});
+    // Every push and explicit read contains only the recipient's own pupil.
+    const pupilSocket = await connectSocket(group[0].cookie);
+    await denyRoomState(pupilSocket, groupRoom.id);
+    let ownState = event(pupilSocket, 'roomState');
+    pupilSocket.emit('joinPersistentRoom', { roomId: groupRoom.id, token: groupToken });
+    const assertOwnState = state => {
+      assert.deepEqual(state.players.map(p => p.id), [group[0].id]);
+      assert.equal(state.admin, null);
+      assert.ok(!JSON.stringify(state).includes(group[1].id));
+    };
+    assertOwnState(await ownState);
+    ownState = event(pupilSocket, 'roomState'); pupilSocket.emit('getRoomState', groupRoom.id);
+    assertOwnState(await ownState);
+    ownState = event(pupilSocket, 'roomState');
+    await call(groupRoot+'/answers',group[1].cookie,{token:groupToken,position:0,entry:{a:7,b:8,user:56,isCorrect:true}},204);
+    const ownAfterPeerAnswer = await ownState;
+    assertOwnState(ownAfterPeerAnswer);
+    assert.equal(ownAfterPeerAnswer.players[0].solved.length, 0);
+    await report(groupRoom.id, group[0].cookie, 401);
+    await denyRoomState(pupilSocket, room.id);
+    // A socket that was already authorized loses reads and pushes after logout.
+    const revokedCookie = (await login('probe_teacher')).cookie;
+    const revokedTeacher = await connectSocket(revokedCookie);
+    observed = event(revokedTeacher, 'roomState'); revokedTeacher.emit('openPersistentRoom', { roomId: groupRoom.id });
+    assert.equal((await observed).players.length, 4);
+    await call('/api/auth/logout', revokedCookie, {}, 204);
+    await report(groupRoom.id, revokedCookie, 401);
+    const revokedPush = event(revokedTeacher, 'error');
+    const leaked = []; revokedTeacher.on('roomState', state => leaked.push(state));
+    ownState = event(pupilSocket, 'roomState');
+    pupilSocket.emit('updateProgress', { roomId: groupRoom.id, progress: 10, solved: [] });
+    assertOwnState(await ownState);
+    assert.match(await revokedPush, /Berechtigung/);
+    assert.equal(leaked.length, 0);
+    await denyRoomState(revokedTeacher, groupRoom.id);
+    await call('/api/student/logout', group[0].cookie, {}, 204);
+    for (const [name, payload] of [
+      ['updateProgress', { progress: 99, solved: [{ user: 'forbidden' }] }],
+      ['recordExamAnswer', { position: 99, entry: { user: 'forbidden', isCorrect: true } }],
+      ['finishGame', {}]
+    ]) {
+      const denied = event(pupilSocket, 'error');
+      pupilSocket.emit(name, { roomId: groupRoom.id, ...payload });
+      assert.match(await denied, /Testzugang/);
+    }
+    assert.equal((await db.query('SELECT COUNT(*)::int AS n FROM exam_answers WHERE student_id=$1', [group[0].id])).rows[0].n, 0);
+    assert.equal((await call(groupRoot, owner)).data.students.find(p => p.id === group[0].id).status, 'started');
+    const pupilLeaks = []; pupilSocket.on('roomState', state => pupilLeaks.push(state));
+    const revokedPupilPush = event(pupilSocket, 'error');
+    const peerSocket = await connectSocket(group[1].cookie);
+    observed = event(peerSocket, 'roomState');
+    peerSocket.emit('joinPersistentRoom', { roomId: groupRoom.id, token: groupToken }); await observed;
+    assert.match(await revokedPupilPush, /Berechtigung/);
+    assert.equal(pupilLeaks.length, 0);
+    await denyRoomState(pupilSocket, groupRoom.id);
+    // Continue the normal exam with a new pupil session after the revocation test.
+    group[0].cookie = (await call('/api/student/login', '', { accessCode: 'status0' })).cookie;
     await Promise.all(group.slice(0,2).map(pupil=>call(groupRoot+'/finish',pupil.cookie,{token:groupToken,correctCount:999,wrongCount:999},204)));
     let groupState=(await call(groupRoot,owner)).data;
     assert.equal(groupState.room.status,'running'); assert.equal(groupState.students.find(p=>p.id===group[2].id).status,'ready');
@@ -132,7 +227,8 @@ async function main() {
     assert.equal((await call(groupRoot,owner)).data.room.status,'finished');
     assert.equal((await call(`/api/classes/${groupClass}/exams`,owner)).data.exams[0].roomStatus,'finished');
     const counts=await db.query('SELECT correct_count,wrong_count FROM exam_room_students WHERE room_id=$1',[groupRoom.id]);
-    assert.ok(counts.rows.every(row=>row.correct_count===0 && row.wrong_count===0));
+    assert.ok(counts.rows.every(row=>row.wrong_count===0));
+    assert.equal(counts.rows.reduce((sum,row)=>sum+row.correct_count,0),1);
     // Reproduce concurrent last submissions repeatedly using independent database connections.
     for(let round=0;round<4;round++) {
       await db.query("UPDATE exam_rooms SET status='running',finished_at=NULL WHERE id=$1",[groupRoom.id]);
@@ -196,6 +292,7 @@ async function main() {
       console.log('PASS: two automatic pupils, duplicate protection, start, different speeds, mistakes, timed finish, results and reset.');
     }
     console.log('PASS: startup repair of completed rooms.');
+    console.log('PASS: anonymous and foreign-teacher denial, pupil-only reads and broadcasts, PDF ownership and session revocation on connected sockets.');
     console.log('PASS: concurrent and late final submissions, idempotent completion, ready and absent pupils, persisted counts and class status.');
     console.log('PASS: live authentication refresh and answer broadcast, isolated rehearsal, ownership, reuse, login, start code, answers, resume, finish, reset, session revocation, SEB mode, real-room protection.');
   } finally {

@@ -33,6 +33,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use('/api', (_request, response, next) => {
+  response.setHeader('Cache-Control', 'no-store');
+  next();
+});
 const httpServer = createServer(app);
 const rehearsalBots = createRehearsalBots({ getPool, createStudentSession, origin: () => `http://127.0.0.1:${httpServer.address().port}` });
 
@@ -109,6 +113,11 @@ function randomRoomToken() {
 
 function hashRoomToken(token) {
   return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
+function normalizedRoomId(value) {
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+    ? value.toLowerCase() : null;
 }
 
 function sameHash(left, right) {
@@ -1106,23 +1115,25 @@ function attachPlayerToSocket(room, playerId, socket, roomId) {
   return player;
 }
 
-function serializeRoom(room) {
+function serializeRoom(room, studentId = null) {
   return {
-    admin: room.admin,
+    admin: studentId ? null : room.admin,
     adminName: room.adminName,
     persistent: Boolean(room.persistent),
     databaseStatus: room.databaseStatus || null,
     status: room.status,
     settings: room.settings || null,
-    players: Array.from(room.players.entries()).map(([id, data]) => ({
-      id,
-      username: data.username,
-      status: data.status || null,
-      score: data.score,
-      progress: data.progress,
-      solved: data.solved || [],
-      connected: Boolean(data.socketId)
-    }))
+    players: Array.from(room.players.entries())
+      .filter(([id]) => !studentId || id === studentId)
+      .map(([id, data]) => ({
+        id,
+        username: data.username,
+        status: data.status || null,
+        score: data.score,
+        progress: data.progress,
+        solved: data.solved || [],
+        connected: Boolean(data.socketId)
+      }))
   };
 }
 
@@ -1210,19 +1221,26 @@ async function persistExamAnswer(roomId, studentId, position, entry) {
   }
 }
 
-async function persistentRoomForTeacher(roomId, cookie) {
+async function teacherForRoom(roomId, cookie) {
+  if (!isDatabaseConfigured()) return null;
   const user = await findSessionUser(readCookies(cookie)[AUTH_COOKIE]);
   if (!user || user.role !== 'teacher') return null;
   const ownership = await getPool().query(
     `SELECT 1 FROM exam_rooms r JOIN exams e ON e.id = r.exam_id JOIN classes c ON c.id = e.class_id
       WHERE r.id = $1 AND c.teacher_id = $2`, [roomId, user.id]
   );
-  if (!ownership.rowCount) return null;
+  return ownership.rowCount ? user : null;
+}
+
+async function persistentRoomForTeacher(roomId, cookie) {
+  const user = await teacherForRoom(roomId, cookie);
+  if (!user) return null;
   const room = await hydratePersistentRoom(roomId);
   return room ? { room, user } : null;
 }
 
-async function persistentRoomForStudent(roomId, token, cookie) {
+async function studentForRoom(roomId, token, cookie) {
+  if (!isDatabaseConfigured()) return null;
   const student = await findStudentSession(readCookies(cookie)[STUDENT_COOKIE]);
   if (!student) return null;
   const participant = await getPool().query(
@@ -1231,8 +1249,43 @@ async function persistentRoomForStudent(roomId, token, cookie) {
     [roomId, hashRoomToken(token), student.id]
   );
   if (!participant.rowCount || !['started', 'finished'].includes(participant.rows[0].status)) return null;
+  return student;
+}
+
+async function persistentRoomForStudent(roomId, token, cookie) {
+  const student = await studentForRoom(roomId, token, cookie);
+  if (!student) return null;
   const room = await hydratePersistentRoom(roomId);
   return room ? { room, student } : null;
+}
+
+async function studentForSocket(roomId, socket) {
+  const token = socket.data.examTokens?.get(roomId);
+  const student = token ? await studentForRoom(roomId, token, socket.handshake.headers.cookie || '') : null;
+  const player = rooms.get(roomId)?.players.get(student?.id);
+  return student && player?.socketId === socket.id ? student : null;
+}
+
+// Recheck the session on every delivery: joining a socket room is not an
+// authorization grant that survives logout, code rotation or class deletion.
+async function emitRoomStateToSocket(roomId, socket) {
+  if (!socket.connected) return;
+  const cookie = socket.handshake.headers.cookie || '';
+  const teacher = await teacherForRoom(roomId, cookie);
+  let studentId = null;
+  if (!teacher) {
+    const student = await studentForSocket(roomId, socket);
+    if (!student) {
+      socket.leave(roomId);
+      socket.data.examTokens?.delete(roomId);
+      socket.emit('error', 'Keine Berechtigung für diesen Testraum.');
+      return;
+    }
+    studentId = student.id;
+  }
+  // The room may have been removed while the database authorization ran.
+  const room = rooms.get(roomId);
+  if (room && socket.connected) socket.emit('roomState', serializeRoom(room, studentId));
 }
 
 async function broadcastPersistentRoom(roomId) {
@@ -1277,7 +1330,9 @@ io.on('connection', (socket) => {
   // Persistent test rooms authenticate the teacher through the normal
   // HttpOnly session cookie; no browser token is
   // stored in localStorage.
-  socket.on('openPersistentRoom', async ({ roomId }) => {
+  socket.on('openPersistentRoom', async (payload) => {
+    const roomId = normalizedRoomId(payload?.roomId);
+    if (!roomId) return socket.emit('error', 'Ungültiger Testraum.');
     try {
       const persistent = await persistentRoomForTeacher(String(roomId), socket.handshake.headers.cookie || '');
       if (!persistent) return socket.emit('error', 'Keine Berechtigung für diesen Testraum.');
@@ -1295,10 +1350,15 @@ io.on('connection', (socket) => {
   // A student reaches this only after the existing code-based test start.
   // The database therefore remains the authorization source, while the
   // websocket map contributes live connection and progress information.
-  socket.on('joinPersistentRoom', async ({ roomId, token }) => {
+  socket.on('joinPersistentRoom', async (payload) => {
+    const roomId = normalizedRoomId(payload?.roomId);
+    const token = payload?.token;
+    if (!roomId || typeof token !== 'string') return socket.emit('error', 'Ungültiger Testzugang.');
     try {
       const persistent = await persistentRoomForStudent(String(roomId), token, socket.handshake.headers.cookie || '');
       if (!persistent) return socket.emit('error', 'Der Testzugang ist nicht verfügbar.');
+      if (!socket.data.examTokens) socket.data.examTokens = new Map();
+      socket.data.examTokens.set(String(roomId), token);
       attachPlayerToSocket(persistent.room, persistent.student.id, socket, String(roomId));
       socket.emit('roomJoined', { roomId: String(roomId), isAdmin: false, persistent: true, playerId: persistent.student.id, username: persistent.student.displayName });
       updateRoomState(String(roomId));
@@ -1309,61 +1369,66 @@ io.on('connection', (socket) => {
   });
 
   // Allow clients (especially admin) to request current room state
-  socket.on('getRoomState', (roomId) => {
-    console.log('[Server] getRoomState requested for:', roomId, 'by socket:', socket.id);
-    const rid = String(roomId).toLowerCase();
-    const room = rooms.get(rid);
-    if (!room) {
-      console.log('[Server] Room not found:', rid);
-      socket.emit('error', 'Room not found');
-      return;
+  socket.on('getRoomState', async (roomId) => {
+    const rid = normalizedRoomId(roomId);
+    if (!rid) return socket.emit('error', 'Ungültiger Testraum.');
+    try {
+      await emitRoomStateToSocket(rid, socket);
+    } catch {
+      socket.emit('error', 'Testraum konnte nicht geladen werden.');
     }
-    // Send room state directly to this socket
-    const state = serializeRoom(room);
-    console.log('[Server] Sending roomState to socket:', socket.id, 'state:', state);
-    socket.emit('roomState', state);
   });
 
-  socket.on('updateProgress', ({ roomId, progress, solved }) => {
-    const rid = String(roomId).toLowerCase();
-    const room = rooms.get(rid);
-    if (!room || room.status === 'finished') return;
-    
-    const playerEntry = getPlayerBySocket(room, socket.id);
-    const player = playerEntry?.player;
-    if (player && !player.score) { // only update if player hasn't finished
-      player.progress = progress;
-      // Store solved problems (array) for admin view
-      if (Array.isArray(solved)) {
-        player.solved = solved;
+  socket.on('updateProgress', async (payload) => {
+    const rid = normalizedRoomId(payload?.roomId);
+    if (!rid) return socket.emit('error', 'Ungültiger Testraum.');
+    const { progress, solved } = payload;
+    try {
+      if (!await studentForSocket(rid, socket)) return socket.emit('error', 'Der Testzugang ist nicht verfügbar.');
+      const room = rooms.get(rid);
+      if (!room || room.status === 'finished') return;
+      const player = getPlayerBySocket(room, socket.id)?.player;
+      if (player && !player.score) {
+        player.progress = progress;
+        // Store solved problems for the authorized teacher's live view.
+        if (Array.isArray(solved)) player.solved = solved;
+        updateRoomState(rid);
       }
-      updateRoomState(rid);
+    } catch {
+      socket.emit('error', 'Der Fortschritt konnte nicht übertragen werden.');
     }
   });
 
-  socket.on('finishGame', ({ roomId }) => {
-    const rid = String(roomId).toLowerCase();
-    const room = rooms.get(rid);
-    if (!room || room.status === 'finished') return;
-    
-    const playerEntry = getPlayerBySocket(room, socket.id);
-    const player = playerEntry?.player;
-    if (player && !player.score) { // only allow finishing once
-      if (room.persistent) {
-        finishPersistentAttempt(rid, playerEntry.playerId)
-          .then(() => broadcastPersistentRoom(rid))
-          .catch(error => { console.error('Could not persist test result:', error); socket.emit('error', 'Die Abgabe konnte nicht gespeichert werden. Bitte erneut versuchen.'); });
+  socket.on('finishGame', async (payload) => {
+    const rid = normalizedRoomId(payload?.roomId);
+    if (!rid) return socket.emit('error', 'Ungültiger Testraum.');
+    try {
+      if (!await studentForSocket(rid, socket)) return socket.emit('error', 'Der Testzugang ist nicht verfügbar.');
+      const room = rooms.get(rid);
+      if (!room || room.status === 'finished') return;
+      const playerEntry = getPlayerBySocket(room, socket.id);
+      if (playerEntry && !playerEntry.player.score && room.persistent) {
+        await finishPersistentAttempt(rid, playerEntry.playerId);
+        await broadcastPersistentRoom(rid);
       }
+    } catch {
+      socket.emit('error', 'Die Abgabe konnte nicht gespeichert werden. Bitte erneut versuchen.');
     }
   });
 
-  socket.on('recordExamAnswer', ({ roomId, position, entry }) => {
-    const rid = String(roomId).toLowerCase();
-    const room = rooms.get(rid);
-    const playerEntry = room ? getPlayerBySocket(room, socket.id) : null;
-    if (!room?.persistent || room.status !== 'playing' || !playerEntry || playerEntry.player.score) return;
-    persistExamAnswer(rid, playerEntry.playerId, Number(position), entry)
-      .catch(error => console.error('Could not persist exam answer:', error));
+  socket.on('recordExamAnswer', async (payload) => {
+    const rid = normalizedRoomId(payload?.roomId);
+    if (!rid) return socket.emit('error', 'Ungültiger Testraum.');
+    const { position, entry } = payload;
+    try {
+      if (!await studentForSocket(rid, socket)) return socket.emit('error', 'Der Testzugang ist nicht verfügbar.');
+      const room = rooms.get(rid);
+      const playerEntry = room ? getPlayerBySocket(room, socket.id) : null;
+      if (!room?.persistent || room.status !== 'playing' || !playerEntry || playerEntry.player.score) return;
+      await persistExamAnswer(rid, playerEntry.playerId, Number(position), entry);
+    } catch {
+      socket.emit('error', 'Die Antwort konnte nicht gespeichert werden.');
+    }
   });
 
   socket.on('disconnect', () => {
@@ -1390,48 +1455,51 @@ io.on('connection', (socket) => {
 });
 
 function updateRoomState(roomId) {
-  const room = rooms.get(roomId);
-  if (!room) return;
-
-  const state = serializeRoom(room);
-  
-  io.to(roomId).emit('roomState', state);
+  if (!rooms.has(roomId)) return;
+  for (const socketId of io.sockets.adapter.rooms.get(roomId) || []) {
+    const socket = io.sockets.sockets.get(socketId);
+    if (socket) emitRoomStateToSocket(roomId, socket).catch(() => {
+      socket.emit('error', 'Testraum konnte nicht geladen werden.');
+    });
+  }
 }
 
 // PDF Report generation endpoint
-app.get('/api/report/:roomId', (req, res) => {
-  const roomId = String(req.params.roomId || '').toLowerCase();
-  const room = rooms.get(roomId);
-  if (!room) {
-    return res.status(404).json({ error: 'Room not found' });
-  }
+app.get('/api/report/:roomId', requireUser, requireRole('teacher'), async (req, res, next) => {
+  try {
+    const roomId = String(req.params.roomId || '').toLowerCase();
+    const persistent = await persistentRoomForTeacher(roomId, req.headers.cookie || '');
+    if (!persistent) return res.status(404).json({ error: 'Testraum nicht gefunden.' });
+    const { room } = persistent;
+    res.setHeader('Cache-Control', 'no-store');
 
-  const finishedPlayers = Array.from(room.players.values()).filter(p => p.score !== null);
-  // sanitize / minimal copy to avoid leaking sockets or functions
-  const exportPlayers = finishedPlayers.map(p => ({
-    username: p.username,
-    score: p.score,
-    // The report needs the task type and display fields to describe every current game mode.
-    solved: (p.solved || []).map(s => ({
-      type: s.type,
-      operation: s.operation,
-      a: s.a,
-      b: s.b,
-      number: s.number,
-      expression: s.expression,
-      text: s.text,
-      unit: s.unit,
-      variant: s.variant,
-      exampleEquation: s.exampleEquation,
-      summandsDigits: s.summandsDigits,
-      user: s.user,
-      correct: s.correct,
-      isCorrect: s.isCorrect,
-      assisted: s.assisted
-    }))
-  }));
+    const finishedPlayers = Array.from(room.players.values()).filter(p => p.score !== null);
+    // sanitize / minimal copy to avoid leaking sockets or functions
+    const exportPlayers = finishedPlayers.map(p => ({
+      username: p.username,
+      score: p.score,
+      // The report needs the task type and display fields to describe every current game mode.
+      solved: (p.solved || []).map(s => ({
+        type: s.type,
+        operation: s.operation,
+        a: s.a,
+        b: s.b,
+        number: s.number,
+        expression: s.expression,
+        text: s.text,
+        unit: s.unit,
+        variant: s.variant,
+        exampleEquation: s.exampleEquation,
+        summandsDigits: s.summandsDigits,
+        user: s.user,
+        correct: s.correct,
+        isCorrect: s.isCorrect,
+        assisted: s.assisted
+      }))
+    }));
 
-  generateReport(res, { id: roomId, category: room.settings?.category }, exportPlayers);
+    generateReport(res, { id: roomId, category: room.settings?.category }, exportPlayers);
+  } catch (error) { return next(error); }
 });
 
 // In production the Node process serves the Vite build as well. The Vite

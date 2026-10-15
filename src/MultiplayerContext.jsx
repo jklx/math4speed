@@ -38,7 +38,6 @@ export function MultiplayerProvider({ children }) {
     });
 
     socket.on('roomState', (state) => {
-      console.log('[Context] roomState received:', state);
       setRoomState(state);
     });
 

@@ -1,3 +1,18 @@
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/noto-sans/NotoSans-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/noto-sans/NotoSans-Bold.ttf') format('truetype');
+}
+
 /* General app input style (was input[type="text"]) */
 .app-input {
   padding: 0.6rem 0.8rem;
