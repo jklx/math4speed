@@ -1774,13 +1774,23 @@ export function generateDezimalbruecheProblems(count, settings = {}) {
     expandable: [[3, 25], [3, 4], [2, 5], [7, 125], [9, 250]]
   }
 
+  // Shuffle each easy pool so every new attempt gets a varied introduction.
+  for (const samples of Object.values(easySamples)) {
+    for (let i = samples.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[samples[i], samples[j]] = [samples[j], samples[i]]
+    }
+  }
   while (problems.length < count && attempts < count * 100) {
     const index = problems.length
     const variant = types[index % types.length]
     let denominator
     let numerator
+    const direction = Math.floor(index / types.length) % 2 === 0
+      ? 'fraction-to-decimal'
+      : 'decimal-to-fraction'
     const easySample = index < 5
-      ? easySamples[variant][Math.floor(index / types.length) % easySamples[variant].length]
+      ? easySamples[variant].find(([n, d]) => !usedProblems.has(`${direction}:${n}/${d}`))
       : null
 
     if (easySample) {
@@ -1811,9 +1821,6 @@ export function generateDezimalbruecheProblems(count, settings = {}) {
     const decimalDisplay = isRecurring
       ? periodicDecimalText(numerator, denominator)
       : decimalText(numerator, denominator)
-    const direction = Math.floor(index / types.length) % 2 === 0
-      ? 'fraction-to-decimal'
-      : 'decimal-to-fraction'
     const key = `${direction}:${numerator}/${denominator}`
 
     if (usedProblems.has(key)) {
