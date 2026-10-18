@@ -75,7 +75,7 @@ const KEY_LAYOUTS = {
     ],
   },
 }
-KEY_LAYOUTS.wurzeln = { cols: 4, keys: ['7', '8', '9', '⌫', '4', '5', '6', '√', '1', '2', '3', '−', '0', ',', 'x', '^', '(', ')', '←', '→', { label: '↵', colSpan: 4 }] }
+KEY_LAYOUTS.wurzeln = { cols: 4, keys: ['7', '8', '9', '⌫', '4', '5', '6', '√', '1', '2', '3', '−', '0', ',', 'x', '^', '(', ')', '←', '→', { label: '|', colSpan: 4 }, { label: '↵', colSpan: 4 }] }
 KEY_LAYOUTS.hauptnenner = KEY_LAYOUTS.primfaktorisierung
 KEY_LAYOUTS.schriftlich = KEY_LAYOUTS.multiplication
 KEY_LAYOUTS['anteile-bruchteile'] = KEY_LAYOUTS['gemischte-zahlen']
@@ -124,6 +124,7 @@ export default function VirtualKeyboard({ category, variable, onKey }) {
     if (label === 'mal') return 'Mal (Faktor trennen)'
     if (label === '−') return 'Minus'
     if (label === '^') return 'Hoch'
+    if (label === '|') return 'Betragsstrich'
     if (label === ',') return 'Komma'
     if (label === '←') return 'Cursor nach links'
     if (label === '→') return 'Cursor nach rechts'

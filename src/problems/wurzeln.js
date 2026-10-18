@@ -7,6 +7,10 @@ const power = (base, exponent) => ({ base, exponent })
 const quotient = (numerator, denominator) => ({ numerator, denominator })
 const easyExtractionFactors = [2, 3, 5]
 const extraExtractionFactors = [4, 6, 7]
+export function formatRootVariableResult(coefficient, exponent, absolute = true) {
+  const term = exponent === 1 ? 'x' : `x^${exponent}`
+  return `${coefficient}${absolute && exponent % 2 ? `|${term}|` : term}`
+}
 function pickExtraction(remainder = null, excludedFactor = null) {
   const extra = (remainder === null || remainder === 2) && Math.random() < 0.2
   return {
@@ -15,7 +19,7 @@ function pickExtraction(remainder = null, excludedFactor = null) {
   }
 }
 const plain = node => {
-  if (Array.isArray(node)) return node.map(plain).join('')
+  if (Array.isArray(node)) return node.map((part, index) => part === '1' && node[index + 1]?.root ? '' : plain(part)).join('')
   if (typeof node !== 'object') return String(node)
   if (node.root) return `√(${node.root})`
   if (node.base) return `(${plain(node.base)})^${node.exponent}`
@@ -35,7 +39,7 @@ export function generateWurzelnProblems(count, settings = {}) {
     const variant = pick(pool)
     const n = integer(2, 12)
     const r = pick([2, 3, 5, 6, 7])
-    let nodes, correct, variable
+    let nodes, correct, variable, variableDomain
     if (variant === 'Teilweise') {
       // Square-free remainders make the expected term fully simplified.
       const { factor, remainder } = pickExtraction()
@@ -81,23 +85,24 @@ export function generateWurzelnProblems(count, settings = {}) {
       variable = 'x'
       const kind = integer(0, 3)
       const exponent = integer(1, 6)
-      const xPower = exponent === 1 ? 'x' : `x${toSuperscript(exponent)}`
-      const answerPower = exponent === 1 ? 'x' : `x^${exponent}`
+      // Even radicands allow negative x as well; only a denominator excludes zero.
+      variableDomain = kind === 2 ? 'x ≠ 0' : 'x ∈ ℝ'
+      const xPower = `x${toSuperscript(2 * exponent)}`
       if (kind === 0) {
         nodes = [root(`${n}${xPower}`), ' · ', root(`${n}${xPower}`)]
-        correct = `${n}${answerPower}`
+        correct = formatRootVariableResult(n, 2 * exponent, false)
       } else if (kind === 1) {
         nodes = power(root(`${n}${xPower}`), 2)
-        correct = `${n}${answerPower}`
+        correct = formatRootVariableResult(n, 2 * exponent, false)
       } else if (kind === 2) {
-        nodes = quotient(root(`${r * n * n}x${toSuperscript(2 * exponent + 1)}`), root(`${r}x`))
-        correct = `${n}${answerPower}`
+        nodes = quotient(root(`${r * n * n}x${toSuperscript(2 * exponent + 2)}`), root(`${r}x²`))
+        correct = formatRootVariableResult(n, exponent)
       } else {
         nodes = root(`${n * n}x${toSuperscript(2 * exponent)}`)
-        correct = `${n}${answerPower}`
+        correct = formatRootVariableResult(n, exponent)
       }
     }
-    return { id: index + 1, type: 'wurzeln', variant, nodes, expression: plain(nodes), correct, variable }
+    return { id: index + 1, type: 'wurzeln', variant, nodes, expression: plain(nodes), correct, variable, variableDomain }
   })
 }
 
@@ -108,10 +113,20 @@ export function validateWurzeln(input, problem) {
     .replace(/sqrt\((\d+)\)/gi, '√$1').replace(/√\((\d+)\)/g, '√$1')
     .replace(/(?:sqrt|√)\((\d+)$/gi, '√$1')
   const parse = value => {
-    const match = normalize(value).match(/^([+-]?)(\d+(?:\.\d+)?)?(?:[·*]?(x)(?:\^([1-9]\d*))?|[·*]?√(\d+))?$/)
+    const normalized = normalize(value).replace(/abs\(([^()]*)\)/gi, '|$1|')
+    // Recognize equivalent single monomials with an absolute value, without eval.
+    const absolute = normalized.match(/^([+-]?(?:\d+(?:\.\d+)?)?)[·*]?\|([+-]?(?:\d+(?:\.\d+)?)?)[·*]?x(?:\^([1-9]\d*))?\|(?:\^([1-9]\d*))?$/)
+    if (absolute) {
+      const coefficient = text => text === '' || text === '+' ? 1 : text === '-' ? -1 : Number(text)
+      const outsidePower = Number(absolute[4] ?? 1)
+      const exponent = Number(absolute[3] ?? 1) * outsidePower
+      return { coefficient: coefficient(absolute[1]) * Math.abs(coefficient(absolute[2])) ** outsidePower,
+        variable: 'x', exponent, radical: 1, absolute: exponent % 2 === 1 }
+    }
+    const match = normalized.match(/^([+-]?)(\d+(?:\.\d+)?)?(?:[·*]?(x)(?:\^([1-9]\d*))?|[·*]?√(\d+))?$/)
     if (!match || (!match[2] && !match[3] && !match[5])) return null
     return { coefficient: (match[1] === '-' ? -1 : 1) * Number(match[2] ?? 1),
-      variable: match[3] || '', exponent: match[3] ? Number(match[4] ?? 1) : 0, radical: Number(match[5] ?? 1) }
+      variable: match[3] || '', exponent: match[3] ? Number(match[4] ?? 1) : 0, radical: Number(match[5] ?? 1), absolute: false }
   }
   const user = parse(input), expected = parse(problem.correct)
   return { valid: String(input ?? '').trim().length > 0,

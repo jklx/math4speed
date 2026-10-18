@@ -1,10 +1,37 @@
+// Share delimiter boundaries between display, cursor movement and deletion.
+// The radicand can contain signs, variables or inner parentheses while editing.
+export function getRootInputRanges(value) {
+  const text = String(value)
+  const ranges = []
+  const roots = /sqrt\(|√\(?/gi
+  let match
+  while ((match = roots.exec(text))) {
+    const start = match.index
+    const contentStart = start + match[0].length
+    let contentEnd = contentStart, end
+    if (match[0].endsWith('(')) {
+      let depth = 1
+      while (contentEnd < text.length) {
+        if (text[contentEnd] === '(') depth++
+        if (text[contentEnd] === ')' && --depth === 0) break
+        contentEnd++
+      }
+      end = contentEnd < text.length ? contentEnd + 1 : contentEnd
+    } else {
+      contentEnd += text.slice(contentStart).match(/^[−-]?\d*(?:[.,]\d*)?/)[0].length
+      end = contentEnd
+    }
+    ranges.push({ start, end, contentStart, contentEnd })
+    roots.lastIndex = end
+  }
+  return ranges
+}
+
 export function moveRootCursor(value, position, direction) {
   const text = String(value)
   const cursor = Math.max(0, Math.min(position, text.length))
   // sqrt( is displayed as one symbol. Cross the hidden prefix in one step.
-  for (const match of text.matchAll(/(?:sqrt\(|√\()\d*\)?/gi)) {
-    const start = match.index
-    const contentStart = start + (match[0].startsWith('√') ? 2 : 5)
+  for (const { start, contentStart } of getRootInputRanges(text)) {
     if (direction > 0 && cursor >= start && cursor < contentStart) return contentStart
     if (direction < 0 && cursor > start && cursor <= contentStart) return start
   }
@@ -12,11 +39,7 @@ export function moveRootCursor(value, position, direction) {
 }
 
 export function deleteRootAtCursor(value, position, key) {
-  for (const match of value.matchAll(/(?:√(?:\(\d*\)?|\d*)|sqrt\(\d*\)?)/gi)) {
-    const start = match.index, end = start + match[0].length
-    const prefix = match[0].startsWith('√') ? (match[0][1] === '(' ? 2 : 1) : 5
-    const contentStart = start + prefix
-    const contentEnd = end - (match[0].endsWith(')') ? 1 : 0)
+  for (const { start, end, contentStart, contentEnd } of getRootInputRanges(value)) {
     const empty = contentStart === contentEnd
     const removesSign = key === 'Backspace'
       ? position > start && (position <= contentStart || (empty && position === end))

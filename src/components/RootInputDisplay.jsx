@@ -1,5 +1,6 @@
 import React from 'react'
 import RootSign from './RootSign'
+import { getRootInputRanges } from '../utils/rootInput'
 
 // Keep the original character positions for editing, including hidden sqrt(...)
 // delimiters. Only the display changes; submission still uses the original input.
@@ -7,6 +8,7 @@ export default function RootInputDisplay({ value, cursorIndex, showCursor }) {
   const text = String(value)
   const cursor = Math.max(0, Math.min(cursorIndex, text.length))
   const caret = key => <span key={key} className="root-input-cursor" aria-hidden="true" />
+  const anchor = index => <span key={`anchor-${index}`} data-caret-start={index} data-caret-end={index} aria-hidden="true" style={{ display: 'inline-block', width: 0, height: '1em' }} />
   const fragment = (start, end) => {
     const parts = []
     for (let index = start; index < end; index++) {
@@ -17,31 +19,29 @@ export default function RootInputDisplay({ value, cursorIndex, showCursor }) {
         const exponent = []
         for (let digit = exponentStart; digit < exponentStart + exponentLength; digit++) {
           if (showCursor && cursor === digit) exponent.push(caret(`cursor-${cursor}`))
-          exponent.push(<span key={digit}>{text[digit]}</span>)
+          exponent.push(<span key={digit} data-caret-start={digit} data-caret-end={digit + 1}>{text[digit]}</span>)
         }
         parts.push(<sup key={index}>{exponent}</sup>)
         index += exponentLength
-      } else parts.push(<span key={index}>{text[index].replace('-', '−')}</span>)
+      } else parts.push(<span key={index} className={text[index] === 'x' ? 'math-variable' : undefined} data-caret-start={index} data-caret-end={index + 1}>{text[index].replace('-', '−')}</span>)
     }
     return parts
   }
   const parts = []
-  const roots = /(?:√(?:\(\d*\)?|\d*)|sqrt\(\d*\)?)/gi
   let position = 0
-  for (const match of text.matchAll(roots)) {
-    const start = match.index, end = start + match[0].length
+  for (const { start, end, contentStart, contentEnd } of getRootInputRanges(text)) {
     parts.push(...fragment(position, start))
-    const prefixLength = match[0].startsWith('√') ? (match[0][1] === '(' ? 2 : 1) : 5
-    const contentStart = start + prefixLength
-    const contentEnd = end - (match[0].endsWith(')') ? 1 : 0)
     // Before the root means before its sign, not before its radicand.
+    parts.push(anchor(start))
     if (showCursor && cursor === start) parts.push(caret(`cursor-${cursor}`))
     parts.push(<RootSign key={`root-${start}`}>
       {showCursor && cursor > start && cursor < contentStart && caret(`cursor-${cursor}`)}
+      {contentStart === contentEnd && anchor(contentStart)}
       {fragment(contentStart, contentEnd)}
       {showCursor && cursor === contentEnd && contentEnd < end && caret(`cursor-${cursor}`)}
       {contentStart === contentEnd && <span aria-hidden="true">&#8203;</span>}
     </RootSign>)
+    parts.push(anchor(end))
     position = end
   }
   parts.push(...fragment(position, text.length))

@@ -88,7 +88,7 @@ export default function ReviewList({ answers, isCorrect, onSelectSchriftlich, on
             </li>
           )
         }
-        if (q.type === 'wurzeln') return <li key={q.id} {...selectionProps}><RootExpression nodes={q.nodes ?? q.expression} />{q.variable ? ' (x > 0)' : ''} = <FormattedRootText>{isCorrect ? q.correct : q.user || '—'}</FormattedRootText>{renderCorrection(<FormattedRootText>{q.correct}</FormattedRootText>)}</li>
+        if (q.type === 'wurzeln') return <li key={q.id} {...selectionProps}><RootExpression nodes={q.nodes ?? q.expression} />{q.variable ? ` (${q.variableDomain ?? 'x > 0'})` : ''} = <FormattedRootText>{isCorrect ? q.correct : q.user || '—'}</FormattedRootText>{renderCorrection(<FormattedRootText>{q.correct}</FormattedRootText>)}</li>
         if (q.type === 'binomische') {
           const displayValue = isCorrect ? formatGermanDecimalString(q.correct) : formatGermanDecimalString(q.user)
           return (

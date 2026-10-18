@@ -22,6 +22,7 @@ const text = (value, fallback = '-') => {
   if (value === undefined || value === null || value === '') return fallback;
   return normalizePowers(value)
     .replace(/√/g, 'sqrt')
+    .replace(/∈/g, 'in').replace(/ℝ/g, 'R').replace(/≠/g, '!=')
     .replace(/\^2\b/g, '²')
     .replace(/\^3\b/g, '³')
     .replace(/[−–—]/g, '-');
@@ -67,7 +68,7 @@ function formatProblem(problem, includeUserAnswer = true) {
       question = `${text(problem.expression, `${text(problem.a)} ${text(problem.operator)} ${text(problem.b)}`)} = ${formatNumber(problem.correct)}`;
       break;
     case 'wurzeln':
-      question = `${text(problem.expression)}${problem.variable ? ' (x > 0)' : ''} = ${text(problem.correct)}`;
+      question = `${text(problem.expression)}${problem.variable ? ` (${text(problem.variableDomain ?? 'x > 0')})` : ''} = ${text(problem.correct)}`;
       break;
     case 'binomische':
       question = `${text(problem.expression)} = ${text(problem.correct)}`;

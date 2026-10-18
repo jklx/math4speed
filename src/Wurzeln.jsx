@@ -8,7 +8,7 @@ import WurzelnSolution from './components/WurzelnSolution'
 
 export default function Wurzeln({ problem, value = '', onChange, onEnter, showTick = false, mistakeFeedback, readOnly = false }) {
   return <div className="question-centered">
-    {problem.variable && <p>Für diese Aufgabe gilt: {problem.variable} &gt; 0.</p>}
+    {problem.variable && <p>Für diese Aufgabe gilt: {problem.variableDomain ?? 'x > 0'}.</p>}
     <div className="einmaleins-row" style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
       <span role="math" style={{ fontSize: '2rem' }} aria-label={problem.expression}><RootExpression nodes={problem.nodes ?? problem.expression} /> =</span>
       <AlgebraicInput value={value} onChange={onChange} onEnter={onEnter} autoFocus={!readOnly}
@@ -20,7 +20,7 @@ export default function Wurzeln({ problem, value = '', onChange, onEnter, showTi
         placeholder="Ergebnis…" className="app-input math-input" style={{ width: '220px', textAlign: 'left' }} />
       {!readOnly && !mistakeFeedback && <InlineSubmitButton onClick={() => onEnter?.()} />}
     </div>
-    {!readOnly && <p className="review-note">Vollständig vereinfachen. Wurzel mit dem √-Knopf einfügen; Hochzahl als <kbd>x^2</kbd> eingeben.</p>}
+    {!readOnly && <p className="review-note">Vollständig vereinfachen. Wurzel mit dem √-Knopf einfügen; Hochzahl als <kbd>x^2</kbd> eingeben.{problem.variable && <> Betrag mit <kbd>|x|</kbd> eingeben.</>}</p>}
     {mistakeFeedback && <div className="inline-feedback"><div className="inline-feedback__label">Richtige Lösung</div><div className="inline-feedback__value"><FormattedRootText>{mistakeFeedback.correctAnswerDisplay}</FormattedRootText></div></div>}
     {mistakeFeedback && <WurzelnSolution problem={problem} />}
     <TickMark visible={showTick} />

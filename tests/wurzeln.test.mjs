@@ -2,12 +2,12 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { generateProblems } from '../src/problems/generators.js'
 import { validateWurzeln, getWurzelnVariantPool } from '../src/problems/wurzeln.js'
-import { moveRootCursor, deleteRootAtCursor } from '../src/utils/rootInput.js'
+import { moveRootCursor, deleteRootAtCursor, getRootInputRanges } from '../src/utils/rootInput.js'
 import { normalizePowers, toSuperscript } from '../src/utils/powers.js'
 
 const GROUPS = ['Teilweise', 'Produkte', 'Quadrate', 'Terme', 'Variablen']
 
-// Independent numerical evaluation of the small expression tree, at several positive x.
+// Independent numerical evaluation, including negative x and zero where defined.
 function number(text, x) {
   const normalized = String(text).replace(/,/g, '.').replace(/−/g, '-')
   const squared = normalized.match(/^\((-?[\d.]+)\)²$/)
@@ -34,8 +34,9 @@ function result(text, x) {
     const [coefficient, radicand] = text.split('√')
     return (coefficient === '' ? 1 : coefficient === '-' ? -1 : Number(coefficient)) * Math.sqrt(Number(radicand))
   }
-  const match = text.match(/^(\d+)x(?:\^(\d+))?$/)
-  return match ? Number(match[1]) * x ** Number(match[2] ?? 1) : Number(text.replace(',', '.'))
+  const match = text.replace(/\|/g, '').match(/^(\d+)x(?:\^(\d+))?$/)
+  const variableValue = match ? x ** Number(match[2] ?? 1) : null
+  return match ? Number(match[1]) * (text.includes('|') ? Math.abs(variableValue) : variableValue) : Number(text.replace(',', '.'))
 }
 
 test('5000 tasks have correct exact solutions and cover every selected group', () => {
@@ -43,7 +44,8 @@ test('5000 tasks have correct exact solutions and cover every selected group', (
   assert.deepEqual(new Set(problems.map(p => p.variant)), new Set(GROUPS))
   for (const problem of problems) {
     assert.equal(validateWurzeln(problem.correct, problem).isCorrect, true)
-    for (const x of [0.25, 1, 3, 7]) {
+    for (const x of [-7, -3, -0.25, 0, 0.25, 1, 3, 7]) {
+      if (x === 0 && problem.variableDomain === 'x ≠ 0') continue
       const expected = result(problem.correct, x)
       assert.ok(Math.abs(evaluate(problem.nodes, x) - expected) < 1e-8 * Math.max(1, Math.abs(expected)), problem.expression)
     }
@@ -92,7 +94,9 @@ test('variable tasks include higher powers and halve even root exponents', () =>
     if (!Array.isArray(problem.nodes) && problem.nodes.root) {
       const [, coefficient, exponent] = normalizePowers(problem.nodes.root).match(/^(\d+)x\^(\d+)$/).map(Number)
       evenPowers.add(exponent)
-      assert.equal(problem.correct, `${Math.sqrt(coefficient)}x${exponent === 2 ? '' : `^${exponent / 2}`}`)
+      const half = exponent / 2
+      const term = half === 1 ? 'x' : `x^${half}`
+      assert.equal(problem.correct, `${Math.sqrt(coefficient)}${half % 2 ? `|${term}|` : term}`)
     }
     assert.ok(validateWurzeln(problem.correct.replace(/\^(\d+)/g, (_, power) => toSuperscript(power)), problem).isCorrect)
   }
@@ -101,6 +105,32 @@ test('variable tasks include higher powers and halve even root exponents', () =>
   assert.equal(validateWurzeln('5x^1', { correct: '5x^10' }).isCorrect, false)
   assert.equal(validateWurzeln('5x^4', { correct: '5x^5' }).isCorrect, false)
   assert.equal(validateWurzeln('5x^10junk', { correct: '5x^10' }).isCorrect, false)
+})
+
+test('absolute values are required for odd powers and equivalent absolute notation is accepted', () => {
+  for (const input of ['5|x^3|', '5|x|^3', '|5x^3|', '5abs(x^3)', 'abs(5x^3)', '5 · |x³|']) {
+    assert.equal(validateWurzeln(input, { correct: '5|x^3|' }).isCorrect, true, input)
+  }
+  for (const input of ['5x^3', '-5|x^3|', '5|x^2|', '5|x^3', '5x', '5abs(x^3)+1']) {
+    assert.equal(validateWurzeln(input, { correct: '5|x^3|' }).isCorrect, false, input)
+  }
+  for (const input of ['5x^2', '5|x^2|', '5|x|^2', '|5x²|']) {
+    assert.equal(validateWurzeln(input, { correct: '5x^2' }).isCorrect, true, input)
+  }
+  assert.equal(validateWurzeln('5x', { correct: '5x' }).isCorrect, true)
+})
+
+test('new variable tasks allow both signs; only quotients exclude zero', () => {
+  const settings = Object.fromEntries(GROUPS.map(key => [`wurzeln${key}`, key === 'Variablen']))
+  let absoluteCount = 0
+  for (const problem of generateProblems(3000, 'wurzeln', settings)) {
+    assert.equal(problem.variableDomain, problem.nodes.numerator ? 'x ≠ 0' : 'x ∈ ℝ')
+    if (problem.correct.includes('|')) {
+      absoluteCount++
+      assert.equal(validateWurzeln(problem.correct.replace(/\|/g, ''), problem).isCorrect, false)
+    }
+  }
+  assert.ok(absoluteCount > 500)
 })
 
 test('partial extraction has equal weight and leaves a square-free remainder', () => {
@@ -184,6 +214,23 @@ test('deleting the root sign removes its delimiters and preserves the radicand',
     ['3√()', 4, 'Backspace', '3'],
     ['3√()', 3, 'Delete', '3'],
     ['3√25', 2, 'Backspace', '325'],
+    ['3√(-25)+1', 3, 'Backspace', '3-25+1'],
+    ['3sqrt(-25)+1', 1, 'Delete', '3-25+1'],
+    ['3√(−2,5)+1', 3, 'Backspace', '3−2,5+1'],
   ]) assert.deepEqual(deleteRootAtCursor(value, cursor, key), { value: expected, cursor: 1 })
   assert.equal(deleteRootAtCursor('3√(25)', 5, 'Backspace'), null) // digits stay editable
+})
+
+test('root delimiters stay hidden with signs and other radicand input', () => {
+  for (const text of ['√(-)', '√(−)', '√(-25)', 'sqrt(-2,5)', '√(x^2-1)', '√((−2)^2)']) {
+    const [range] = getRootInputRanges(text)
+    assert.equal(range.start, 0)
+    assert.equal(range.end, text.length)
+    assert.equal(text[range.contentEnd], ')')
+    assert.equal(text.slice(range.contentStart, range.contentEnd), text.slice(text.indexOf('(') + 1, -1))
+    assert.equal(moveRootCursor(text, 0, 1), range.contentStart)
+    assert.equal(moveRootCursor(text, range.contentEnd, 1), text.length)
+  }
+  assert.deepEqual(getRootInputRanges('√(-25'), [{ start: 0, end: 5, contentStart: 2, contentEnd: 5 }])
+  assert.equal(getRootInputRanges('√(-2)+√(3)').length, 2)
 })

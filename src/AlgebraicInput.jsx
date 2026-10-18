@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { moveRootCursor, deleteRootAtCursor } from './utils/rootInput'
+import { mathCursorFromPoint } from './utils/mathInputCursor'
 
 export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, placeholder, className, style, readOnly, crossedOut, renderValue, enableRoots = false }) {
   const inputRef = useRef(null)
@@ -182,24 +183,29 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
     // - Single digits (for strict exponent control)
     // - Sequences of letters
     // - Superscripts ² and ³
-    const regex = /(│|\^|[+\-=()]|[0-9]|[a-zA-Z]+|[²³])/g
+    const regex = /(│|\^|[+\-=−()·*/%|]|[0-9]+(?:[.,][0-9]*)?|[a-zA-Z]+|[²³])/g
     const rawTokens = textWithCursor.split(regex).filter(t => t && t.trim() !== '')
 
     // First pass: Convert strings to MathML elements (or intermediate objects)
+    let tokenOffset = 0
     const elements = rawTokens.flatMap((t, i) => {
+      const position = textWithCursor.indexOf(t, tokenOffset)
+      tokenOffset = position + t.length
+      const start = position - (showCursor && position > cursorIndex ? 1 : 0)
+      const span = { start, end: start + t.length }
       if (t === CURSOR_MARKER) return [{ type: 'cursor', key: `c-${i}` }]
-      if (t === '^') return [{ type: 'caret', key: `op-${i}` }]
-      if (t === '²') return [{ type: 'caret', key: `op-sq-${i}` }, { type: 'mn', val: '2', key: `mn-sq-${i}` }]
-      if (t === '³') return [{ type: 'caret', key: `op-cb-${i}` }, { type: 'mn', val: '3', key: `mn-cb-${i}` }]
-      if (t === '·' || t === '*') return [{ type: 'mo', val: '·', key: `mo-${i}` }]
-      if (t === '/') return [{ type: 'mo', val: '/', key: `mo-${i}` }]
-      if (t === '%') return [{ type: 'mo', val: '%', key: `mo-${i}` }]
+      if (t === '^') return [{ type: 'caret', key: `op-${i}`, ...span }]
+      if (t === '²') return [{ type: 'caret', key: `op-sq-${i}`, ...span }, { type: 'mn', val: '2', key: `mn-sq-${i}`, ...span }]
+      if (t === '³') return [{ type: 'caret', key: `op-cb-${i}`, ...span }, { type: 'mn', val: '3', key: `mn-cb-${i}`, ...span }]
+      if (t === '·' || t === '*') return [{ type: 'mo', val: '·', key: `mo-${i}`, ...span }]
+      if (t === '/') return [{ type: 'mo', val: '/', key: `mo-${i}`, ...span }]
+      if (t === '%') return [{ type: 'mo', val: '%', key: `mo-${i}`, ...span }]
 
-      if (['+', '-', '=', '(', ')'].includes(t)) {
-        return [{ type: 'mo', val: t.replace('-', '−'), key: `mo-${i}` }]
+      if (['+', '-', '−', '=', '(', ')', '|'].includes(t)) {
+        return [{ type: 'mo', val: t.replace('-', '−'), key: `mo-${i}`, ...span }]
       }
-      if (/^[0-9]$/.test(t)) return [{ type: 'mn', val: t, key: `mn-${i}` }]
-      return [{ type: 'mi', val: t, key: `mi-${i}` }]
+      if (/^[0-9]+(?:[.,][0-9]*)?$/.test(t)) return [{ type: 'mn', val: t, key: `mn-${i}`, ...span }]
+      return [{ type: 'mi', val: t, key: `mi-${i}`, ...span }]
     })
 
     // Second pass: Handle Superscripts (^)
@@ -218,7 +224,9 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
       
       if (el.type === 'caret') {
         // We need a base (previous element)
-        const base = processed.pop()
+        let base = processed.pop()
+        const baseCursor = base?.type === 'cursor' ? base : null
+        if (baseCursor) base = processed.pop()
         
         // If base is already an msup, we don't want nested exponents (x^2^3)
         // We treat the caret as ignored or just skip it, effectively appending next tokens to the main level
@@ -226,43 +234,50 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
         // So x^2^3 -> x^2 3. This seems correct per user request.
         if (base && base.type === 'msup') {
           processed.push(base)
+          if (baseCursor) processed.push(baseCursor)
           continue
         }
         
-        // Look ahead for exponent
-        // We only want to consume ONE valid atom (digit or variable)
-        // AND we must NOT consume a cursor if it's before the atom.
-        // If cursor is present before the atom, we abort the superscript creation to keep cursor at baseline.
+        // Keep the exponent raised when its leading insertion point is selected.
         
         let nextIdx = i + 1
         let exponentAtom = null
+        let exponentCursor = null
+        const exponentTail = []
         
         if (nextIdx < elements.length) {
+          if (elements[nextIdx].type === 'cursor') exponentCursor = elements[nextIdx++]
           const candidate = elements[nextIdx]
-          // If next is cursor, we abort superscript to keep cursor baseline
-          if (candidate.type === 'cursor') {
-            // Do nothing, fall through to render caret literally
-          } else if (candidate.type === 'mn' || candidate.type === 'mi') {
+          if (candidate?.type === 'mn' || candidate?.type === 'mi') {
             exponentAtom = candidate
             nextIdx++
+            // A cursor between exponent digits must not split the exponent.
+            if (candidate.type === 'mn') {
+              while (nextIdx < elements.length) {
+                if (elements[nextIdx].type === 'cursor' && elements[nextIdx + 1]?.type === 'mn') {
+                  exponentTail.push(elements[nextIdx++])
+                } else if (elements[nextIdx].type === 'mn') {
+                  exponentTail.push(elements[nextIdx++])
+                } else break
+              }
+            }
           }
         }
         
         if (exponentAtom) {
-          // We found a valid atom and no cursor blocking it.
-          // Create superscript
+          // Create the superscript, preserving the cursor's source position.
           if (!base) {
              processed.push(
               <msup key={el.key}>
                 <mrow><mo>□</mo></mrow>
-                <mrow>{renderNode(exponentAtom)}</mrow>
+                <mrow>{renderNode(exponentCursor)}{renderNode(exponentAtom)}{renderNodes(exponentTail)}</mrow>
               </msup>
             )
           } else {
             processed.push(
               <msup key={el.key}>
-                <mrow>{renderNode(base)}</mrow>
-                <mrow>{renderNode(exponentAtom)}</mrow>
+                <mrow>{renderNode(base)}{renderNode(baseCursor)}</mrow>
+                <mrow>{renderNode(exponentCursor)}{renderNode(exponentAtom)}{renderNodes(exponentTail)}</mrow>
               </msup>
             )
           }
@@ -271,8 +286,9 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
           // No valid exponent found, or cursor blocked it.
           // Render base (if any) then caret literally
           if (base) processed.push(base)
+          if (baseCursor) processed.push(baseCursor)
           // Render caret as small raised operator to look nice but not be structural
-          processed.push(<mo key={el.key} style={{ fontSize: '0.8em', verticalAlign: '0.3em' }}>^</mo>)
+          processed.push(<mo key={el.key} data-caret-start={el.start} data-caret-end={el.end} style={{ fontSize: '0.8em', verticalAlign: '0.3em' }}>^</mo>)
         }
       } else {
         processed.push(el)
@@ -283,6 +299,7 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
   }
 
   const renderNode = (node) => {
+    if (!node) return null
     if (React.isValidElement(node)) return node
     if (node.type === 'cursor') {
       return (
@@ -291,9 +308,12 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
         </mpadded>
       )
     }
-    if (node.type === 'mo') return <mo key={node.key}>{node.val}</mo>
-    if (node.type === 'mn') return <mn key={node.key}>{node.val}</mn>
-    if (node.type === 'mi') return <mtext key={node.key}>{node.val}</mtext>
+    const caretProps = { 'data-caret-start': node.start, 'data-caret-end': node.end }
+    if (node.type === 'mo') return <mo key={node.key} {...caretProps}>{node.val}</mo>
+    if (node.type === 'mn') return <mn key={node.key} {...caretProps}>{node.val}</mn>
+    if (node.type === 'mi') return /^[a-zA-Z]+$/.test(node.val)
+      ? <mi key={node.key} className="math-variable" {...caretProps}>{node.val}</mi>
+      : <mtext key={node.key} {...caretProps}>{node.val}</mtext>
     return null
   }
 
@@ -304,7 +324,16 @@ export default function AlgebraicInput({ value, onChange, onEnter, autoFocus, pl
       ref={inputRef}
       tabIndex={readOnly ? -1 : 0}
       className={`algebraic-input-container ${enableRoots ? 'algebraic-input-container--roots' : ''} ${className || ''}`}
-      onMouseDown={readOnly ? undefined : (e => { e.preventDefault(); inputRef.current?.focus() })}
+      onMouseDown={readOnly ? undefined : (e => {
+        if (e.button !== 0) return
+        e.preventDefault()
+        const display = inputRef.current.querySelector('.algebraic-display')
+        const position = mathCursorFromPoint(display, e.clientX, e.clientY)
+        cursorPosRef.current = position
+        setCursorPos(position)
+        deadCharRef.current = null
+        inputRef.current.focus()
+      })}
       onKeyDown={readOnly ? undefined : handleKeyDown}
       onKeyPress={readOnly ? undefined : handleKeyPress}
       onFocus={readOnly ? undefined : () => setIsFocused(true)}

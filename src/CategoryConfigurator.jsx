@@ -5,7 +5,7 @@ import FormattedRootText from './components/FormattedRootText'
 
 const CATEGORY_INTROS = {
   hauptnenner: ['Verfahren', 'Wähle, wie du den Hauptnenner bestimmen möchtest.'],
-  wurzeln: ['Aufgabenarten', 'Kombiniere teilweises Radizieren, Wurzelgesetze, Quadrate, Wurzelterme und positive Variablen.'],
+  wurzeln: ['Aufgabenarten', 'Kombiniere teilweises Radizieren, Wurzelgesetze, Quadrate, Wurzelterme und Variablen mit Beträgen.'],
   einmaleins: ['Zahlenraum', 'Wähle, ob Quadratzahlen über das klassische Einmaleins hinaus vorkommen sollen.'],
   'schriftlich-divide': ['Divisoren', 'Bestimme den Zahlenbereich der Divisoren.'],
   negative: ['Rechenarten', 'Kombiniere die Rechenarten, die geübt oder geprüft werden sollen.'],

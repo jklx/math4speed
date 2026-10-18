@@ -311,7 +311,7 @@
       },
       {
         "key": "wurzelnVariablen",
-        "label": "Wurzeln mit Variablen (x > 0)",
+        "label": "Wurzeln mit Variablen und Beträgen",
         "defaultValue": true
       }
     ],

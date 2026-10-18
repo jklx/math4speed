@@ -54,3 +54,16 @@ test('every generated task has specific steps ending in its expected answer', ()
     assert.ok(!JSON.stringify(solution).match(/NaN|undefined/), problem.expression)
   }
 })
+
+test('new variable solutions explain required and unnecessary absolute values', () => {
+  const direct = getWurzelnSolutionSteps({ nodes: root('49x⁶'), correct: '7|x^3|', variableDomain: 'x ∈ ℝ' })
+  assert.equal(direct[1].expression, '7|x^3|')
+  assert.match(direct[1].text, /Betrag nötig/)
+  const even = getWurzelnSolutionSteps({ nodes: root('49x⁸'), correct: '7x^4', variableDomain: 'x ∈ ℝ' })
+  assert.equal(even[1].expression, '7x^4')
+  assert.match(even[1].text, /kein Betrag nötig/)
+  const quotient = getWurzelnSolutionSteps({ nodes: { numerator: root('75x⁸'), denominator: root('3x²') }, correct: '5|x^3|', variableDomain: 'x ≠ 0' })
+  assert.deepEqual(quotient[1].expression, root('25x^6'))
+  assert.equal(quotient[2].expression, '5|x^3|')
+  assert.ok(!JSON.stringify(quotient).includes('x > 0'))
+})

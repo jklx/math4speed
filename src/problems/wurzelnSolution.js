@@ -1,4 +1,5 @@
 import { normalizePowers } from '../utils/powers.js'
+import { formatRootVariableResult } from './wurzeln.js'
 
 const root = value => ({ root: String(value) })
 const step = (text, expression) => ({ text, expression })
@@ -7,6 +8,11 @@ const monomial = text => {
   return match ? { coefficient: Number(match[1]), exponent: Number(match[2] ?? 1) } : null
 }
 const xPower = exponent => exponent === 1 ? 'x' : `x^${exponent}`
+const rootPowerExplanation = (exponent, legacy) => legacy
+  ? 'Für diese gespeicherte Aufgabe gilt x > 0.'
+  : exponent % 2
+    ? 'Die Wurzel ist nicht negativ. Da die entstandene Potenz bei negativem x negativ sein kann, ist der Betrag nötig.'
+    : 'Die entstandene Potenz hat einen geraden Exponenten und ist bereits nicht negativ. Hier ist kein Betrag nötig.'
 function extract(number) {
   let factor = Math.floor(Math.sqrt(number))
   while (number % (factor * factor) !== 0) factor--
@@ -24,6 +30,7 @@ function extractionSteps(number) {
 export function getWurzelnSolutionSteps(problem) {
   const nodes = problem.nodes
   if (!nodes) return []
+  const legacy = !problem.variableDomain
   let steps = []
   if (nodes.root) {
     const variable = monomial(nodes.root)
@@ -32,7 +39,7 @@ export function getWurzelnSolutionSteps(problem) {
     if (variable) {
       steps = [
         step('Zerlege die Wurzel in den Zahlenfaktor und die Potenz.', [root(variable.coefficient), ' · ', root(`x^${variable.exponent}`)]),
-        step(`Ziehe die Zahlenwurzel und halbiere den Exponenten: ${variable.exponent} : 2 = ${variable.exponent / 2}. Weil x > 0 ist, brauchst du keinen Betrag.`, `${Math.sqrt(variable.coefficient)}${xPower(variable.exponent / 2)}`),
+        step(`Ziehe die Zahlenwurzel und halbiere den Exponenten: ${variable.exponent} : 2 = ${variable.exponent / 2}. ${rootPowerExplanation(variable.exponent / 2, legacy)}`, formatRootVariableResult(Math.sqrt(variable.coefficient), variable.exponent / 2, !legacy)),
       ]
     } else if (squared) {
       steps = [step('Die Wurzel aus einem Quadrat ist der Betrag der ursprünglichen Zahl. Das Ergebnis ist also nicht negativ.', `|${squared[1]}| = ${problem.correct}`)]
@@ -54,7 +61,7 @@ export function getWurzelnSolutionSteps(problem) {
       steps = [
         step('Fasse die Wurzeln zu einer Wurzel über dem Quotienten zusammen.', root(`(${nodes.numerator.root}) : (${nodes.denominator.root})`)),
         step(`Teile die Zahlenfaktoren und subtrahiere die Exponenten: ${numerator.exponent} − ${denominator.exponent} = ${exponent}.`, root(`${coefficient}${xPower(exponent)}`)),
-        step(`Ziehe die Zahlenwurzel und halbiere den Exponenten: ${exponent} : 2 = ${exponent / 2}. Es gilt x > 0.`, `${Math.sqrt(coefficient)}${xPower(exponent / 2)}`),
+        step(`Ziehe die Zahlenwurzel und halbiere den Exponenten: ${exponent} : 2 = ${exponent / 2}. ${rootPowerExplanation(exponent / 2, legacy)}`, formatRootVariableResult(Math.sqrt(coefficient), exponent / 2, !legacy)),
       ]
     } else {
       const value = Number(nodes.numerator.root) / Number(nodes.denominator.root)
