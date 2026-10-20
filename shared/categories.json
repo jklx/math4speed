@@ -235,7 +235,7 @@
       { "key": "decimalExpandableFractions", "label": "Im Kopf auf 10, 100 oder 1 000 erweitern", "defaultValue": true }
     ],
     "performanceScore": [10, 22],
-    "attemptRatingThresholds": [10, 14, 18, 22],
+    "attemptRatingThresholds": [16, 20, 24, 28],
     "performance": {
       "default": [18, 45]
     }

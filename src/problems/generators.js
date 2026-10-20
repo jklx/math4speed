@@ -1817,6 +1817,12 @@ export function generateDezimalbruecheProblems(count, settings = {}) {
       numerator = Math.floor(Math.random() * 100) + 1
     }
 
+    // Whole numbers have no meaningful conversion to a specific fraction.
+    if (direction === 'decimal-to-fraction' && numerator % denominator === 0) {
+      attempts++
+      continue
+    }
+
     const isRecurring = variant === 'periodic'
     const decimalDisplay = isRecurring
       ? periodicDecimalText(numerator, denominator)
