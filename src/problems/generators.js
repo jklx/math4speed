@@ -1778,7 +1778,8 @@ export function generateDezimalbruecheProblems(count, settings = {}) {
       : 'decimal-to-fraction'
     if (variant === 'power-of-ten') {
       denominator = [10, 100, 1000][Math.floor(Math.random() * 3)]
-      numerator = Math.floor(Math.random() * (denominator * 2 + 1))
+      const maxNumerator = denominator === 1000 ? 999 : denominator * 2
+      numerator = Math.floor(Math.random() * (maxNumerator + 1))
       if (numerator === 0) numerator = 1
     } else if (variant === 'common') {
       denominator = [2, 4, 5, 8][Math.floor(Math.random() * 4)]
@@ -1808,6 +1809,12 @@ export function generateDezimalbruecheProblems(count, settings = {}) {
     const decimalDisplay = isRecurring
       ? periodicDecimalText(numerator, denominator)
       : decimalText(numerator, denominator)
+    // Converting e.g. 1.875 to a fraction would also require a four-digit
+    // numerator over 1000, even when the task started from 15/8.
+    if (direction === 'decimal-to-fraction' && !isRecurring && numerator > denominator && decimalDisplay.split(',')[1]?.length === 3) {
+      attempts++
+      continue
+    }
     const key = `${direction}:${numerator}/${denominator}`
 
     if (usedProblems.has(key)) {

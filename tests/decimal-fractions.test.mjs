@@ -31,6 +31,21 @@ test('abgewählte periodische Aufgaben erscheinen auch am Anfang nicht', t => {
   }
 })
 
+test('Tausendstel haben höchstens dreistellige Zähler, auch beim Umwandeln aus Dezimalzahlen', t => {
+  seedRandom(t)
+  const problems = generateDezimalbruecheProblems(300)
+  assert.equal(problems.length, 300)
+  assert.ok(problems.some(problem => problem.denominator === 1000))
+  assert.ok(problems.some(problem => problem.direction === 'decimal-to-fraction' && !problem.isRecurring && problem.decimalDisplay.split(',')[1]?.length === 3))
+  for (const problem of problems) {
+    if (problem.denominator === 1000) assert.ok(problem.numerator <= 999)
+    if (problem.direction === 'decimal-to-fraction' && !problem.isRecurring && problem.decimalDisplay.split(',')[1]?.length === 3) {
+      assert.ok(problem.numerator < problem.denominator)
+    }
+  }
+  assert.ok(problems.some(problem => problem.direction === 'decimal-to-fraction' && problem.numerator > problem.denominator))
+})
+
 test('richtige Zwischenschritte verlangen weiteres Kürzen, erst der gekürzte Bruch ist fertig', () => {
   const problem = { numerator: 75, denominator: 100 }
   for (const input of ['75/100', '15/20', '6/8']) {

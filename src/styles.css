@@ -1843,17 +1843,18 @@ footer{margin-top:1.5rem;text-align:center;color:#666}
 .division-layout { display: flex; align-items: flex-start; gap: 1.5rem; }
 .division-grid .division-subtraction { border-bottom: 1px solid #000; }
 .division-table {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  display: grid;
+  grid-template-columns: max-content max-content;
+  align-items: center;
+  gap: 0.2rem 0.25rem;
   padding: 0.35rem 0.6rem;
   border-left: 1px solid #cbd5e1;
   font-family: 'Chalkboard SE', 'Comic Sans MS', 'Comic Sans', 'Marker Felt', 'Segoe Print', 'Comic Neue', cursive, sans-serif;
   font-size: 18px;
   white-space: nowrap;
 }
-.division-table-row { display: flex; align-items: center; min-height: 30px; }
-.division-table-result { display: inline-flex; margin-left: 0.25rem; }
+.division-table-row { display: contents; }
+.division-table-result { display: inline-flex; justify-self: end; }
 .division-table .digit-input {
   width: 30px;
   height: 30px;
