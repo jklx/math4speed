@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { InlineSubmitButton, TickMark } from './components/AnswerControls'
+import { getDecimalDenominatorSteps } from './problems/decimalFractions'
 
 const PERIOD_MARKER = '\u2063'
 
@@ -37,85 +38,89 @@ function renderCorrectAnswer(problem, answer) {
   return renderDecimalDisplay(answer)
 }
 
-function renderSolution(problem) {
+function hasTwoSolutionPaths(problem) {
+  if (problem.isRecurring) return false
+  if (problem.direction === 'decimal-to-fraction') {
+    const digits = (problem.decimalDisplay.split(',')[1] || '').replace(/0+$/, '')
+    // Splitting off whole units only helps when the fractional part simplifies.
+    if (digits.length <= 1 || greatestCommonDivisor(Number(digits), 10 ** digits.length) === 1) return false
+  }
+  return problem.numerator > problem.denominator && problem.numerator % problem.denominator !== 0
+}
+
+export function renderSolution(problem) {
+  const whole = Math.floor(problem.numerator / problem.denominator)
+  const remainder = problem.numerator % problem.denominator
+  const direct = renderDirectSolution(problem)
+  if (!hasTwoSolutionPaths(problem)) return direct
+
+  const divisor = greatestCommonDivisor(remainder, problem.denominator)
+  const decimalToFraction = problem.direction === 'decimal-to-fraction'
+  const fractionalDisplay = problem.decimalDisplay.replace(/^\d+,/, '0,')
+  const reducedNumerator = remainder / divisor
+  const reducedDenominator = problem.denominator / divisor
+  const totalDivisor = greatestCommonDivisor(problem.numerator, problem.denominator)
+  const operations = problem.isRecurring ? [] : getDecimalDenominatorSteps(problem.numerator, problem.denominator)
+    .filter(step => step.operation).map(step => step.operation === 'reduce' ? 'Kürzen' : 'Erweitern')
+  const directTitle = decimalToFraction
+    ? problem.isRecurring ? 'Periodenbruch' : 'Zehnerbruch'
+    : problem.isRecurring ? 'Division' : operations.join(' und ') || 'Ablesen'
+  return <div className="decimal-solution-steps">
+    <div className="decimal-solution-path" data-solution="mixed">
+      <div className="inline-feedback__label">Lösungsweg über gemischte Zahl</div>
+      {decimalToFraction ? <div>{renderDecimalDisplay(problem.decimalDisplay)} = {whole} + {renderDecimalDisplay(fractionalDisplay)} = {whole} + {renderFraction(reducedNumerator, reducedDenominator)} = {whole} {renderFraction(reducedNumerator, reducedDenominator)} = {renderFraction(problem.numerator / totalDivisor, problem.denominator / totalDivisor)}</div>
+        : <div>{renderFraction(problem.numerator, problem.denominator)} = {whole} {renderFraction(reducedNumerator, reducedDenominator)} = {renderDecimalDisplay(problem.decimalDisplay)}</div>}
+    </div>
+    <div className="decimal-solution-path" data-solution="direct">
+      <div className="inline-feedback__label">Lösungsweg über {directTitle}</div>
+      {direct}
+    </div>
+  </div>
+}
+
+function renderDirectSolution(problem) {
   if (!problem.isRecurring) {
-    const isMemorizedFraction = problem.variant === 'common' && problem.numerator < problem.denominator
-    if (isMemorizedFraction) {
+    if (problem.direction === 'decimal-to-fraction') {
+      const [whole, digits = ''] = problem.decimalDisplay.split(',')
+      const denominator = 10 ** digits.length
+      const numerator = Number(whole) * denominator + Number(digits)
+      const divisor = greatestCommonDivisor(numerator, denominator)
       return <div className="decimal-solution-steps">
-        <div>{problem.direction === 'fraction-to-decimal'
-          ? <>{renderFraction(problem.numerator, problem.denominator)} = {renderDecimalDisplay(problem.decimalDisplay)}</>
-          : <>{renderDecimalDisplay(problem.decimalDisplay)} = {renderFraction(problem.numerator, problem.denominator)}</>}</div>
-        <small>Auswendig lernen: Echte Brüche mit den Nennern 2, 3, 4, 5 und 8 gehören zu den häufigen Brüchen.</small>
+        <div>{renderDecimalDisplay(problem.decimalDisplay)} = {renderFraction(numerator, denominator)}{divisor > 1 && <> = {renderFraction(numerator / divisor, denominator / divisor)}</>}</div>
+        <small>{digits.length} Nachkommastelle{digits.length !== 1 ? 'n' : ''}: Nenner {denominator}.{divisor > 1 ? ` Gekürzt durch ${divisor}.` : ' Der Bruch ist bereits vollständig gekürzt.'}</small>
       </div>
     }
 
-    const divisor = greatestCommonDivisor(problem.numerator, problem.denominator)
-    const reducedNumerator = problem.numerator / divisor
-    const reducedDenominator = problem.denominator / divisor
-    if (reducedDenominator === 1) {
+    if (problem.numerator % problem.denominator === 0) {
       return <div className="decimal-solution-steps">
-        <div>{problem.direction === 'fraction-to-decimal'
-          ? <>{renderFraction(problem.numerator, problem.denominator)} = {renderFraction(reducedNumerator, 1)} = {reducedNumerator} = {renderDecimalDisplay(problem.decimalDisplay)}</>
-          : <>{renderDecimalDisplay(problem.decimalDisplay)} = {renderFraction(reducedNumerator, 1)} = {reducedNumerator}</>}</div>
-        <small>Der Bruch ergibt eine ganze Zahl und muss nicht erweitert werden.</small>
-      </div>
-    }
-    const target = [10, 100, 1000].find(power => power % reducedDenominator === 0)
-    const factor = target / reducedDenominator
-    const expandedNumerator = reducedNumerator * factor
-
-    if (problem.direction === 'fraction-to-decimal') {
-      return <div className="decimal-solution-steps">
-        <div>{renderFraction(problem.numerator, problem.denominator)}{divisor !== 1 && <> = {renderFraction(reducedNumerator, reducedDenominator)}</>}{factor !== 1 && <> = {renderFraction(expandedNumerator, target)}</>} = {renderDecimalDisplay(problem.decimalDisplay)}</div>
-        {divisor !== 1 && <small>Erst gekürzt durch {divisor}.{factor !== 1 && ` Danach erweitert mit ${factor}.`}</small>}
-        {divisor === 1 && factor !== 1 && <small>Erweitert mit {factor}.</small>}
+        <div>{renderFraction(problem.numerator, problem.denominator)} = {renderDecimalDisplay(problem.decimalDisplay)}</div>
+        <small>Zähler durch Nenner teilen: Der Bruch ergibt eine ganze Zahl.</small>
       </div>
     }
 
+    const steps = getDecimalDenominatorSteps(problem.numerator, problem.denominator)
+    const target = steps[steps.length - 1].denominator
     return <div className="decimal-solution-steps">
-      <div>{renderDecimalDisplay(problem.decimalDisplay)} = {renderFraction(expandedNumerator, target)} = {renderFraction(reducedNumerator, reducedDenominator)}</div>
-      {divisor !== 1 && <small>Gekürzt durch {divisor}.</small>}
+      <div>{renderFraction(problem.numerator, problem.denominator)}{steps.map((step, index) => step.operation && <React.Fragment key={index}> = {renderFraction(step.numerator, step.denominator)}</React.Fragment>)} = {renderDecimalDisplay(problem.decimalDisplay)}</div>
+      <small>{steps.map(step => step.operation === 'expand' ? `Erweitert mit ${step.factor}. ` : step.operation === 'reduce' ? `Gekürzt durch ${step.factor}. ` : '').join('')}Bei Nenner {target} hat die Dezimalzahl {Math.log10(target)} Nachkommastelle{target !== 10 ? 'n' : ''}.</small>
     </div>
   }
 
-  const match = problem.decimalDisplay.match(/^(\d+),(\d*)\((\d)\)$/)
-  const [, whole, prefix, period] = match
-  const wholeNumber = Number(whole)
-  const prefixNumber = Number(prefix || 0)
-  const prefixDenominator = 10 ** prefix.length
-  const periodNumber = Number(period)
-  const denominator = 9 * prefixDenominator
-  const numerator = wholeNumber * denominator + prefixNumber * 9 + periodNumber
-  const divisor = greatestCommonDivisor(numerator, denominator)
-  const reducedNumerator = numerator / divisor
-  const reducedDenominator = denominator / divisor
+  const whole = Math.floor(problem.numerator / problem.denominator)
+  const remainder = problem.numerator % problem.denominator
+  const divisor = greatestCommonDivisor(remainder, problem.denominator)
+  const fractionalDisplay = problem.decimalDisplay.replace(/^\d+,/, '0,')
+  const knownFraction = renderFraction(remainder / divisor, problem.denominator / divisor)
+  const totalDivisor = greatestCommonDivisor(problem.numerator, problem.denominator)
 
   if (problem.direction === 'fraction-to-decimal') {
-    const wholePart = Math.floor(problem.numerator / problem.denominator)
-    const remainder = problem.numerator % problem.denominator
     return <div className="decimal-solution-steps">
-      <div>{renderFraction(problem.numerator, problem.denominator)} = {wholePart} + {renderFraction(remainder, problem.denominator)}</div>
-      <div>= {renderDecimalDisplay(problem.decimalDisplay)}</div>
-      {problem.numerator < problem.denominator && <small>Auswendig lernen: Echte Brüche mit dem Nenner 3 gehören zu den häufigen Brüchen.</small>}
-    </div>
-  }
-
-  if (!prefix) {
-    const periodDivisor = greatestCommonDivisor(periodNumber, 9)
-    const periodNumerator = periodNumber / periodDivisor
-    const periodDenominator = 9 / periodDivisor
-    const combinedNumerator = wholeNumber * periodDenominator + periodNumerator
-    return <div className="decimal-solution-steps">
-      <div>{renderDecimalDisplay(problem.decimalDisplay)} = {whole} Ganze + {renderFraction(periodNumerator, periodDenominator)}</div>
-      <div>= {renderFraction(wholeNumber * periodDenominator, periodDenominator)} + {renderFraction(periodNumerator, periodDenominator)}</div>
-      <div>= {renderFraction(combinedNumerator, periodDenominator)}</div>
-      {problem.numerator < problem.denominator && <small>Auswendig lernen: Echte Brüche mit dem Nenner 3 gehören zu den häufigen Brüchen.</small>}
+      <div>{renderFraction(problem.numerator, problem.denominator)}{whole > 0 && <> = {whole} {knownFraction} = {whole} + {renderDecimalDisplay(fractionalDisplay)}</>} = {renderDecimalDisplay(problem.decimalDisplay)}</div>
     </div>
   }
 
   return <div className="decimal-solution-steps">
-    <div>{renderDecimalDisplay(problem.decimalDisplay)} = {whole} Ganze + {renderFraction(prefixNumber, prefixDenominator)} + {renderFraction(periodNumber, denominator)}</div>
-    <div>= {renderFraction(numerator, denominator)} = {renderFraction(reducedNumerator, reducedDenominator)}</div>
+    <div>{renderDecimalDisplay(problem.decimalDisplay)}{whole > 0 && <> = {whole} + {renderDecimalDisplay(fractionalDisplay)} = {whole} + {knownFraction} = {whole} {knownFraction}</>} = {renderFraction(problem.numerator / totalDivisor, problem.denominator / totalDivisor)}</div>
   </div>
 }
 
@@ -179,7 +184,7 @@ function FractionInput({ inputRef, value, onChange, onKeyDown, label, disabled }
   return <input ref={inputRef} className={`fraction-input${disabled ? ' fraction-input--disabled' : ''}`} value={value} onChange={onChange} onKeyDown={onKeyDown} inputMode="none" aria-label={label} disabled={disabled} />
 }
 
-export default function Dezimalbrueche({ problem, value = '', onChange, onEnter, showTick = false, crossedOut = false, mistakeFeedback = null, readOnly = false }) {
+export default function Dezimalbrueche({ problem, value = '', onChange, onEnter, showTick = false, crossedOut = false, mistakeFeedback = null, readOnly = false, reductionSteps = [] }) {
   const decimalToFraction = problem.direction === 'decimal-to-fraction'
   const fractionRefs = useRef([])
   const decimalRef = useRef(null)
@@ -201,7 +206,7 @@ export default function Dezimalbrueche({ problem, value = '', onChange, onEnter,
   useEffect(() => {
     const initialInput = decimalToFraction ? fractionRefs.current[0] : decimalRef.current
     if (!readOnly) initialInput?.focus()
-  }, [])
+  }, [reductionSteps.length])
 
   const updatePart = (index, nextValue) => {
     const next = [...parts]
@@ -268,9 +273,13 @@ export default function Dezimalbrueche({ problem, value = '', onChange, onEnter,
   const fraction = <span className="fraction"><span>{problem.numerator}</span><span>{problem.denominator}</span></span>
   return (
     <div className="question-centered">
-      <p className="mixed-number-prompt">{decimalToFraction ? 'Wandle den Dezimalbruch in einen Bruch um.' : 'Wandle den Bruch in einen Dezimalbruch um.'}</p>
-      <div className="einmaleins-row">
+      <p className="mixed-number-prompt">{decimalToFraction ? 'Wandle den Dezimalbruch in einen vollständig gekürzten Bruch um.' : 'Wandle den Bruch in einen Dezimalbruch um.'}</p>
+      <div className="einmaleins-row decimal-answer-row">
         <div className="expression mixed-number-expression">{decimalToFraction ? renderDecimalDisplay(problem.decimalDisplay) : fraction}<span className="mixed-number-equals">=</span></div>
+        {decimalToFraction && reductionSteps.map((step, index) => {
+          const [numerator, denominator] = getFractionParts(step)
+          return <span className="decimal-reduction-step" key={index}>{renderFraction(numerator, denominator)}<span className="mixed-number-equals">=</span></span>
+        })}
         {decimalToFraction ? (
           <div className={`fraction-answer${crossedOut ? ' fraction-answer--wrong' : ''}`}>
             <span className="fraction fraction--input">
@@ -286,8 +295,14 @@ export default function Dezimalbrueche({ problem, value = '', onChange, onEnter,
           </div>
         )}
       </div>
+      {decimalToFraction && reductionSteps.length > 0 && !mistakeFeedback && !showTick && <p className="mixed-number-hint" role="status">Der Bruch ist richtig. Kürze weiter, bis Zähler und Nenner keinen gemeinsamen Teiler mehr haben.</p>}
       {problem.isRecurring && <p className="mixed-number-hint">Die Periode wird mit einem Strich angezeigt. Eingabe z.&nbsp;B. als <kbd>0,(3)</kbd>.</p>}
-      {mistakeFeedback?.correctAnswerDisplay && <div className="inline-feedback"><div className="inline-feedback__label">Richtige Lösung</div><div className="inline-feedback__value">{renderCorrectAnswer(problem, mistakeFeedback.correctAnswerDisplay)}</div><div className="inline-feedback__label decimal-hint-label">Lösungsweg</div><div className="inline-feedback__value">{renderSolution(problem)}</div></div>}
+      {mistakeFeedback?.correctAnswerDisplay && <div className="inline-feedback">
+        <div className="inline-feedback__label">Richtige Lösung</div>
+        <div className="inline-feedback__value">{renderCorrectAnswer(problem, mistakeFeedback.correctAnswerDisplay)}</div>
+        {!hasTwoSolutionPaths(problem) && <div className="inline-feedback__label decimal-hint-label">Lösungsweg</div>}
+        <div className={`inline-feedback__value${hasTwoSolutionPaths(problem) ? ' decimal-hint-label' : ''}`}>{renderSolution(problem)}</div>
+      </div>}
       <TickMark visible={showTick} />
     </div>
   )

@@ -1,4 +1,5 @@
 import { generateWurzelnProblems } from './wurzeln.js';
+import { reduceDecimalFraction } from './decimalFractions.js';
 // Problem generators extracted from Game.jsx
 import { formatNegativeExpression } from '../utils/negativeNotation.js';
 
@@ -1767,20 +1768,6 @@ export function generateDezimalbruecheProblems(count, settings = {}) {
   const usedProblems = new Set()
   const problems = []
   let attempts = 0
-  const easySamples = {
-    'power-of-ten': [[1, 10], [5, 10], [25, 100], [1, 100]],
-    common: [[1, 2], [1, 4], [3, 4], [2, 5], [3, 8]],
-    periodic: [[1, 3], [2, 3], [4, 9], [1, 6], [1, 9]],
-    expandable: [[3, 25], [3, 4], [2, 5], [7, 125], [9, 250]]
-  }
-
-  // Shuffle each easy pool so every new attempt gets a varied introduction.
-  for (const samples of Object.values(easySamples)) {
-    for (let i = samples.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[samples[i], samples[j]] = [samples[j], samples[i]]
-    }
-  }
   while (problems.length < count && attempts < count * 100) {
     const index = problems.length
     const variant = types[index % types.length]
@@ -1789,13 +1776,7 @@ export function generateDezimalbruecheProblems(count, settings = {}) {
     const direction = Math.floor(index / types.length) % 2 === 0
       ? 'fraction-to-decimal'
       : 'decimal-to-fraction'
-    const easySample = index < 5
-      ? easySamples[variant].find(([n, d]) => !usedProblems.has(`${direction}:${n}/${d}`))
-      : null
-
-    if (easySample) {
-      [numerator, denominator] = easySample
-    } else if (variant === 'power-of-ten') {
+    if (variant === 'power-of-ten') {
       denominator = [10, 100, 1000][Math.floor(Math.random() * 3)]
       numerator = Math.floor(Math.random() * (denominator * 2 + 1))
       if (numerator === 0) numerator = 1
@@ -1844,7 +1825,7 @@ export function generateDezimalbruecheProblems(count, settings = {}) {
       denominator,
       decimalDisplay,
       isRecurring,
-      correct: direction === 'fraction-to-decimal' ? decimalDisplay : `${numerator}/${denominator}`
+      correct: direction === 'fraction-to-decimal' ? decimalDisplay : reduceDecimalFraction(numerator, denominator)
     })
   }
 

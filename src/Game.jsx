@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { formatDecimal, formatPercent } from './utils/formatNumber'
 import HauptnennerExamples from './components/HauptnennerExamples'
+import { createCountdown } from './utils/countdown'
 
 // Animated demo for Primfaktorisierung input explanation
 // Shows: type "2", press SPACE → token appears, type "2", SPACE, type "3", ENTER
@@ -167,6 +168,7 @@ import { useMultiplayer } from './MultiplayerContext'
 import ProgressBar from './ProgressBar'
 // Refactored imports
 import { generateProblems } from './problems/generators'
+import { validateDecimalFraction } from './problems/decimalFractions'
 import { validateSchriftlich, validatePrimfaktorisierung, validatePolynomial, validateAnteilFraction } from './problems/validate'
 import { getScoreComment } from './utils/performanceFeedback'
 import { getCategoryLabel, CATEGORIES, getDefaultSettings, getCategoryPerformanceScore, getCategoryDuration, getCategoryAttemptRating, getCategoryRatingThresholds, getCategoryTrainingErrorLimit } from './utils/categories'
@@ -264,6 +266,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
   const [current, setCurrent] = useState(0)
   const [answers, setAnswers] = useState([])
   const [inputValue, setInputValue] = useState('')
+  const [decimalReduction, setDecimalReduction] = useState(null)
   // removed legacy single carryValue, we now exclusively use carryDigits for carries/borrows
   // schriftlich input state lifted from component via onChange
   const [schriftlichInput, setSchriftlichInput] = useState({ digits: [], parsed: '', valid: false })
@@ -274,7 +277,6 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
   const [submissionError, setSubmissionError] = useState(null)
   const submissionBusy = useRef(false)
   const finalAnswersSaved = useRef(false)
-  const [, setStartTime] = useState(null)
   const [toast, setToast] = useState(null)
   const [flashResult, setFlashResult] = useState(null) // 'correct' | null
   const [mistakeState, setMistakeState] = useState(null) // null | { userAnswerDisplay, correctAnswerDisplay }
@@ -291,7 +293,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
   const gameTimerRef = useRef(null)
   const answerAdvanceTimerRef = useRef(null)
   const gameSettingsRef = useRef({})
-  const pauseTimerRef = useRef(false)
+  const gameClockRef = useRef(null)
   const gameDurationRef = useRef(300)
   const weiterButtonRef = useRef(null)
   const hasConnectedToRoomRef = useRef(false)
@@ -301,7 +303,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     if (!roomId || !persistentToken) return
     fetch(`/api/exam-rooms/${roomId}/progress`, {
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: persistentToken, taskPlan, currentPosition, remainingSeconds: Math.max(0, Math.floor(timeLeftRef.current)) })
+      body: JSON.stringify({ token: persistentToken, taskPlan, currentPosition, remainingSeconds: Math.max(0, Math.floor(gameClockRef.current?.remainingSeconds() ?? timeLeftRef.current)) })
     }).catch(() => {})
   }
 
@@ -389,6 +391,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
       return (
         <>
           <p>Du hast {mins} Minuten Zeit, Brüche und Dezimalbrüche ineinander umzuwandeln.</p>
+          <p>Kürze Brüche vollständig. Du kannst sie in mehreren Schritten kürzen; für richtige Zwischenschritte erhältst du keinen Fehler.</p>
           <p>Wähle die Aufgabentypen aus, die du üben möchtest. Bei periodischen Dezimalzahlen nutze z.&nbsp;B. <kbd>0,(3)</kbd>.</p>
         </>
       )
@@ -488,6 +491,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     setCountdown(3)
     setCurrent(savedPlan ? Math.min(Number(persistentSession.currentPosition) || resumedAnswers.length, Math.max(0, newProblems.length - 1)) : 0)
     setAnswers(resumedAnswers)
+    setDecimalReduction(null)
     setInputValue('')
     setFinished(false)
     setFlashResult(null)
@@ -509,7 +513,8 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     setTrainingAbortPending(false)
     setTrainingAborted(false)
     trainingReportedRef.current = false
-    pauseTimerRef.current = false
+    timeLeftRef.current = savedPlan ? resumedTime : gameDurationRef.current
+    gameClockRef.current = null
     // clear any existing countdown and game timers before starting a new one
     if (countdownTimerRef.current) {
       clearInterval(countdownTimerRef.current)
@@ -522,29 +527,31 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     if (savedPlan) {
       setCountdown(null)
       setStarted(true)
-      setStartTime(Date.now())
+      gameClockRef.current = createCountdown(resumedTime)
       return
     }
     if (!isSinglePlayer && persistentToken) savePersistentProgress(newProblems, 0)
+    const countdownEndsAt = Date.now() + 3000
+    gameClockRef.current = createCountdown(gameDurationRef.current, Date.now, countdownEndsAt)
     countdownTimerRef.current = setInterval(() => {
-      setCountdown(prev => {
-        if (prev == null || prev <= 1) {
-          if (countdownTimerRef.current) {
-            clearInterval(countdownTimerRef.current)
-            countdownTimerRef.current = null
-          }
-          setStarted(true)
-          setStartTime(Date.now())
-          return null
-        }
-        return prev - 1
-      })
-    }, 1000)
+      const remaining = Math.max(0, Math.ceil((countdownEndsAt - Date.now()) / 1000))
+      if (remaining === 0) {
+        clearInterval(countdownTimerRef.current)
+        countdownTimerRef.current = null
+        setCountdown(null)
+        setStarted(true)
+      } else {
+        setCountdown(remaining)
+      }
+    }, 100)
+
   }
 
   const restartTraining = () => {
     if (!isSinglePlayer || examContext || persistentToken || !started || finished) return
-    if (!window.confirm('Versuch neu starten? Dein aktueller Versuch wird abgebrochen und nicht gespeichert.')) return
+    const confirmed = window.confirm('Versuch neu starten? Dein aktueller Versuch wird abgebrochen und nicht gespeichert.')
+    syncTimeLeft()
+    if (!confirmed) return
     // Reset directly without marking the discarded attempt as finished.
     handleStart()
   }
@@ -561,26 +568,33 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
 
   // countdown while game is running
   const [timeLeft, setTimeLeft] = useState(gameDurationRef.current)
-  useEffect(() => { timeLeftRef.current = timeLeft }, [timeLeft])
+  const syncTimeLeft = () => {
+    const remaining = gameClockRef.current?.remainingSeconds() ?? timeLeftRef.current
+    timeLeftRef.current = remaining
+    setTimeLeft(remaining)
+    return remaining
+  }
+
+  const setTimerPaused = (paused) => {
+    if (paused) gameClockRef.current?.pause()
+    else gameClockRef.current?.resume()
+    syncTimeLeft()
+  }
+
   useEffect(() => {
     if (!started || finished) return
-    if (gameTimerRef.current) clearInterval(gameTimerRef.current)
-    gameTimerRef.current = setInterval(() => {
-      if (pauseTimerRef.current) return
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(gameTimerRef.current)
-          gameTimerRef.current = null
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
+    const refresh = () => syncTimeLeft()
+    refresh()
+    gameTimerRef.current = setInterval(refresh, 100)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('pageshow', refresh)
+    document.addEventListener('visibilitychange', refresh)
     return () => {
-      if (gameTimerRef.current) {
-        clearInterval(gameTimerRef.current)
-        gameTimerRef.current = null
-      }
+      clearInterval(gameTimerRef.current)
+      gameTimerRef.current = null
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('pageshow', refresh)
+      document.removeEventListener('visibilitychange', refresh)
     }
   }, [started, finished])
 
@@ -675,7 +689,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
   }
 
   const finishTrainingAfterErrorLimit = () => {
-    pauseTimerRef.current = false
+    setTimerPaused(false)
     setMistakeState(null)
     setSchriftlichCheckMode(false)
     setTrainingAbortPending(false)
@@ -684,6 +698,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
   }
 
   const recordEquationError = (userEquation) => {
+    if (!started || finished || syncTimeLeft() === 0) return
     const prob = problems[current]
     const limitReached = registerTrainingError(prob)
     const newEntry = { ...prob, user: '(Gleichung falsch)', isCorrect: false, equationSnapshot: { equationValue: userEquation, resultValue: '', equationRevealed: true } }
@@ -693,10 +708,11 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     const userDisplay = userEquation ? String(userEquation).replace(/\./g, ',') : '(Gleichung falsch)'
     const correctDisplay = prob.exampleEquation || formatCorrectAnswer(prob)
     setMistakeState({ userAnswerDisplay: userDisplay, correctAnswerDisplay: correctDisplay, field: 'equation', trainingLimitReached: limitReached })
-    pauseTimerRef.current = true
+    setTimerPaused(true)
   }
 
   const submitAnswer = (overrideValueOrEvent, equationSnapshot = null) => {
+    if (!started || finished || syncTimeLeft() === 0) return
     const overrideValue = typeof overrideValueOrEvent === 'string' ? overrideValueOrEvent : undefined
     if (flashResult === 'correct') return // block resubmission during tick display
     const prob = problems[current]
@@ -786,13 +802,17 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     } else if (prob.type === 'dezimalbrueche') {
       const candidateValue = String(overrideValue ?? inputValue ?? '').trim()
       if (prob.direction === 'decimal-to-fraction') {
-        const match = candidateValue.match(/^(\d+)\s*\/\s*(\d+)$/)
-        if (match && Number(match[2]) !== 0) {
-          const numerator = Number(match[1])
-          const denominator = Number(match[2])
-          parsed = `${numerator}/${denominator}`
-          isCorrect = numerator * prob.denominator === prob.numerator * denominator
+        const result = validateDecimalFraction(candidateValue, prob)
+        if (result.needsReduction) {
+          setDecimalReduction(previous => ({
+            problem: prob,
+            steps: [...(previous?.problem === prob ? previous.steps : []), result.parsed]
+          }))
+          setInputValue('')
+          return
         }
+        parsed = result.parsed
+        isCorrect = result.isCorrect
       } else if (prob.isRecurring) {
         const normalized = candidateValue.replace(/\s/g, '')
         const alternate = prob.decimalDisplay.replace(/\((\d+)\)/, (_, period) => `${period.repeat(3)}...`)
@@ -888,7 +908,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
       // as half an error, but both belong to the same progress entry.
       const limitReached = registerTrainingError(prob)
       setAnswers(newAnswers)
-      pauseTimerRef.current = true
+      setTimerPaused(true)
       if (isSchriftlichRetry || limitReached) {
         setSchriftlichCheckMode(false)
         setMistakeState({
@@ -927,7 +947,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
         field: prob.type === 'prozent-gleichung' ? 'result' : 'other',
         trainingLimitReached: limitReached
       })
-      pauseTimerRef.current = true
+      setTimerPaused(true)
     }
   }
 
@@ -938,11 +958,11 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
     }
     if (problems[current].type === 'hauptnenner' && mistakeState?.canRetry) {
       setMistakeState(null)
-      pauseTimerRef.current = false
+      setTimerPaused(false)
       return
     }
     setMistakeState(null)
-    pauseTimerRef.current = false
+    setTimerPaused(false)
     setInputValue('')
     setSchriftlichInput({ digits: [], parsed: '', valid: false })
     const nextIndex = current + 1
@@ -1080,7 +1100,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
   const handleSchriftlichSubmit = () => {
     if (schriftlichCheckMode) {
       setSchriftlichCheckMode(false)
-      pauseTimerRef.current = false
+      setTimerPaused(false)
     }
     submitAnswer()
   }
@@ -1328,6 +1348,7 @@ export default function Game({ isSinglePlayer, examContext = null, onExamFinishe
                   <Dezimalbrueche
                     key={problems[current].id}
                     problem={problems[current]}
+                    reductionSteps={decimalReduction?.problem === problems[current] ? decimalReduction.steps : []}
                     value={inputValue}
                     onChange={setInputValue}
                     onEnter={submitAnswer}

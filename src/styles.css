@@ -831,9 +831,13 @@ button:disabled {
 .decimal-rich-input { min-height: 2.1rem; box-sizing: border-box; white-space: pre; }
 .decimal-period-digit { text-decoration: overline; text-decoration-thickness: 1.5px; }
 .decimal-hint-label { margin-top: 0.7rem; }
-.decimal-solution-steps { display: flex; flex-direction: column; gap: 0.35rem; }
+.decimal-solution-steps { display: flex; flex-direction: column; gap: 0.35rem; color: var(--text, #1f2937); }
 .decimal-solution-steps small { color: var(--text-secondary, #667085); }
+.decimal-solution-path { display: flex; flex-direction: column; gap: 0.35rem; }
+.decimal-solution-path + .decimal-solution-path { margin-top: 0.65rem; }
 .decimal-solution-fraction { font-size: 1em; margin: 0 0.15em; }
+.decimal-answer-row { flex-wrap: wrap; }
+.decimal-reduction-step { display: inline-flex; align-items: center; font-size: 2rem; font-weight: 700; }
 
 .factor-token--feedback {
   cursor: default;
